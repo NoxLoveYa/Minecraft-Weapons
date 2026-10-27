@@ -6,6 +6,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.Mth;
 
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,6 +80,29 @@ public record GunDefinition(
 	public GunDefinition withHeadshotMultiplier(float headshotMultiplier) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel);
+	}
+
+	/** The fire mode that blocks the trigger. Every gun has it after its own modes, whatever its definition lists. */
+	public static final String SAFE = "safe";
+
+	/** What the fire mode key steps through: the gun's own modes, then safe. */
+	public List<String> selectableModes() {
+		List<String> modes = new ArrayList<>(fireModes);
+		modes.remove(SAFE);
+		modes.add(SAFE);
+		return modes;
+	}
+
+	/** The mode a gun is in: {@code stored} when it is one of this gun's, otherwise its first mode (a fresh gun, or a definition edit). */
+	public String fireMode(@Nullable String stored) {
+		List<String> modes = selectableModes();
+		return stored != null && modes.contains(stored) ? stored : modes.getFirst();
+	}
+
+	/** The mode after {@code current}, wrapping around. */
+	public String nextFireMode(@Nullable String current) {
+		List<String> modes = selectableModes();
+		return modes.get((modes.indexOf(fireMode(current)) + 1) % modes.size());
 	}
 
 	public int shotIntervalTicks() {

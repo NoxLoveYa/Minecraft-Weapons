@@ -56,6 +56,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(AimPayload.TYPE, AimPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(TuneGunPayload.TYPE, TuneGunPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(FireModePayload.TYPE, FireModePayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShotFxPayload.TYPE, ShotFxPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunDefinitionsPayload.TYPE, GunDefinitionsPayload.CODEC);
@@ -66,6 +67,7 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming()));
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
+		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot()));
 
 		ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) ->
 				ServerPlayNetworking.send(player, new GunDefinitionsPayload(GunDefinitions.all())));
@@ -97,8 +99,8 @@ public final class ServerHandlers {
 		}
 		GunState state = gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
 		long now = player.level().getGameTime();
-		// 1 tick of allowance for latency jitter.
-		if (state.reloading() || !definition.readyToFire(state.lastShotTick(), now, 1)) {
+		// 1 tick of allowance for latency jitter. On safe the trigger does not move.
+		if (state.reloading() || GunDefinition.SAFE.equals(GunItem.fireMode(gun, definition)) || !definition.readyToFire(state.lastShotTick(), now, 1)) {
 			return;
 		}
 		gun.set(ModComponents.GUN_STATE, new GunState(0, now));
@@ -136,6 +138,17 @@ public final class ServerHandlers {
 		// GunItem.inventoryTick adds the rounds once this tick is reached, or cancels if the gun leaves the main hand.
 		gun.set(ModComponents.GUN_STATE, new GunState(player.level().getGameTime() + ticks, state.lastShotTick()));
 		showOthers(player, ammo == 0 ? "reload_empty" : "reload");
+	}
+
+	/** Steps the held gun to its next fire mode (or safe), and shows everyone else the switch. Not during a reload, like the client. */
+	private static void switchFireMode(ServerPlayer player, int slot) {
+		ItemStack gun = heldGun(player, slot);
+		GunDefinition definition = GunItem.definition(gun);
+		if (definition == null || gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading()) {
+			return;
+		}
+		gun.set(ModComponents.FIRE_MODE, definition.nextFireMode(gun.get(ModComponents.FIRE_MODE)));
+		showOthers(player, "fire_mode");
 	}
 
 	/** Inspects are the client's own choice (and cosmetic), so the server only checks one is possible before passing it on. */

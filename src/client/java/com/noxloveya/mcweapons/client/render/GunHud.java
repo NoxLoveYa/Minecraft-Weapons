@@ -33,6 +33,7 @@ public final class GunHud {
 	private static final long HIT_MARKER_MILLIS = 260;
 	private static final long KILL_MARKER_MILLIS = 480;
 
+	private static long safeBlockedUntil;
 	private static long hitmarkerStart;
 	private static long hitmarkerEnd;
 	private static int hitmarkerColor;
@@ -55,7 +56,11 @@ public final class GunHud {
 		int inMag = ammo - (chambered ? 1 : 0);
 		int color = ammo == 0 ? RED : inMag <= definition.magSize() / 4 ? AMBER : WHITE;
 		String name = stack.getHoverName().getString().toUpperCase(Locale.ROOT);
-		String mode = definition.fireModes().isEmpty() ? "" : String.join("/", definition.fireModes()).toUpperCase(Locale.ROOT);
+		String fireMode = GunInput.fireMode(player, stack, definition);
+		String mode = fireMode.toUpperCase(Locale.ROOT);
+		boolean safe = GunDefinition.SAFE.equals(fireMode);
+		// Amber on safe, and red for a moment when the trigger is pulled on safe.
+		int modeColor = !safe ? GRAY : Util.getMillis() < safeBlockedUntil ? RED : AMBER;
 		String count = String.valueOf(inMag);
 		String total = "/" + definition.magSize();
 
@@ -74,8 +79,8 @@ public final class GunHud {
 		backdrop(graphics, left - 28, top - 4, right + MARGIN, bottom + MARGIN);
 
 		int nameY = top;
-		graphics.text(font, mode, right - 3 - font.width(mode), nameY + 2, GRAY, false);
-		graphics.outline(right - 6 - font.width(mode), nameY, font.width(mode) + 6, 12, DIM);
+		graphics.text(font, mode, right - 3 - font.width(mode), nameY + 2, modeColor, false);
+		graphics.outline(right - 6 - font.width(mode), nameY, font.width(mode) + 6, 12, safe ? modeColor : DIM);
 		graphics.text(font, name, right - nameRow, nameY + 2, GRAY, true);
 
 		int countY = top + 15;
@@ -158,6 +163,11 @@ public final class GunHud {
 		bar(graphics, x, y - gap - 4, x + 1, y - gap, color, shadow);
 		bar(graphics, x, y + 1 + gap, x + 1, y + 1 + gap + 4, color, shadow);
 		return true;
+	}
+
+	/** The trigger was pulled on safe: the SAFE tag flashes red. */
+	public static void safeBlocked() {
+		safeBlockedUntil = Util.getMillis() + 400;
 	}
 
 	/** One of our shots landed (the server says so): a white X for a hit, gold in the head, red and longer for the kill, with a tick. */

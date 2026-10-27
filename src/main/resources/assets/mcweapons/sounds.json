@@ -29,6 +29,12 @@
       { "name": "mcweapons:glock17/slide_back", "volume": 0.55 }
     ]
   },
+  "glock17.select": {
+    "subtitle": "subtitles.mcweapons.gun.select",
+    "sounds": [
+      { "name": "minecraft:block.lever.click", "type": "event", "volume": 0.3, "pitch": 1.7 }
+    ]
+  },
   "glock17.slide_release": {
     "subtitle": "subtitles.mcweapons.gun.slide",
     "sounds": [

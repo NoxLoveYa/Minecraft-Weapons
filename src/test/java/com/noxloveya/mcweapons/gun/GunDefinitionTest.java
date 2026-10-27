@@ -73,6 +73,20 @@ class GunDefinitionTest {
 	}
 
 	@Test
+	void fireModesCycleThroughSafe() {
+		GunDefinition glock = new GunDefinition(List.of("semi"), 600, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
+		assertEquals(List.of("semi", "safe"), glock.selectableModes());
+		assertEquals("semi", glock.fireMode(null), "a fresh gun starts in its first mode");
+		assertEquals("safe", glock.nextFireMode(null));
+		assertEquals("semi", glock.nextFireMode("safe"));
+		assertEquals("semi", glock.fireMode("auto"), "a mode the gun no longer has falls back to its first");
+		GunDefinition rifle = new GunDefinition(List.of("semi", "auto", "safe"), 600, 5, 64, 30, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
+		assertEquals(List.of("semi", "auto", "safe"), rifle.selectableModes(), "safe listed in the json is not doubled");
+		assertEquals("auto", rifle.nextFireMode("semi"));
+		assertEquals("safe", rifle.nextFireMode("auto"));
+	}
+
+	@Test
 	void clientFireRateAveragesTheRpm() {
 		// Firing on every tick a shot is due for one minute (1200 ticks) must give the RPM, not the RPM of the gap rounded up
 		// to whole ticks (590 used to fire at 400).

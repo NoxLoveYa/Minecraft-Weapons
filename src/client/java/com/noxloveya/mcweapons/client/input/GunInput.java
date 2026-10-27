@@ -8,7 +8,9 @@ import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
+import com.noxloveya.mcweapons.network.FireModePayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
 import com.noxloveya.mcweapons.network.ShootPayload;
@@ -33,6 +35,8 @@ public final class GunInput {
 	public static final KeyMapping INSPECT = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.inspect", InputConstants.KEY_V, CATEGORY));
 	/** Opens the gun tuner for ops. The server checks the permission again on every change. */
 	public static final KeyMapping TUNER = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.tuner", InputConstants.KEY_F7, CATEGORY));
+	/** Steps through the gun's fire modes and safe. */
+	public static final KeyMapping FIRE_MODE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.fire_mode", InputConstants.KEY_B, CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
@@ -48,6 +52,9 @@ public final class GunInput {
 	private static int reloadHeldTicks = -1;
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
+	/** The fire mode we switched to, used until the server's fire_mode arrives. */
+	private static @Nullable String predictedMode;
+	private static long predictedModeUntil;
 
 	private GunInput() {
 	}
@@ -68,6 +75,11 @@ public final class GunInput {
 	/** An empty gun that is not reloading has its slide locked back. */
 	public static boolean slideLocked(LocalPlayer player, ItemStack stack, GunDefinition definition) {
 		return !reloading(player, stack) && (GunItem.ammo(stack, definition) == 0 || player.level().getGameTime() < predictedEmptyUntil);
+	}
+
+	/** The held gun's fire mode, by our own switch until the server's arrives. */
+	public static String fireMode(LocalPlayer player, ItemStack stack, GunDefinition definition) {
+		return predictedMode != null && player.level().getGameTime() < predictedModeUntil ? definition.fireMode(predictedMode) : GunItem.fireMode(stack, definition);
 	}
 
 	/** Game time the current reload ends, preferring the server's timer over our prediction. */
@@ -95,6 +107,9 @@ public final class GunInput {
 			}
 			while (TUNER.consumeClick()) {
 			}
+			while (FIRE_MODE.consumeClick()) {
+			}
+			predictedMode = null;
 			reloadHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
@@ -112,6 +127,7 @@ public final class GunInput {
 			drawnItem = gun;
 			predictedReloadUntil = 0;
 			reloadHeldTicks = -1;
+			predictedMode = null;
 			Viewmodel.reset();
 			play(player, gun, "draw");
 		}
@@ -143,10 +159,19 @@ public final class GunInput {
 				minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
 			}
 		}
+		while (FIRE_MODE.consumeClick()) {
+			// Same check as the server: not mid-reload.
+			if (definition != null && !reloading(player, stack)) {
+				predictedMode = definition.nextFireMode(fireMode(player, stack, definition));
+				predictedModeUntil = player.level().getGameTime() + 20;
+				play(player, gun, "fire_mode");
+				ClientPlayNetworking.send(new FireModePayload(slot));
+			}
+		}
 		while (minecraft.options.keyAttack.consumeClick()) {
 			shoot(player, stack, gun, definition);
 		}
-		if (definition != null && definition.fireModes().contains("auto") && minecraft.options.keyAttack.isDown()) {
+		if (definition != null && "auto".equals(fireMode(player, stack, definition)) && minecraft.options.keyAttack.isDown()) {
 			shoot(player, stack, gun, definition);
 		}
 		while (minecraft.options.keyUse.consumeClick()) {
@@ -160,6 +185,11 @@ public final class GunInput {
 	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
 		long now = player.level().getGameTime();
 		if (definition == null || reloading(player, stack) || !definition.shotDue(nextShotDue, now)) {
+			return;
+		}
+		// On safe the trigger does not move: no shot, no click, and the server ignores it too.
+		if (GunDefinition.SAFE.equals(fireMode(player, stack, definition))) {
+			GunHud.safeBlocked();
 			return;
 		}
 		nextShotDue = definition.nextShotDue(nextShotDue, now);

@@ -40,7 +40,8 @@ public class GunItem extends Item implements GeoItem {
 	public static final String MAIN_CONTROLLER = "main";
 	/** Inspect variants; the client picks one at random each time. */
 	public static final List<String> INSPECT_ACTIONS = List.of("inspect", "inspect_press_check", "inspect_mag_check");
-	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check", "inspect_mag_check");
+	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check", "inspect_mag_check",
+			"fire_mode");
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
 	/** Set by the renderer while the gun tuner shows the gun, so the arms hold it up sideways. */
@@ -130,6 +131,10 @@ public class GunItem extends Item implements GeoItem {
 
 	public static @Nullable GunDefinition definition(ItemStack stack) {
 		return stack.getItem() instanceof GunItem gun ? GunDefinitions.get(gun.definitionId) : null;
+	}
+
+	public static String fireMode(ItemStack stack, GunDefinition definition) {
+		return definition.fireMode(stack.get(ModComponents.FIRE_MODE));
 	}
 
 	public static int ammo(ItemStack stack, GunDefinition definition) {
