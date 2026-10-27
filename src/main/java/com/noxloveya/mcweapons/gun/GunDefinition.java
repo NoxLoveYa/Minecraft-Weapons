@@ -73,7 +73,27 @@ public record GunDefinition(
 		return Mth.ceil(1200.0F / rpm);
 	}
 
-	/** {@code now < lastShotTick} means the stack came from a world with a later clock, so it may fire. */
+	/** Ticks between shots with the fraction kept: 590 RPM is 2.03 ticks. */
+	public double shotInterval() {
+		return 1200.0 / rpm;
+	}
+
+	/** Client fire timing. A due time more than one interval ahead means the clock jumped back (another world), so it may fire. */
+	public boolean shotDue(double due, long now) {
+		return now >= due || due - now > shotInterval();
+	}
+
+	/**
+	 * When the next shot is due after one fires at {@code now}. Shots only happen on ticks, so a shot that waited less than a tick
+	 * carries that wait: 590 RPM fires mostly every 2 ticks with a 3-tick gap now and then, averaging 590, instead of rounding
+	 * every gap up to 3 ticks (400 RPM). A shot that waited longer was idle, and nothing is carried.
+	 */
+	public double nextShotDue(double due, long now) {
+		double waited = now - due;
+		return (waited >= 0 && waited < 1 ? due : now) + shotInterval();
+	}
+
+	/** Server check, in whole ticks. {@code now < lastShotTick} means the stack came from a world with a later clock, so it may fire. */
 	public boolean readyToFire(long lastShotTick, long now, int allowanceTicks) {
 		return now < lastShotTick || now - lastShotTick >= shotIntervalTicks() - allowanceTicks;
 	}

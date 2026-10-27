@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,5 +56,27 @@ class GunDefinitionTest {
 		ByteBuf buf = Unpooled.buffer();
 		GunDefinitionsPayload.CODEC.encode(buf, new GunDefinitionsPayload(Map.of(McWeapons.id("glock17"), glock)));
 		assertEquals(glock, GunDefinitionsPayload.CODEC.decode(buf).definitions().get(McWeapons.id("glock17")));
+	}
+
+	@Test
+	void clientFireRateAveragesTheRpm() {
+		// Firing on every tick a shot is due for one minute (1200 ticks) must give the RPM, not the RPM of the gap rounded up
+		// to whole ticks (590 used to fire at 400).
+		for (int rpm : new int[] {590, 600, 500, 450, 700, 400}) {
+			GunDefinition gun = new GunDefinition(List.of("semi"), rpm, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
+			double due = 0;
+			int shots = 0;
+			for (long tick = 0; tick < 1200; tick++) {
+				if (gun.shotDue(due, tick)) {
+					due = gun.nextShotDue(due, tick);
+					shots++;
+				}
+			}
+			assertEquals(rpm, shots, 1, "shots in a minute at " + rpm + " RPM");
+		}
+		GunDefinition gun = new GunDefinition(List.of("semi"), 590, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
+		// An idle gun carries nothing into the next shot, and a clock that jumped back (another world) does not lock the gun.
+		assertEquals(100 + gun.shotInterval(), gun.nextShotDue(10, 100), 1.0E-9);
+		assertTrue(gun.shotDue(5000, 10));
 	}
 }

@@ -36,8 +36,8 @@ public final class GunInput {
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
 	private static boolean aiming;
-	/** Client game time of the last predicted shot, for the local RPM gate. */
-	private static long lastShotTick;
+	/** Client game time, in fractional ticks, when the next shot is due (see GunDefinition.nextShotDue). */
+	private static double nextShotDue;
 	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
 	private static long predictedReloadUntil;
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
@@ -118,14 +118,9 @@ public final class GunInput {
 			Viewmodel.tick(player, definition, aim, minecraft.gui.screen() instanceof GunTunerScreen);
 		}
 
-		// A tap reloads when the key is let go; holding it checks the mag instead.
+		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.
 		while (RELOAD.consumeClick()) {
-			// An empty gun has no rounds to check and is in a hurry, so it reloads on the press.
-			if (definition != null && slideLocked(player, stack, definition)) {
-				reload(player, stack, gun, definition);
-			} else {
-				reloadHeldTicks = 0;
-			}
+			reloadHeldTicks = 0;
 		}
 		if (reloadHeldTicks >= 0) {
 			if (!RELOAD.isDown()) {
@@ -139,8 +134,7 @@ public final class GunInput {
 		}
 		while (INSPECT.consumeClick()) {
 			if (canInspect(player, stack, definition)) {
-				// The press and mag checks show a chambered slide and a loaded mag, so an empty gun only gets the look-over.
-				play(player, gun, slideLocked(player, stack, definition) ? "inspect" : nextInspect(player));
+				play(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
 			}
 		}
 		while (TUNER.consumeClick()) {
@@ -161,10 +155,10 @@ public final class GunInput {
 
 	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
 		long now = player.level().getGameTime();
-		if (definition == null || reloading(player, stack) || !definition.readyToFire(lastShotTick, now, 0)) {
+		if (definition == null || reloading(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
-		lastShotTick = now;
+		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		int ammo = GunItem.ammo(stack, definition);
 		player.playSound(gun.sound(ammo > 0 ? "fire" : "dry"), 1.0F, 1.0F);
 		if (ammo > 0) {
@@ -195,12 +189,13 @@ public final class GunInput {
 
 	/** Inspects are cosmetic, so they wait for reloads and shots to finish. */
 	private static boolean canInspect(LocalPlayer player, ItemStack stack, @Nullable GunDefinition definition) {
-		return definition != null && !reloading(player, stack) && definition.readyToFire(lastShotTick, player.level().getGameTime(), 0);
+		return definition != null && !reloading(player, stack) && definition.shotDue(nextShotDue, player.level().getGameTime());
 	}
 
-	/** A random inspect variant, never the same one twice in a row. */
-	private static String nextInspect(LocalPlayer player) {
-		List<String> options = GunItem.INSPECT_ACTIONS;
+	/** A random inspect variant, never the same one twice in a row. A slide locked back on an empty gun cannot be press checked. */
+	private static String nextInspect(LocalPlayer player, boolean slideLocked) {
+		List<String> options = slideLocked ? GunItem.INSPECT_ACTIONS.stream().filter(action -> !action.equals("inspect_press_check")).toList()
+				: GunItem.INSPECT_ACTIONS;
 		int last = options.indexOf(lastInspect);
 		int pick = player.getRandom().nextInt(last < 0 ? options.size() : options.size() - 1);
 		if (last >= 0 && pick >= last) {

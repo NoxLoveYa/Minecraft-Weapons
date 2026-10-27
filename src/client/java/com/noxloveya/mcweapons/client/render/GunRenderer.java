@@ -31,6 +31,8 @@ import org.jspecify.annotations.Nullable;
 public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Identifier> SKIN = DataTicket.create("mcweapons_skin", Identifier.class);
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
+	/** The mag has no rounds left, so its top round (the {@code mag_round} bone) is hidden, for example during a mag check. */
+	public static final DataTicket<Boolean> MAG_EMPTY = DataTicket.create("mcweapons_mag_empty", Boolean.class);
 	/** Set by the viewmodel while the gun is showcased for the tuner, where it floats without hands. */
 	public static final DataTicket<Boolean> HIDE_ARMS = DataTicket.create("mcweapons_hide_arms", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
@@ -82,6 +84,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		renderState.addGeckolibData(MUZZLE_FLASH, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.muzzleFlash());
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
+		renderState.addGeckolibData(MAG_EMPTY, renderData != null && magEmpty(renderData));
 	}
 
 	private static boolean slideLocked(RenderData renderData) {
@@ -95,6 +98,19 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			return GunInput.slideLocked(player, stack, definition);
 		}
 		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
+	}
+
+	/** Only the chambered round (or nothing) is left, and no reload is bringing a fresh mag. */
+	private static boolean magEmpty(RenderData renderData) {
+		ItemStack stack = renderData.itemStack();
+		GunDefinition definition = GunItem.definition(stack);
+		if (definition == null) {
+			return false;
+		}
+		LocalPlayer player = Minecraft.getInstance().player;
+		boolean reloading = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
+				? GunInput.reloading(player, stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
+		return !reloading && GunItem.ammo(stack, definition) <= (definition.chamber() ? 1 : 0);
 	}
 
 	@Override
@@ -117,6 +133,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (!firstPerson(renderPassInfo.renderState()) || Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(HIDE_ARMS))) {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));
+		}
+		if (Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(MAG_EMPTY))) {
+			snapshots.get("mag_round").ifPresent(snapshot -> snapshot.skipRender(true));
 		}
 	}
 }
