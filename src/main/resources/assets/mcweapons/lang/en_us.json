@@ -40,6 +40,7 @@
   "gui.mcweapons.tuner.field.sway_max_deg": "Sway limit",
   "gui.mcweapons.tuner.field.sway_follow": "Sway follow",
   "gui.mcweapons.tuner.field.bob_scale": "Walk bob",
+  "gui.mcweapons.tuner.field.breath_scale": "Breathing",
   "gui.mcweapons.tuner.apply": "Apply",
   "gui.mcweapons.tuner.save": "Save",
   "gui.mcweapons.tuner.copy": "Copy JSON",

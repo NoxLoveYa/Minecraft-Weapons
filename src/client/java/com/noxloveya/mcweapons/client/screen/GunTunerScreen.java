@@ -93,7 +93,7 @@ public class GunTunerScreen extends Screen {
 			new Group("aim", Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
 			new Group("magazine", Side.BOTTOM, "magazine", List.of("mag_size", "chamber", "draw_ticks", "reload_ticks", "reload_empty_ticks")),
 			new Group("fire", Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "headshot_multiplier", "range")),
-			new Group("handling", Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale")),
+			new Group("handling", Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale", "feel.breath_scale")),
 			// No anchor bone: wired to the back of the slide.
 			new Group("recoil", Side.RIGHT, null, List.of("recoil_pitch_deg", "recoil_yaw_deg", "feel.recoil_push_back", "feel.recoil_spring_stiffness",
 					"feel.recoil_spring_damping", "feel.recoil_max_kicks")));
@@ -121,7 +121,8 @@ public class GunTunerScreen extends Screen {
 			Map.entry("feel.sway_gain", new Range(0, 0.2, 0.001)),
 			Map.entry("feel.sway_max_deg", new Range(0, 5, 0.005)),
 			Map.entry("feel.sway_follow", new Range(0.01, 1, 0.01)),
-			Map.entry("feel.bob_scale", new Range(0, 2, 0.05)));
+			Map.entry("feel.bob_scale", new Range(0, 2, 0.05)),
+			Map.entry("feel.breath_scale", new Range(0, 3, 0.05)));
 
 	private final Identifier id;
 	private final Component gunName;
@@ -341,9 +342,13 @@ public class GunTunerScreen extends Screen {
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 		graphics.text(font, Component.translatable("gui.mcweapons.tuner").withStyle(ChatFormatting.BOLD), MARGIN, MARGIN, ACCENT, true);
 		graphics.text(font, gunName, MARGIN, MARGIN + 11, TEXT, true);
-		// The bottom right corner is the one the plus leaves free.
+		// The bottom right corner is the one the plus leaves free; on small screens a panel can reach it, and then the hint is left out.
 		Component hint = Component.translatable("gui.mcweapons.tuner.hint");
-		graphics.text(font, hint, width - MARGIN - font.width(hint), height - MARGIN - 9, DIM_TEXT, false);
+		int hintX = width - MARGIN - font.width(hint);
+		int hintY = height - MARGIN - 9;
+		if (panels.stream().noneMatch(panel -> hintX < panel.x() + panelWidth && panel.y() + panel.height() > hintY)) {
+			graphics.text(font, hint, hintX, hintY, DIM_TEXT, false);
+		}
 		for (Panel panel : panels) {
 			int x0 = panel.x();
 			int y0 = panel.y();

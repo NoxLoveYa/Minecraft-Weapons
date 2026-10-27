@@ -32,6 +32,8 @@ public final class Viewmodel {
 	private static final float ADS_PUSH_FORWARD = 0.1F;
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
 	private static final float SHOWCASE_STEP = 0.15F;
+	/** Seconds per breath of the idle layer, about a calm resting rate. */
+	private static final float BREATH_PERIOD = 3.7F;
 	/** How far in front of the eye the showcased gun floats. The tuner sets it so its panels fit around the gun. */
 	private static float showcaseDistance = 1.1F;
 
@@ -222,9 +224,22 @@ public final class Viewmodel {
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
 		}
 
+		// 3b. Breathing, under everything (reloads, inspects and the tuner too), because a held gun is never quite still: a slow rise
+		// and fall that tips the muzzle up on the inhale, and a sideways drift and roll from waves at unrelated periods so it never
+		// visibly loops. Pivots on the grip, and drops to 20% while aiming like sway.
+		Vector3f grip = renderer.restPivot("gun");
+		float breath = feel.breathScale() * (1 - 0.8F * aim);
+		if (breath > 0) {
+			float seconds = (player.tickCount + partialTick) / 20;
+			float inhale = Mth.sin(seconds * Mth.TWO_PI / BREATH_PERIOD);
+			float drift = 0.6F * Mth.sin(seconds * Mth.TWO_PI / 5.3F + 1.1F) + 0.4F * Mth.sin(seconds * Mth.TWO_PI / 2.3F + 2.4F);
+			poseStack.translate(drift * 0.003F * breath, inhale * 0.006F * breath, 0);
+			poseStack.rotateAround(Axis.XP.rotationDegrees(inhale * 0.35F * breath), grip.x, grip.y, grip.z);
+			poseStack.rotateAround(Axis.ZP.rotationDegrees(drift * 0.25F * breath), grip.x, grip.y, grip.z);
+		}
+
 		// 4. Recoil: kick the muzzle up and push the gun back, pivoting on the grip.
 		float kick = recoil(partialTick);
-		Vector3f grip = renderer.restPivot("gun");
 		poseStack.translate(grip.x, grip.y, grip.z + kick * feel.recoilPushBack());
 		poseStack.rotateDegrees(Axis.XP, kick * recoilPitch);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);

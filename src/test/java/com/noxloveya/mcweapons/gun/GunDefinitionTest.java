@@ -48,6 +48,11 @@ class GunDefinitionTest {
 		assertEquals(glock, GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
 		json.remove("feel");
 		assertEquals(glock.withFeel(GunFeel.DEFAULT), GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+		// breath_scale is newer than tuner files saved before it, so a feel block without it still loads, as 1.
+		assertEquals(1.0F, glock.feel().breathScale());
+		JsonObject olderFeel = GunFeel.CODEC.encodeStart(JsonOps.INSTANCE, glock.feel()).getOrThrow().getAsJsonObject();
+		olderFeel.remove("breath_scale");
+		assertEquals(1.0F, GunFeel.CODEC.parse(JsonOps.INSTANCE, olderFeel).getOrThrow().breathScale());
 		// Headshot multiplier: read from the file, defaulted when missing, and at least 1.
 		assertEquals(2.0F, glock.headshotMultiplier());
 		JsonObject headshot = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
