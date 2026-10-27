@@ -70,7 +70,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		// The tuner's panels fill the screen around the showcased gun, so the HUD under them is hidden while it is open.
 		for (Identifier element : List.of(VanillaHudElements.HOTBAR, VanillaHudElements.CHAT, VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR,
 				VanillaHudElements.FOOD_BAR, VanillaHudElements.AIR_BAR, VanillaHudElements.MOUNT_HEALTH, VanillaHudElements.INFO_BAR,
-				VanillaHudElements.EXPERIENCE_LEVEL, VanillaHudElements.INFO_BAR_FOREGROUND, VanillaHudElements.HELD_ITEM_TOOLTIP, VanillaHudElements.MOB_EFFECTS)) {
+				VanillaHudElements.EXPERIENCE_LEVEL, VanillaHudElements.HELD_ITEM_TOOLTIP, VanillaHudElements.MOB_EFFECTS)) {
 			HudElementRegistry.replaceElement(element, vanilla -> (HudElement)(graphics, deltaTracker) -> {
 				if (!GunTunerScreen.isOpen()) {
 					vanilla.extractRenderState(graphics, deltaTracker);
