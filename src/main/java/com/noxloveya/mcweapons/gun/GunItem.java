@@ -1,5 +1,12 @@
 package com.noxloveya.mcweapons.gun;
 
+import com.geckolib.animatable.GeoItem;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
+import com.geckolib.cache.animation.keyframeevent.SoundKeyframeData;
+import com.geckolib.util.GeckoLibUtil;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
@@ -22,15 +29,61 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Every gun is an instance of this class. Its stats live in the definition it points to. */
-public class GunItem extends Item {
+public class GunItem extends Item implements GeoItem {
+	public static final String MAIN_CONTROLLER = "main";
+	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect");
+
+	// Both hooks are filled in by the client entrypoint, because this class also loads on a dedicated server.
+	// The render provider is a GeckoLib GeoRenderProvider, typed as Object since its class pulls in client-only types.
+	public static Function<GunItem, @Nullable Object> renderProviderFactory = gun -> null;
+	public static AnimationController.KeyframeEventHandler<GunItem, SoundKeyframeData> soundKeyframes = event -> {};
+
 	private final Identifier definitionId;
+	private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+	private @Nullable Object renderProvider;
 
 	public GunItem(Identifier definitionId, Properties properties) {
 		super(properties);
 		this.definitionId = definitionId;
+	}
+
+	public Identifier definitionId() {
+		return this.definitionId;
+	}
+
+	/** Animation names follow DESIGN_RULES 3.6: {@code animation.<gun>.<action>}. */
+	public String animationName(String action) {
+		return "animation." + this.definitionId.getPath() + "." + action;
+	}
+
+	@Override
+	public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+		RawAnimation idle = RawAnimation.begin().thenLoop(animationName("idle"));
+		// No transition ticks: every animation starts and ends at the rest pose, and a blend would delay the fire snap.
+		AnimationController<GunItem> main = new AnimationController<>(MAIN_CONTROLLER, 0, test -> test.setAndContinue(idle));
+		for (String action : TRIGGERED_ACTIONS) {
+			main.triggerableAnim(action, RawAnimation.begin().thenPlay(animationName(action)));
+		}
+		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
+		controllers.add(main);
+	}
+
+	@Override
+	public AnimatableInstanceCache getAnimatableInstanceCache() {
+		return this.animationCache;
+	}
+
+	@Override
+	public Object getRenderProvider() {
+		if (this.renderProvider == null) {
+			this.renderProvider = renderProviderFactory.apply(this);
+		}
+		return this.renderProvider;
 	}
 
 	public static @Nullable GunDefinition definition(ItemStack stack) {

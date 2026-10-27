@@ -10,5 +10,29 @@
     "sounds": [
       { "name": "minecraft:block.dispenser.fail", "type": "event" }
     ]
+  },
+  "glock17.mag_out": {
+    "subtitle": "subtitles.mcweapons.gun.mag_out",
+    "sounds": [
+      { "name": "minecraft:block.iron_trapdoor.open", "type": "event" }
+    ]
+  },
+  "glock17.mag_in": {
+    "subtitle": "subtitles.mcweapons.gun.mag_in",
+    "sounds": [
+      { "name": "minecraft:block.iron_trapdoor.close", "type": "event" }
+    ]
+  },
+  "glock17.slide_back": {
+    "subtitle": "subtitles.mcweapons.gun.slide",
+    "sounds": [
+      { "name": "minecraft:item.crossbow.loading_start", "type": "event" }
+    ]
+  },
+  "glock17.slide_release": {
+    "subtitle": "subtitles.mcweapons.gun.slide",
+    "sounds": [
+      { "name": "minecraft:item.crossbow.loading_end", "type": "event" }
+    ]
   }
 }

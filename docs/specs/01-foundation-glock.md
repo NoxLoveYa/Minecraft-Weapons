@@ -1,6 +1,6 @@
 # Spec 01: Foundation and the Glock
 
-**Status:** 01a and 01b done
+**Status:** phase 1 done (pending review)
 **Prompts:** `docs/prompts/01a-scaffold-and-gun-framework.md`, `01b-glock-blockbench.md`, `01c-viewmodel-and-rendering.md`
 Prompts 01a and 01b don't depend on each other, so they can run in parallel. 01c needs both of them.
 
@@ -173,3 +173,26 @@ Decisions made where the spec was silent. Each one is the simplest option, and c
 - **The inspect key (V) is registered but does nothing until 01c.**
 - **Placeholder model.** `models/item/glock17.json` is a flat `item/generated` model that uses `textures/item/glock17_icon.png`, leaving `glock17.png` free for the 01b GeckoLib texture. 01c decides whether to keep the flat icon for the inventory.
 - **Added a JUnit test** (`fabric-loader-junit`). It parses `glock17.json` and checks the fire-rate gate, the reload targets, and a round trip of the definitions sync payload. Singleplayer never encodes payloads, so without the test that codec would only run on a dedicated server.
+
+### From 01c (viewmodel and rendering)
+
+- **GeckoLib 5 asset paths.** GeckoLib 5 only loads `assets/<ns>/geckolib/models/` and `assets/<ns>/geckolib/animations/`, so the Glock files moved to `geckolib/models/item/glock17.geo.json` and `geckolib/animations/item/glock17.animation.json`. The texture stays at `textures/item/glock17.png`. The paths in DESIGN_RULES section 1 are the GeckoLib 4 ones, so planning needs to update them.
+- **No separate `GunModel` class.** GeckoLib's `DefaultedItemGeoModel` already finds the geo, texture and animation by gun id. `GunRenderer` is the only per-gun rendering class, and it is shared by every gun.
+- **Animation state is per holder, not per stack.** The client gets a new ItemStack every time the server syncs ammo, and GeckoLib's default per-stack id would restart a running reload. The instance id is the holding entity's id, so the same state drives first and third person.
+- **Mixins (four, client only, each with a one-line reason):**
+  - `FirstPersonHandsAndItemsRenderer` swaps vanilla hands and items for the viewmodel.
+  - `GameRenderer` skips vanilla's hand bob while a gun is held, because the viewmodel applies its own.
+  - `Camera` applies the ADS FOV after vanilla's smoothing.
+  - `AbstractClientPlayer` stops the ADS slowdown from also narrowing the FOV through vanilla's speed effect. Without it, aiming would zoom twice.
+- **ADS.** The model moves so `ads_anchor` sits on the view axis, and it also moves 0.1 blocks forward so the slide doesn't fill the view. The rear sight is now a U-notch (two posts and a bridge, changed in the `.bbmodel` and geo), so the white front post shows in the notch. Sway and bob drop to 20%. With the View Bobbing option off, there is no bob at all.
+- **Recoil.** A damped spring on the model settles in about 6 ticks with a small overshoot. The camera kick is `recoil_pitch_deg` up, plus a random yaw of up to `recoil_yaw_deg`, and neither recovers on its own.
+- **Third person.** `items/glock17.json` uses GeckoLib's special model only in the third-person hand contexts. The GUI, the ground, item frames and a gun in the off hand show the flat icon. The model is scaled to 0.75 and turned so the barrel points forward, with the arm bones hidden. The holder uses vanilla's normal item-holding arm pose.
+- **Other players.** `ShotFxPayload` plays the shooter's `fire` animation on their third-person gun and puffs smoke near the muzzle. Their draw and reload animations are not synced.
+- **Reload sync.** The reload animation starts on the client's prediction at the key press, and the server's timer starts when the payload arrives. So the animation can finish up to one ping before the ammo count changes.
+- **Sounds.** `mag_out`, `mag_in`, `slide_back` and `slide_release` are placeholders (vanilla iron trapdoor and crossbow loading). They play at the holder from the animation's sound keyframes.
+- **Muzzle flash.** First person only: additive textured quads at the `muzzle` bone for 45 ms, with a random roll per shot (`textures/effect/muzzle_flash.png`).
+- **Impacts.** Smoke on blocks and crit particles on entities, plus debris particles taken from the block that was hit.
+- **HUD (bombo asked for a custom one).**
+  - A bottom-right panel shows the gun name, fire mode, a large round count (amber at a quarter mag or less, red at 0) over the mag size, and a reload progress bar. When the gun is empty and not reloading, a blinking "RELOAD [R]" hint appears.
+  - The crosshair is four ticks spaced to match the hip spread cone at the current FOV, widening while the recoil settles. It fades out while aiming, and vanilla's crosshair is used whenever no gun is held.
+- **Not handled.** A left-handed main arm still draws the gun on the right. With full ADS the left forearm fills the lower left of the view, which is a candidate for an arm-pose pass.

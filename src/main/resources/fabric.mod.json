@@ -13,6 +13,12 @@
 			"com.noxloveya.mcweapons.client.McWeaponsClient"
 		]
 	},
+	"mixins": [
+		{
+			"config": "mcweapons.client.mixins.json",
+			"environment": "client"
+		}
+	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~26.3",

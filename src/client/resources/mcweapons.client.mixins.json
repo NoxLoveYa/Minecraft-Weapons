@@ -1,0 +1,17 @@
+{
+	"required": true,
+	"package": "com.noxloveya.mcweapons.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"AbstractClientPlayerMixin",
+		"CameraMixin",
+		"FirstPersonHandsAndItemsRendererMixin",
+		"GameRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

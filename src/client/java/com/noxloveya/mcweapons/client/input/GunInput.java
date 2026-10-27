@@ -2,6 +2,8 @@ package com.noxloveya.mcweapons.client.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.McWeapons;
+import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
@@ -15,9 +17,11 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 
-/** Turns attack, use and the mod keys into gun intents while a gun is in the main hand. */
+/** Turns attack, use and the mod keys into gun intents while a gun is in the main hand, and predicts their animations. */
 public final class GunInput {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(McWeapons.id("main"));
 	public static final KeyMapping RELOAD = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.reload", InputConstants.KEY_R, CATEGORY));
@@ -26,12 +30,31 @@ public final class GunInput {
 	private static boolean aiming;
 	/** Client game time of the last predicted shot, for the local RPM gate. */
 	private static long lastShotTick;
+	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
+	private static long predictedReloadUntil;
+	private static int drawnSlot = -1;
+	private static @Nullable Item drawnItem;
 
 	private GunInput() {
 	}
 
 	public static void register() {
 		ClientTickEvents.START_CLIENT_TICK.register(GunInput::tick);
+	}
+
+	public static boolean aiming() {
+		return aiming;
+	}
+
+	/** True while the held gun is reloading, by the server's state or by our own prediction. */
+	public static boolean reloading(LocalPlayer player, ItemStack stack) {
+		return stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading() || player.level().getGameTime() < predictedReloadUntil;
+	}
+
+	/** Game time the current reload ends, preferring the server's timer over our prediction. */
+	public static long reloadEnd(ItemStack stack) {
+		GunState state = stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
+		return state.reloading() ? state.reloadingUntilTick() : predictedReloadUntil;
 	}
 
 	// Runs before vanilla reads the keys, so consuming the clicks here stops vanilla attacking or using with a gun in hand.
@@ -46,39 +69,82 @@ public final class GunInput {
 		}
 		aiming = aim;
 
-		while (RELOAD.consumeClick()) {
-			if (holding) {
-				ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
-			}
-		}
-		while (INSPECT.consumeClick()) {
-			// 01c plays the inspect animation here.
-		}
 		if (!holding) {
+			while (RELOAD.consumeClick()) {
+			}
+			while (INSPECT.consumeClick()) {
+			}
+			drawnSlot = -1;
+			drawnItem = null;
+			predictedReloadUntil = 0;
+			Viewmodel.reset();
 			return;
 		}
 
 		ItemStack stack = player.getMainHandItem();
+		GunItem gun = (GunItem)stack.getItem();
 		GunDefinition definition = GunItem.definition(stack);
+		int slot = player.getInventory().getSelectedSlot();
+		if (slot != drawnSlot || gun != drawnItem) {
+			drawnSlot = slot;
+			drawnItem = gun;
+			predictedReloadUntil = 0;
+			Viewmodel.reset();
+			play(player, gun, "draw");
+		}
+		if (definition != null) {
+			Viewmodel.tick(definition, aim);
+		}
+
+		while (RELOAD.consumeClick()) {
+			reload(player, stack, gun, definition);
+		}
+		while (INSPECT.consumeClick()) {
+			if (definition != null && !reloading(player, stack) && definition.readyToFire(lastShotTick, player.level().getGameTime(), 0)) {
+				play(player, gun, "inspect");
+			}
+		}
 		while (minecraft.options.keyAttack.consumeClick()) {
-			shoot(player, stack, definition);
+			shoot(player, stack, gun, definition);
 		}
 		if (definition != null && definition.fireModes().contains("auto") && minecraft.options.keyAttack.isDown()) {
-			shoot(player, stack, definition);
+			shoot(player, stack, gun, definition);
 		}
 		while (minecraft.options.keyUse.consumeClick()) {
 			// Aiming reads keyUse.isDown() above, the clicks only need to be kept from vanilla.
 		}
 	}
 
-	private static void shoot(LocalPlayer player, ItemStack stack, GunDefinition definition) {
+	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
 		long now = player.level().getGameTime();
-		if (definition == null || stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading() || !definition.readyToFire(lastShotTick, now, 0)) {
+		if (definition == null || reloading(player, stack) || !definition.readyToFire(lastShotTick, now, 0)) {
 			return;
 		}
 		lastShotTick = now;
-		GunItem gun = (GunItem) stack.getItem();
-		player.playSound(gun.sound(GunItem.ammo(stack, definition) > 0 ? "fire" : "dry"), 1.0F, 1.0F);
+		boolean loaded = GunItem.ammo(stack, definition) > 0;
+		player.playSound(gun.sound(loaded ? "fire" : "dry"), 1.0F, 1.0F);
+		if (loaded) {
+			play(player, gun, "fire");
+			Viewmodel.onShot(player, definition);
+		}
 		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, player.getRandom().nextLong()));
+	}
+
+	/** Same checks as the server, so the animation only starts for a reload the server will accept. */
+	private static void reload(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
+		if (definition == null || reloading(player, stack)) {
+			return;
+		}
+		int ammo = GunItem.ammo(stack, definition);
+		if (ammo >= definition.reloadTarget(ammo)) {
+			return;
+		}
+		predictedReloadUntil = player.level().getGameTime() + (ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks());
+		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
+		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
+	}
+
+	private static void play(LocalPlayer player, GunItem gun, String action) {
+		gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, action);
 	}
 }

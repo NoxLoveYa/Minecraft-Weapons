@@ -25,7 +25,7 @@ import net.minecraft.world.phys.HitResult;
 /** Registers the payloads and checks every client intent against the gun definition. */
 public final class ServerHandlers {
 	/** Present on a player's movement speed while they aim, which also makes it the per-player aiming state. */
-	private static final Identifier ADS_SPEED = McWeapons.id("ads_speed");
+	public static final Identifier ADS_SPEED = McWeapons.id("ads_speed");
 
 	private ServerHandlers() {
 	}

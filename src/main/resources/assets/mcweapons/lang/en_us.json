@@ -7,5 +7,8 @@
   "key.mcweapons.inspect": "Inspect",
   "death.attack.mcweapons.bullet": "%1$s was shot by %2$s using %3$s",
   "subtitles.mcweapons.gun.fire": "Gunshot",
-  "subtitles.mcweapons.gun.dry": "Gun clicks empty"
+  "subtitles.mcweapons.gun.dry": "Gun clicks empty",
+  "subtitles.mcweapons.gun.mag_out": "Magazine drops",
+  "subtitles.mcweapons.gun.mag_in": "Magazine seats",
+  "subtitles.mcweapons.gun.slide": "Slide racks"
 }
