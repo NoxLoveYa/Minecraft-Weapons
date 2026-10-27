@@ -22,8 +22,7 @@ public class ArmSkinLayer extends CustomBoneTextureGeoLayer<GunItem, GeoItemRend
 
 	@Override
 	public boolean shouldRenderBone(GeoRenderState renderState) {
-		return GunRenderer.firstPerson(renderState) && !Boolean.TRUE.equals(renderState.getGeckolibData(GunRenderer.HIDE_ARMS))
-				&& renderState.getGeckolibData(GunRenderer.SKIN) != null;
+		return GunRenderer.firstPerson(renderState) && renderState.getGeckolibData(GunRenderer.SKIN) != null;
 	}
 
 	@Override

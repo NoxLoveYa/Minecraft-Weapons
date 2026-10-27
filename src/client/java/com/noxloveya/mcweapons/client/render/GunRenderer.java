@@ -1,6 +1,11 @@
 package com.noxloveya.mcweapons.client.render;
 
 import com.geckolib.cache.model.BakedGeoModel;
+import com.geckolib.cache.model.GeoBone;
+import com.geckolib.cache.model.GeoQuad;
+import com.geckolib.cache.model.GeoVertex;
+import com.geckolib.cache.model.cuboid.CuboidGeoBone;
+import com.geckolib.cache.model.cuboid.GeoCube;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.model.DefaultedItemGeoModel;
@@ -33,8 +38,6 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
 	/** The mag has no rounds left, so its top round (the {@code mag_round} bone) is hidden, for example during a mag check. */
 	public static final DataTicket<Boolean> MAG_EMPTY = DataTicket.create("mcweapons_mag_empty", Boolean.class);
-	/** Set by the viewmodel while the gun is showcased for the tuner, where it floats without hands. */
-	public static final DataTicket<Boolean> HIDE_ARMS = DataTicket.create("mcweapons_hide_arms", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
@@ -71,6 +74,33 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return model.getBone(boneName).map(bone -> new Vector3f(bone.pivotX(), bone.pivotY(), bone.pivotZ()).div(16)).orElseGet(Vector3f::new);
 	}
 
+	/** Rest-pose box around the gun (the {@code gun} bone and everything under it) in model space, in blocks: min xyz, then max xyz. */
+	public float[] gunBounds() {
+		float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+		getGeoModel().getBakedModel(this.modelId).getBone("gun").ifPresent(bone -> growBounds(bone, bounds));
+		return bounds;
+	}
+
+	private static void growBounds(GeoBone bone, float[] bounds) {
+		if (bone instanceof CuboidGeoBone cuboid) {
+			for (GeoCube cube : cuboid.cubes) {
+				for (GeoQuad quad : cube.quads()) {
+					for (GeoVertex vertex : quad.vertices()) {
+						bounds[0] = Math.min(bounds[0], vertex.posX());
+						bounds[1] = Math.min(bounds[1], vertex.posY());
+						bounds[2] = Math.min(bounds[2], vertex.posZ());
+						bounds[3] = Math.max(bounds[3], vertex.posX());
+						bounds[4] = Math.max(bounds[4], vertex.posY());
+						bounds[5] = Math.max(bounds[5], vertex.posZ());
+					}
+				}
+			}
+		}
+		for (GeoBone child : bone.children()) {
+			growBounds(child, bounds);
+		}
+	}
+
 	@Override
 	public long getInstanceId(GunItem gun, RenderData renderData) {
 		LivingEntity holder = renderData.itemOwner() == null ? null : renderData.itemOwner().asLivingEntity();
@@ -85,6 +115,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		renderState.addGeckolibData(MUZZLE_FLASH, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.muzzleFlash());
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_EMPTY, renderData != null && magEmpty(renderData));
+		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
 	}
 
 	private static boolean slideLocked(RenderData renderData) {
@@ -130,7 +161,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 
 	@Override
 	public void adjustModelBonesForRender(RenderPassInfo<GeoRenderState> renderPassInfo, BoneSnapshots snapshots) {
-		if (!firstPerson(renderPassInfo.renderState()) || Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(HIDE_ARMS))) {
+		if (!firstPerson(renderPassInfo.renderState())) {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));
 		}

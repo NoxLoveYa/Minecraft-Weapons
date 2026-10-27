@@ -20,6 +20,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
@@ -30,9 +31,9 @@ import org.joml.Vector3fc;
 public final class Viewmodel {
 	private static final float ADS_PUSH_FORWARD = 0.1F;
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
-	// Showcase for the gun tuner: the gun's middle floats to this point in view space, turned so its left side faces the eye.
-	private static final Vector3fc SHOWCASE_CENTER = new Vector3f(0, 0.02F, -1.1F);
 	private static final float SHOWCASE_STEP = 0.15F;
+	/** How far in front of the eye the showcased gun floats. The tuner sets it so its panels fit around the gun. */
+	private static float showcaseDistance = 1.1F;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
 	private static GunFeel feel = GunFeel.DEFAULT;
@@ -143,6 +144,31 @@ public final class Viewmodel {
 		return muzzleFlashRoll;
 	}
 
+	/** True while the gun is shown for the tuner or still moving in or out of it. */
+	public static boolean showcasing() {
+		return showcase > 0 || showcaseO > 0;
+	}
+
+	public static void setShowcaseDistance(float distance) {
+		showcaseDistance = distance;
+	}
+
+	/**
+	 * Model to view space for the showcase: the middle of the gun floats to the center of the view, turned so its left side faces the
+	 * eye and tilted a little so the top and the muzzle read as 3D. {@code show} eases it in from the hand (0) to fully shown (1).
+	 */
+	public static Matrix4f showcaseTransform(GunRenderer renderer, float show) {
+		float[] bounds = renderer.gunBounds();
+		Vector3f middle = new Vector3f(bounds[0] + bounds[3], bounds[1] + bounds[4], bounds[2] + bounds[5]).mul(0.5F);
+		return new Matrix4f()
+				.translate(-middle.x * show, -middle.y * show, (-showcaseDistance - middle.z) * show)
+				.translate(middle)
+				.rotateZ(-6 * show * Mth.DEG_TO_RAD)
+				.rotateX(14 * show * Mth.DEG_TO_RAD)
+				.rotateY(90 * show * Mth.DEG_TO_RAD)
+				.translate(-middle.x, -middle.y, -middle.z);
+	}
+
 	/** About {@code value} while small, easing towards {@code max} as it grows. */
 	private static float softLimit(float value, float max) {
 		return max <= 0 ? 0 : max * (float)Math.tanh(value / max);
@@ -167,17 +193,11 @@ public final class Viewmodel {
 		show = show * show * (3 - 2 * show);
 		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
 		float loose = (1 - 0.8F * aim) * (1 - show);
-		renderState.addGeckolibData(GunRenderer.HIDE_ARMS, show > 0);
 		poseStack.pushPose();
 
-		// 0. Showcase (gun tuner): float the gun's middle to the center of the screen and turn it so the left side faces the eye,
-		// tilted a little so the top and the muzzle read as 3D.
+		// 0. Showcase (gun tuner): present the gun sideways in the middle of the screen. The showcase controller poses the arms holding it.
 		if (show > 0) {
-			Vector3f middle = renderer.restPivot("gun").add(renderer.restPivot("muzzle")).mul(0.5F);
-			poseStack.translate((SHOWCASE_CENTER.x() - middle.x) * show, (SHOWCASE_CENTER.y() - middle.y) * show, (SHOWCASE_CENTER.z() - middle.z) * show);
-			poseStack.rotateAround(Axis.ZP.rotationDegrees(-6 * show), middle.x, middle.y, middle.z);
-			poseStack.rotateAround(Axis.XP.rotationDegrees(14 * show), middle.x, middle.y, middle.z);
-			poseStack.rotateAround(Axis.YP.rotationDegrees(90 * show), middle.x, middle.y, middle.z);
+			poseStack.mulPose(showcaseTransform(renderer, show));
 		}
 
 		// 1. ADS: slide the model so ads_anchor lands on the view axis, at the center of the screen,

@@ -43,6 +43,8 @@ public class GunItem extends Item implements GeoItem {
 	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check", "inspect_mag_check");
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
+	/** Set by the renderer while the gun tuner shows the gun, so the arms hold it up sideways. */
+	public static final DataTicket<Boolean> SHOWCASE = DataTicket.create("mcweapons_showcase", Boolean.class);
 
 	// Both hooks are filled in by the client entrypoint, because this class also loads on a dedicated server.
 	// The render provider is a GeckoLib GeoRenderProvider, typed as Object since its class pulls in client-only types.
@@ -76,17 +78,22 @@ public class GunItem extends Item implements GeoItem {
 			main.triggerableAnim(action, RawAnimation.begin().thenPlay(animationName(action)));
 		}
 		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
-		// Registered after main so it wins on the slide, barrel and slide stop while the gun is empty, whatever main is playing.
-		RawAnimation locked = RawAnimation.begin().thenLoop(animationName("slide_locked"));
-		AnimationController<GunItem> slideLock = new AnimationController<>("slide_lock", 0, test -> {
-			if (Boolean.TRUE.equals(test.getData(SLIDE_LOCKED))) {
-				return test.setAndContinue(locked);
+		// Registered after main so they win on their bones, whatever main is playing: the slide, barrel and slide stop while the gun is
+		// empty, and the arms holding the gun up while the tuner shows it (blended in over a few ticks, like the gun turning).
+		controllers.add(main, holdWhile("slide_lock", SLIDE_LOCKED, "slide_locked", 0), holdWhile("showcase", SHOWCASE, "showcase", 4));
+	}
+
+	/** A controller that loops one animation while a render flag is set, and otherwise leaves its bones to the controllers before it. */
+	private AnimationController<GunItem> holdWhile(String name, DataTicket<Boolean> flag, String action, int transitionTicks) {
+		RawAnimation hold = RawAnimation.begin().thenLoop(animationName(action));
+		return new AnimationController<>(name, transitionTicks, test -> {
+			if (Boolean.TRUE.equals(test.getData(flag))) {
+				return test.setAndContinue(hold);
 			}
-			// STOP alone keeps holding the last pose; reset hands the slide back to the main controller.
+			// STOP alone keeps holding the last pose; reset hands the bones back to the earlier controllers.
 			test.controller().reset();
 			return PlayState.STOP;
 		});
-		controllers.add(main, slideLock);
 	}
 
 	@Override

@@ -2282,6 +2282,28 @@
 					"effect": "mcweapons:glock17.mag_in"
 				}
 			}
+		},
+		"animation.glock17.showcase": {
+			"loop": true,
+			"animation_length": 1,
+			"bones": {
+				"arm_right": {
+					"rotation": {
+						"vector": [-7.266, 31.146, -16.616]
+					},
+					"position": {
+						"vector": [7.272, 0.928, -0.864]
+					}
+				},
+				"arm_left": {
+					"rotation": {
+						"vector": [175.927, 3.997, -172.751]
+					},
+					"position": {
+						"vector": [-1.737, -0.294, -25.321]
+					}
+				}
+			}
 		}
 	},
 	"geckolib_format_version": 2
