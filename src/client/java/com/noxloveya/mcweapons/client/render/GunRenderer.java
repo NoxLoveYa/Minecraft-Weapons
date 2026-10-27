@@ -36,8 +36,8 @@ import org.jspecify.annotations.Nullable;
 public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Identifier> SKIN = DataTicket.create("mcweapons_skin", Identifier.class);
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
-	/** The mag has no rounds left, so its top round (the {@code mag_round} bone) is hidden, for example during a mag check. */
-	public static final DataTicket<Boolean> MAG_EMPTY = DataTicket.create("mcweapons_mag_empty", Boolean.class);
+	/** Share of the mag still loaded, 0 to 1. The {@code mag_round_N} bones (1 at the top) show that many rounds, so a mag check reads the count. */
+	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
@@ -114,7 +114,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		renderState.addGeckolibData(MUZZLE_FLASH, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.muzzleFlash());
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
-		renderState.addGeckolibData(MAG_EMPTY, renderData != null && magEmpty(renderData));
+		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
 	}
 
@@ -131,17 +131,21 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
 	}
 
-	/** Only the chambered round (or nothing) is left, and no reload is bringing a fresh mag. */
-	private static boolean magEmpty(RenderData renderData) {
+	/** Rounds in the mag over its size. The chambered round is not in the mag, and a reload brings a full one. */
+	private static float magFill(RenderData renderData) {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
 		if (definition == null) {
-			return false;
+			return 1;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
 		boolean reloading = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
 				? GunInput.reloading(player, stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
-		return !reloading && GunItem.ammo(stack, definition) <= (definition.chamber() ? 1 : 0);
+		if (reloading) {
+			return 1;
+		}
+		int inMag = Math.max(0, GunItem.ammo(stack, definition) - (definition.chamber() ? 1 : 0));
+		return Math.min(1, inMag / (float)definition.magSize());
 	}
 
 	@Override
@@ -165,8 +169,16 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));
 		}
-		if (Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(MAG_EMPTY))) {
-			snapshots.get("mag_round").ifPresent(snapshot -> snapshot.skipRender(true));
+		// The follower pushes the stack up, so rounds go from the bottom: hide every round bone below the share still loaded.
+		Float fill = renderPassInfo.renderState().getGeckolibData(MAG_FILL);
+		if (fill != null) {
+			int slots = 0;
+			while (snapshots.get("mag_round_" + (slots + 1)).isPresent()) {
+				slots++;
+			}
+			for (int round = (int)Math.ceil(fill * slots) + 1; round <= slots; round++) {
+				snapshots.get("mag_round_" + round).ifPresent(snapshot -> snapshot.skipRender(true));
+			}
 		}
 	}
 }
