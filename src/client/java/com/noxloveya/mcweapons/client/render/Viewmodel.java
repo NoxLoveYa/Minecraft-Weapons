@@ -33,6 +33,8 @@ public final class Viewmodel {
 	private static final float MAX_KICKS = 2.5F;
 	private static final float RECOIL_PUSH_BACK = 0.04F;
 	private static final float ADS_PUSH_FORWARD = 0.1F;
+	private static final float SWAY_GAIN = 0.035F; // vanilla hands use 0.1
+	private static final float SWAY_MAX = 1.5F; // degrees
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
 
 	private static float ads;
@@ -135,9 +137,10 @@ public final class Viewmodel {
 		Vector3f anchor = renderer.restPivot("ads_anchor");
 		poseStack.translate(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
 
-		// 2. Sway: the model lags behind the mouse, using the same smoothed view lag vanilla uses for hands.
-		poseStack.rotateDegrees(Axis.XP, (hands.viewXRot - hands.xBob) * 0.1F * loose);
-		poseStack.rotateDegrees(Axis.YP, (hands.viewYRot - hands.yBob) * 0.1F * loose);
+		// 2. Sway: the model lags behind the mouse, using vanilla's smoothed view lag but much weaker and capped,
+		// since vanilla's hand strength swings a full-size gun several degrees on a flick.
+		poseStack.rotateDegrees(Axis.XP, Mth.clamp((hands.viewXRot - hands.xBob) * SWAY_GAIN, -SWAY_MAX, SWAY_MAX) * loose);
+		poseStack.rotateDegrees(Axis.YP, Mth.clamp((hands.viewYRot - hands.yBob) * SWAY_GAIN, -SWAY_MAX, SWAY_MAX) * loose);
 
 		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
 		if (minecraft.options.bobView().get()) {
