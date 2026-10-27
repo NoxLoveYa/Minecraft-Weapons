@@ -42,11 +42,27 @@ public final class Viewmodel {
 	private static float recoilVelocity;
 	private static long muzzleFlashUntil;
 	private static float muzzleFlashRoll;
+	/** Where the gun points: it trails the view rotation, and the gap is the sway. */
+	private static float swayYaw;
+	private static float swayYawO;
+	private static float swayPitch;
+	private static float swayPitchO;
+	private static boolean swaySnap = true;
 
 	private Viewmodel() {
 	}
 
-	public static void tick(GunDefinition definition, boolean aiming) {
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming) {
+		if (swaySnap) {
+			swayYaw = player.getYRot();
+			swayPitch = player.getXRot();
+			swaySnap = false;
+		}
+		swayYawO = swayYaw;
+		swayPitchO = swayPitch;
+		// Yaw is not wrapped by the game, but a teleport can still jump it by whole turns.
+		swayYaw += Mth.wrapDegrees(player.getYRot() - swayYaw) * definition.feel().swayFollow();
+		swayPitch += (player.getXRot() - swayPitch) * definition.feel().swayFollow();
 		adsO = ads;
 		float step = 1.0F / Math.max(1, definition.adsTicks());
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
@@ -62,6 +78,7 @@ public final class Viewmodel {
 		ads = adsO = 0;
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
+		swaySnap = true;
 	}
 
 	/** A local shot: model kick, a camera pitch kick that does not recover by itself, and the muzzle flash. */
@@ -111,6 +128,11 @@ public final class Viewmodel {
 		return muzzleFlashRoll;
 	}
 
+	/** About {@code value} while small, easing towards {@code max} as it grows. */
+	private static float softLimit(float value, float max) {
+		return max <= 0 ? 0 : max * (float)Math.tanh(value / max);
+	}
+
 	/** Replaces vanilla's first-person hands and items while a gun is in the main hand. Returns false to let vanilla render. */
 	public static boolean submit(float partialTick, PoseStack poseStack, SubmitNodeCollector renderTasks, PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState hands) {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -134,10 +156,12 @@ public final class Viewmodel {
 		Vector3f anchor = renderer.restPivot("ads_anchor");
 		poseStack.translate(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
 
-		// 2. Sway: the model lags behind the mouse, using vanilla's smoothed view lag but much weaker and capped,
-		// since vanilla's hand strength swings a full-size gun several degrees on a flick.
-		poseStack.rotateDegrees(Axis.XP, Mth.clamp((hands.viewXRot - hands.xBob) * feel.swayGain(), -feel.swayMaxDeg(), feel.swayMaxDeg()) * loose);
-		poseStack.rotateDegrees(Axis.YP, Mth.clamp((hands.viewYRot - hands.yBob) * feel.swayGain(), -feel.swayMaxDeg(), feel.swayMaxDeg()) * loose);
+		// 2. Sway: the model trails the view a little and eases back when it stops (swayYaw/swayPitch), with a soft limit so flicks
+		// lean it a bit further instead of stopping dead.
+		float lagPitch = hands.viewXRot - Mth.lerp(partialTick, swayPitchO, swayPitch);
+		float lagYaw = Mth.wrapDegrees(hands.viewYRot - Mth.lerp(partialTick, swayYawO, swayYaw));
+		poseStack.rotateDegrees(Axis.XP, softLimit(lagPitch * feel.swayGain(), feel.swayMaxDeg()) * loose);
+		poseStack.rotateDegrees(Axis.YP, softLimit(lagYaw * feel.swayGain(), feel.swayMaxDeg()) * loose);
 
 		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
 		if (minecraft.options.bobView().get()) {

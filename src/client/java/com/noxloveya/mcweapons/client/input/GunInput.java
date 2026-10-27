@@ -115,7 +115,7 @@ public final class GunInput {
 			play(player, gun, "draw");
 		}
 		if (definition != null) {
-			Viewmodel.tick(definition, aim);
+			Viewmodel.tick(player, definition, aim);
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead.
