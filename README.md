@@ -1,10 +1,10 @@
 # Minecraft Weapons
 
-Fabric gun mod for Minecraft 1.21.1, built on GeckoLib. Planning lives in `docs/` (start with `docs/PLAN.md`).
+Fabric gun mod for Minecraft 26.3 (Fabric Loader 0.19.5 or later), built on GeckoLib 5. Planning lives in `docs/` (start with `docs/PLAN.md`).
 
 ## Requirements
 
-- JDK 21. Gradle downloads everything else through the wrapper.
+- JDK 25. Gradle downloads everything else through the wrapper.
 
 ## Build and run
 
@@ -14,13 +14,21 @@ Fabric gun mod for Minecraft 1.21.1, built on GeckoLib. Planning lives in `docs/
 ./gradlew runServer    # dev dedicated server
 ```
 
-On Windows use `gradlew.bat`. If your default `java` is not 21, set `JAVA_HOME` to a JDK 21 first, for example in PowerShell:
+On Windows use `gradlew.bat`. If your default `java` is not 25, set `JAVA_HOME` to a JDK 25 first, for example in PowerShell:
 
 ```powershell
-$env:JAVA_HOME = 'C:\path\to\jdk-21'; .\gradlew.bat runClient
+$env:JAVA_HOME = 'C:\path\to\jdk-25'; .\gradlew.bat runClient
 ```
 
 Versions are pinned in `gradle.properties`.
+
+## Install in a normal launcher
+
+Put these in the `mods` folder of a Minecraft 26.3 Fabric profile (Loader 0.19.5 or later):
+
+- `build/libs/mcweapons-<version>.jar`
+- [Fabric API](https://modrinth.com/mod/fabric-api) for 26.3
+- [GeckoLib](https://modrinth.com/mod/geckolib) 5.5.7 or later for Fabric 26.3
 
 ## Controls
 

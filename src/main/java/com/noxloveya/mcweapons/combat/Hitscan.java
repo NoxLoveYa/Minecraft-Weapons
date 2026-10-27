@@ -49,7 +49,7 @@ public final class Hitscan {
 	/** Vanilla only names the weapon when it has a custom name, so the death message is built here to always name the gun. */
 	private static DamageSource bulletDamage(ServerPlayer player, ItemStack gun) {
 		Component gunName = gun.getDisplayName();
-		return new DamageSource(player.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(BULLET), player) {
+		return new DamageSource(player.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(BULLET), player) {
 			@Override
 			public Component getLocalizedDeathMessage(LivingEntity victim) {
 				return Component.translatable("death.attack." + type().msgId(), victim.getDisplayName(), player.getDisplayName(), gunName);

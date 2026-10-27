@@ -1,6 +1,7 @@
 package com.noxloveya.mcweapons.client.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
@@ -9,19 +10,18 @@ import com.noxloveya.mcweapons.network.ReloadPayload;
 import com.noxloveya.mcweapons.network.ShootPayload;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
 
 /** Turns attack, use and the mod keys into gun intents while a gun is in the main hand. */
 public final class GunInput {
-	private static final String CATEGORY = "key.categories.mcweapons";
-	public static final KeyMapping RELOAD = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.mcweapons.reload", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CATEGORY));
-	public static final KeyMapping INSPECT = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.mcweapons.inspect", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, CATEGORY));
+	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(McWeapons.id("main"));
+	public static final KeyMapping RELOAD = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.reload", InputConstants.KEY_R, CATEGORY));
+	public static final KeyMapping INSPECT = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.inspect", InputConstants.KEY_V, CATEGORY));
 
 	private static boolean aiming;
 	/** Client game time of the last predicted shot, for the local RPM gate. */
@@ -48,7 +48,7 @@ public final class GunInput {
 
 		while (RELOAD.consumeClick()) {
 			if (holding) {
-				ClientPlayNetworking.send(new ReloadPayload(player.getInventory().selected));
+				ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
 			}
 		}
 		while (INSPECT.consumeClick()) {
@@ -79,6 +79,6 @@ public final class GunInput {
 		lastShotTick = now;
 		GunItem gun = (GunItem) stack.getItem();
 		player.playSound(gun.sound(GunItem.ammo(stack, definition) > 0 ? "fire" : "dry"), 1.0F, 1.0F);
-		ClientPlayNetworking.send(new ShootPayload(player.getInventory().selected, now, player.getRandom().nextLong()));
+		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, player.getRandom().nextLong()));
 	}
 }

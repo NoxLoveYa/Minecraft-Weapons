@@ -6,8 +6,8 @@ import com.noxloveya.mcweapons.network.ServerHandlers;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import com.noxloveya.mcweapons.registry.ModItems;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +20,12 @@ public class McWeapons implements ModInitializer {
 	public void onInitialize() {
 		ModComponents.init();
 		ModItems.init();
-		ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new GunDefinitions());
+		ResourceLoader.get(PackType.SERVER_DATA).registerReloadListener(GunDefinitions.ID, new GunDefinitions());
 		GunItem.registerEvents();
 		ServerHandlers.register();
 	}
 
-	public static ResourceLocation id(String path) {
-		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+	public static Identifier id(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 }

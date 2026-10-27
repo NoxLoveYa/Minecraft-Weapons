@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.client;
 
+import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.AmmoHud;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
@@ -7,7 +8,7 @@ import com.noxloveya.mcweapons.network.GunDefinitionsPayload;
 import com.noxloveya.mcweapons.network.ShotFxPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -18,7 +19,7 @@ public class McWeaponsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		GunInput.register();
-		HudRenderCallback.EVENT.register(AmmoHud::render);
+		HudElementRegistry.addLast(McWeapons.id("ammo"), AmmoHud::render);
 		ClientPlayNetworking.registerGlobalReceiver(GunDefinitionsPayload.TYPE, (payload, context) -> GunDefinitions.set(payload.definitions()));
 		ClientPlayNetworking.registerGlobalReceiver(ShotFxPayload.TYPE, (payload, context) -> impact(context.client().level, payload));
 	}
