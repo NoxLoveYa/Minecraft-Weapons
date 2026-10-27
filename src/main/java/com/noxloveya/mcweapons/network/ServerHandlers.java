@@ -66,12 +66,13 @@ public final class ServerHandlers {
 		GunItem item = (GunItem) gun.getItem();
 		int ammo = GunItem.ammo(gun, definition);
 		if (ammo <= 0) {
-			playSound(player, item.sound("dry"));
+			playSound(player, item.sound("dry"), 1.0F);
 			return;
 		}
 		gun.set(ModComponents.AMMO, ammo - 1);
 		HitResult hit = Hitscan.fire(player, gun, definition, payload.seed(), isAiming(player));
-		playSound(player, item.sound("fire"));
+		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks.
+		playSound(player, item.sound("fire"), 3.0F);
 		ShotFxPayload fx = new ShotFxPayload(player.getId(), hit.getLocation(), hit.getType());
 		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, fx));
 		ServerPlayNetworking.send(player, fx);
@@ -112,8 +113,8 @@ public final class ServerHandlers {
 		return slot == player.getInventory().getSelectedSlot() && player.isAlive() && GunItem.holdsGun(player) ? player.getMainHandItem() : ItemStack.EMPTY;
 	}
 
-	private static void playSound(ServerPlayer player, SoundEvent sound) {
+	private static void playSound(ServerPlayer player, SoundEvent sound, float volume) {
 		// Skips the shooter, whose client already played it on the click.
-		player.level().playSound(player, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS, 1.0F, 1.0F);
+		player.level().playSound(player, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS, volume, 1.0F);
 	}
 }
