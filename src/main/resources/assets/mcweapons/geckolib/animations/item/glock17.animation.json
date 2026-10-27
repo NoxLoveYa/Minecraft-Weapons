@@ -2744,18 +2744,101 @@
 			"bones": {
 				"arm_right": {
 					"rotation": {
-						"vector": [-7.266, 31.146, -16.616]
+						"0.0": {
+							"vector": [3.652, -31.2, 2.174]
+						},
+						"0.5": {
+							"vector": [3.652, -31.2, 2.174]
+						},
+						"1.0": {
+							"vector": [3.652, -31.2, 2.174]
+						}
 					},
 					"position": {
-						"vector": [7.272, 0.928, -0.864]
+						"0.0": {
+							"vector": [-4.615, 0.065, -1.753]
+						},
+						"0.5": {
+							"vector": [-4.615, 0.065, -1.753]
+						},
+						"1.0": {
+							"vector": [-4.615, 0.065, -1.753]
+						}
 					}
 				},
 				"arm_left": {
 					"rotation": {
-						"vector": [175.927, 3.997, -172.751]
+						"0.0": {
+							"vector": [25, 0, 0]
+						},
+						"1.0": {
+							"vector": [25, 0, 0]
+						}
 					},
 					"position": {
-						"vector": [-1.737, -0.294, -25.321]
+						"0.0": {
+							"vector": [2, -12, 3]
+						},
+						"1.0": {
+							"vector": [2, -12, 3]
+						}
+					}
+				},
+				"root": {
+					"position": {
+						"0.0": {
+							"vector": [4.5, 4.2, -2]
+						},
+						"1.0": {
+							"vector": [4.5, 4.2, -2]
+						}
+					}
+				},
+				"gun": {
+					"rotation": {
+						"0.0": {
+							"vector": [-12, -62, 16]
+						},
+						"1.0": {
+							"vector": [-12, -62, 16]
+						}
+					}
+				}
+			}
+		},
+		"animation.glock17.showcase_out": {
+			"animation_length": 0.05,
+			"bones": {
+				"root": {
+					"rotation": {
+						"vector": [0, 0, 0]
+					},
+					"position": {
+						"vector": [0, 0, 0]
+					}
+				},
+				"gun": {
+					"rotation": {
+						"vector": [0, 0, 0]
+					},
+					"position": {
+						"vector": [0, 0, 0]
+					}
+				},
+				"arm_left": {
+					"rotation": {
+						"vector": [0, 0, 0]
+					},
+					"position": {
+						"vector": [0, 0, 0]
+					}
+				},
+				"arm_right": {
+					"rotation": {
+						"vector": [0, 0, 0]
+					},
+					"position": {
+						"vector": [0, 0, 0]
 					}
 				}
 			}

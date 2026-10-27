@@ -51,6 +51,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		withRenderLayer(new ArmSkinLayer(this, "arm_right"));
 		withRenderLayer(new ArmSkinLayer(this, "arm_left"));
 		withRenderLayer(new MuzzleFlashLayer(this));
+		withRenderLayer(new ShowcasePoseLayer(this));
 	}
 
 	/** Animation state lives per holder, not per stack: the client gets a new stack every time the server syncs ammo, which would restart a running reload. */

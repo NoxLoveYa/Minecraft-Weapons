@@ -1,6 +1,7 @@
 package com.noxloveya.mcweapons.client.render;
 
 import com.geckolib.animatable.client.GeoRenderProvider;
+import com.geckolib.cache.model.GeoBone;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.renderer.GeoItemRenderer;
 import com.geckolib.renderer.base.GeoRenderState;
@@ -21,8 +22,10 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 
 /**
  * First-person gun. Draws the GeckoLib model straight in view space and adds, on top of the animation and in this
@@ -34,8 +37,10 @@ public final class Viewmodel {
 	private static final float SHOWCASE_STEP = 0.15F;
 	/** Seconds per breath of the idle layer, about a calm resting rate. */
 	private static final float BREATH_PERIOD = 3.7F;
-	/** How far in front of the eye the showcased gun floats. The tuner sets it so its panels fit around the gun. */
-	private static float showcaseDistance = 1.1F;
+	private static final Matrix4f inverseBase = new Matrix4f();
+	private static final Matrix4f gunPose = new Matrix4f();
+	private static long gunPoseNanos;
+	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
 	private static GunFeel feel = GunFeel.DEFAULT;
@@ -62,6 +67,7 @@ public final class Viewmodel {
 	}
 
 	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean showcasing) {
+		showcaseOpen = showcasing;
 		showcaseO = showcase;
 		showcase = Mth.clamp(showcase + (showcasing ? SHOWCASE_STEP : -SHOWCASE_STEP), 0, 1);
 		if (swaySnap) {
@@ -88,6 +94,7 @@ public final class Viewmodel {
 	public static void reset() {
 		ads = adsO = 0;
 		showcase = showcaseO = 0;
+		showcaseOpen = false;
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
@@ -146,29 +153,23 @@ public final class Viewmodel {
 		return muzzleFlashRoll;
 	}
 
-	/** True while the gun is shown for the tuner or still moving in or out of it. */
+	/** True while the tuner is open: the showcase animation then holds the gun up sideways in the right hand. */
 	public static boolean showcasing() {
-		return showcase > 0 || showcaseO > 0;
+		return showcaseOpen;
 	}
 
-	public static void setShowcaseDistance(float distance) {
-		showcaseDistance = distance;
+	/** Called by {@link ShowcasePoseLayer} with the pose the gun bone is drawn with, at its pivot. */
+	static void recordGunPose(Matrix4fc bonePose, GeoBone bone) {
+		gunPose.set(inverseBase).mul(bonePose).translate(-bone.pivotX() / 16, -bone.pivotY() / 16, -bone.pivotZ() / 16);
+		gunPoseNanos = System.nanoTime();
 	}
 
 	/**
-	 * Model to view space for the showcase: the middle of the gun floats to the center of the view, turned so its left side faces the
-	 * eye and tilted a little so the top and the muzzle read as 3D. {@code show} eases it in from the hand (0) to fully shown (1).
+	 * Gun model space to view space (eye at the origin, looking down -Z) as last drawn, once the showcase has settled, so the tuner can lay
+	 * its panels out around the gun. Null while it is still moving in or has not been drawn lately.
 	 */
-	public static Matrix4f showcaseTransform(GunRenderer renderer, float show) {
-		float[] bounds = renderer.gunBounds();
-		Vector3f middle = new Vector3f(bounds[0] + bounds[3], bounds[1] + bounds[4], bounds[2] + bounds[5]).mul(0.5F);
-		return new Matrix4f()
-				.translate(-middle.x * show, -middle.y * show, (-showcaseDistance - middle.z) * show)
-				.translate(middle)
-				.rotateZ(-6 * show * Mth.DEG_TO_RAD)
-				.rotateX(14 * show * Mth.DEG_TO_RAD)
-				.rotateY(90 * show * Mth.DEG_TO_RAD)
-				.translate(-middle.x, -middle.y, -middle.z);
+	public static @Nullable Matrix4f showcaseGunPose() {
+		return showcaseOpen && showcaseO >= 1 && System.nanoTime() - gunPoseNanos < 200_000_000L ? new Matrix4f(gunPose) : null;
 	}
 
 	/** About {@code value} while small, easing towards {@code max} as it grows. */
@@ -196,11 +197,8 @@ public final class Viewmodel {
 		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
 		float loose = (1 - 0.8F * aim) * (1 - show);
 		poseStack.pushPose();
-
-		// 0. Showcase (gun tuner): present the gun sideways in the middle of the screen. The showcase controller poses the arms holding it.
-		if (show > 0) {
-			poseStack.mulPose(showcaseTransform(renderer, show));
-		}
+		// Everything below is in view space relative to this; the tuner reads the gun's pose against it.
+		inverseBase.set(poseStack.last().pose()).invert();
 
 		// 1. ADS: slide the model so ads_anchor lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view.

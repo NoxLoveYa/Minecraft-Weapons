@@ -80,7 +80,26 @@ public class GunItem extends Item implements GeoItem {
 		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
 		// Registered after main so they win on their bones, whatever main is playing: the slide, barrel and slide stop while the gun is
 		// empty, and the arms holding the gun up while the tuner shows it (blended in over a few ticks, like the gun turning).
-		controllers.add(main, holdWhile("slide_lock", SLIDE_LOCKED, "slide_locked", 0), holdWhile("showcase", SHOWCASE, "showcase", 4));
+		controllers.add(main, holdWhile("slide_lock", SLIDE_LOCKED, "slide_locked", 0), showcase());
+	}
+
+	/** Holds the gun up sideways in the right hand while the tuner is open, and blends back to the hand when it closes. */
+	private AnimationController<GunItem> showcase() {
+		RawAnimation hold = RawAnimation.begin().thenLoop(animationName("showcase"));
+		// A short clip of the rest pose: blending to it eases the gun back, after which the bones go back to main.
+		RawAnimation out = RawAnimation.begin().thenPlay(animationName("showcase_out"));
+		return new AnimationController<>("showcase", 5, test -> {
+			if (Boolean.TRUE.equals(test.getData(SHOWCASE))) {
+				return test.setAndContinue(hold);
+			}
+			AnimationController<GunItem> controller = test.controller();
+			RawAnimation current = controller.getCurrentRawAnimation();
+			if (hold.equals(current) || out.equals(current) && !controller.hasAnimationFinished()) {
+				return test.setAndContinue(out);
+			}
+			controller.reset();
+			return PlayState.STOP;
+		});
 	}
 
 	/** A controller that loops one animation while a render flag is set, and otherwise leaves its bones to the controllers before it. */

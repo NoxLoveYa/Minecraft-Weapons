@@ -133,6 +133,8 @@ public class GunTunerScreen extends Screen {
 	/** The values being edited, as the definition json. Every widget writes into it straight away. */
 	private JsonObject working;
 	private @Nullable Dropdown openDropdown;
+	/** False until the gun has settled in the hand and the panels have been placed around it. */
+	private boolean laidOut;
 	// Panel metrics, compact on short screens (1080p at the default GUI scale is only 270 GUI pixels tall).
 	private int panelWidth;
 	private int header;
@@ -177,27 +179,42 @@ public class GunTunerScreen extends Screen {
 		if (!other.isEmpty()) {
 			groups.add(new Group("other", Side.RIGHT, null, List.copyOf(other)));
 		}
-		int[] sideWidth = new int[Side.values().length];
 		int[] sideHeight = new int[Side.values().length];
 		for (Group group : groups) {
 			int side = group.side().ordinal();
-			sideWidth[side] = panelWidth + GAP;
 			sideHeight[side] += (sideHeight[side] > 0 ? GAP : 0) + panelHeight(group);
 		}
 
-		GunRenderer renderer = renderer();
-		float[] bounds = renderer != null ? renderer.gunBounds() : null;
-		Matrix4f showcase = renderer != null ? fitShowcase(renderer, bounds, sideWidth, sideHeight) : null;
-		float[] box = showcase != null ? screenBox(showcase, bounds) : new float[] {width / 3F, height / 3F, width * 2 / 3F, height * 2 / 3F};
+		// The corners are free in a plus: buttons top right and bottom left.
+		int right = width - MARGIN;
+		addRenderableWidget(new FlatButton(right - 44, MARGIN, 44, CommonComponents.GUI_DONE, 0, this::onClose));
+		addRenderableWidget(new FlatButton(right - 92, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.save"), 0,
+				() -> send(TuneGunPayload.Action.SAVE, "gui.mcweapons.tuner.saved")));
+		addRenderableWidget(new FlatButton(right - 140, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.apply"), ACCENT,
+				() -> send(TuneGunPayload.Action.APPLY, "gui.mcweapons.tuner.applied")));
+		int bottom = height - MARGIN - BUTTON_HEIGHT;
+		addRenderableWidget(new FlatButton(MARGIN, bottom, 60, Component.translatable("gui.mcweapons.tuner.copy"), 0, this::copy));
+		addRenderableWidget(new FlatButton(MARGIN + 64, bottom, 44, Component.translatable("gui.mcweapons.tuner.reset"), DANGER, this::confirmReset));
 
-		// Side order puts the top and bottom panels first; a side column that would overlap them moves out to the screen edge.
-		for (Side side : Side.values()) {
+		// The panels go around the gun where the hand actually holds it, so they wait until the showcase animation has settled.
+		GunRenderer renderer = renderer();
+		Matrix4f showcase = Viewmodel.showcaseGunPose();
+		laidOut = renderer != null && showcase != null;
+		if (!laidOut) {
+			return;
+		}
+		float[] bounds = renderer.gunBounds();
+		float[] box = screenBox(showcase, bounds);
+
+		// The side columns go first, so a bottom panel with no room under the gun (it is held up big) can move under one of them.
+		for (Side side : List.of(Side.LEFT, Side.RIGHT, Side.TOP, Side.BOTTOM)) {
 			List<Group> stack = groups.stream().filter(group -> group.side() == side).toList();
 			if (stack.isEmpty()) {
 				continue;
 			}
 			int[] firstAnchor = anchor(stack.getFirst(), renderer, showcase, bounds, box);
 			int total = sideHeight[side.ordinal()];
+			Side wiredFrom = side;
 			int x = switch (side) {
 				case TOP, BOTTOM -> Mth.clamp(firstAnchor[0] - panelWidth / 2, MARGIN, width - MARGIN - panelWidth);
 				case LEFT -> Math.max(MARGIN, Math.round(box[0]) - GAP - panelWidth);
@@ -211,26 +228,29 @@ public class GunTunerScreen extends Screen {
 			if ((side == Side.LEFT || side == Side.RIGHT) && overlapsPanel(x, y, total)) {
 				x = side == Side.LEFT ? MARGIN : width - MARGIN - panelWidth;
 			}
+			if (side == Side.BOTTOM && Math.round(box[3]) + GAP + total > height - MARGIN) {
+				for (Side column : List.of(Side.RIGHT, Side.LEFT)) {
+					int columnX = panels.stream().filter(panel -> panel.side() == column).mapToInt(Panel::x).findFirst().orElse(-1);
+					int under = panels.stream().filter(panel -> panel.side() == column).mapToInt(panel -> panel.y() + panel.height()).max().orElse(-1) + GAP;
+					// The bottom left corner holds the Copy and Reset buttons.
+					int floor = height - MARGIN - (column == Side.LEFT ? BUTTON_HEIGHT + GAP : 0);
+					if (columnX >= 0 && under + total <= floor) {
+						x = columnX;
+						y = under;
+						wiredFrom = column;
+						break;
+					}
+				}
+			}
 			for (Group group : stack) {
 				int[] anchor = anchor(group, renderer, showcase, bounds, box);
-				panels.add(new Panel(Component.translatable("gui.mcweapons.tuner.group." + group.name()), side, x, y, panelHeight(group), anchor[0], anchor[1]));
+				panels.add(new Panel(Component.translatable("gui.mcweapons.tuner.group." + group.name()), wiredFrom, x, y, panelHeight(group), anchor[0], anchor[1]));
 				for (int i = 0; i < group.paths().size(); i++) {
 					addField(group.paths().get(i), x + 4, y + header + 1 + i * row);
 				}
 				y += panelHeight(group) + GAP;
 			}
 		}
-
-		// The corners are free in a plus: buttons top right and bottom left.
-		int right = width - MARGIN;
-		addRenderableWidget(new FlatButton(right - 44, MARGIN, 44, CommonComponents.GUI_DONE, 0, this::onClose));
-		addRenderableWidget(new FlatButton(right - 92, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.save"), 0,
-				() -> send(TuneGunPayload.Action.SAVE, "gui.mcweapons.tuner.saved")));
-		addRenderableWidget(new FlatButton(right - 140, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.apply"), ACCENT,
-				() -> send(TuneGunPayload.Action.APPLY, "gui.mcweapons.tuner.applied")));
-		int bottom = height - MARGIN - BUTTON_HEIGHT;
-		addRenderableWidget(new FlatButton(MARGIN, bottom, 60, Component.translatable("gui.mcweapons.tuner.copy"), 0, this::copy));
-		addRenderableWidget(new FlatButton(MARGIN + 64, bottom, 44, Component.translatable("gui.mcweapons.tuner.reset"), DANGER, this::confirmReset));
 	}
 
 	private boolean overlapsPanel(int x, int y, int columnHeight) {
@@ -280,25 +300,6 @@ public class GunTunerScreen extends Screen {
 				&& GeoRenderProvider.of(gun).getGeoItemRenderer() instanceof GunRenderer renderer ? renderer : null;
 	}
 
-	/**
-	 * Picks the showcase distance that leaves room for the panels on every side, so the gun is as big as the screen allows, and returns
-	 * the showcase transform at that distance. Size goes roughly as 1/distance, so a few rounds settle it. It stays at least a block
-	 * away, where the hands holding it (nearer the eye) do not fill the screen.
-	 */
-	private Matrix4f fitShowcase(GunRenderer renderer, float[] bounds, int[] sideWidth, int[] sideHeight) {
-		float freeWidth = width - 2 * MARGIN - sideWidth[Side.LEFT.ordinal()] - sideWidth[Side.RIGHT.ordinal()];
-		float freeHeight = height - 2 * MARGIN - sideHeight[Side.TOP.ordinal()] - sideHeight[Side.BOTTOM.ordinal()] - 2 * GAP;
-		float distance = 1;
-		for (int i = 0; i < 3; i++) {
-			Viewmodel.setShowcaseDistance(distance);
-			float[] box = screenBox(Viewmodel.showcaseTransform(renderer, 1), bounds);
-			float scale = Math.min(Math.max(freeWidth, 40) / (box[2] - box[0]), Math.max(freeHeight, 30) / (box[3] - box[1]));
-			distance = Mth.clamp(distance / scale, 1, 4);
-		}
-		Viewmodel.setShowcaseDistance(distance);
-		return Viewmodel.showcaseTransform(renderer, 1);
-	}
-
 	/** Screen box (x0, y0, x1, y1 in GUI pixels) around the showcased gun. */
 	private float[] screenBox(Matrix4f showcase, float[] bounds) {
 		float[] box = {Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
@@ -323,7 +324,7 @@ public class GunTunerScreen extends Screen {
 		return new int[] {Math.round(screen[0]), Math.round(screen[1])};
 	}
 
-	/** GUI position of a model-space point under the showcase. The hand is drawn with the fixed HUD field of view. */
+	/** GUI position of a gun model-space point under its drawn pose. The hand is drawn with the fixed HUD field of view. */
 	private float[] project(Matrix4f showcase, Vector3f modelPoint) {
 		Vector3f view = showcase.transformPosition(modelPoint, new Vector3f());
 		float focal = 1 / (float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2));
@@ -419,6 +420,8 @@ public class GunTunerScreen extends Screen {
 		if (current != null && current != synced) {
 			synced = current;
 			working = values(current);
+			init(width, height);
+		} else if (!laidOut && Viewmodel.showcaseGunPose() != null) {
 			init(width, height);
 		}
 	}
