@@ -33,8 +33,9 @@ public final class Viewmodel {
 	private static final float MAX_KICKS = 2.5F;
 	private static final float RECOIL_PUSH_BACK = 0.04F;
 	private static final float ADS_PUSH_FORWARD = 0.1F;
-	private static final float SWAY_GAIN = 0.035F; // vanilla hands use 0.1
-	private static final float SWAY_MAX = 1.5F; // degrees
+	private static final float SWAY_GAIN = 0.02F; // vanilla hands use 0.1
+	private static final float SWAY_MAX = 0.75F; // degrees
+	private static final float BOB_SCALE = 0.3F; // of vanilla's view bob, which bounces a full-size gun far too much
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
 
 	private static float ads;
@@ -146,7 +147,7 @@ public final class Viewmodel {
 		if (minecraft.options.bobView().get()) {
 			ClientAvatarState avatar = player.avatarState();
 			float walk = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
-			float bob = avatar.getInterpolatedBob(partialTick) * loose;
+			float bob = avatar.getInterpolatedBob(partialTick) * BOB_SCALE * loose;
 			poseStack.translate(Mth.sin(walk) * bob * 0.5F, -Math.abs(Mth.cos(walk) * bob), 0);
 			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
