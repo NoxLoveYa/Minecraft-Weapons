@@ -158,8 +158,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		PoseStack poseStack = renderPassInfo.poseStack();
 		Vector3f grip = restPivot("gun");
 		poseStack.scale(THIRD_PERSON_SCALE, THIRD_PERSON_SCALE, THIRD_PERSON_SCALE);
-		// In the right hand, item -X points forward, +Y to the holder's right and +Z up: barrel (-Z) forward, sights up.
-		poseStack.rotateDegrees(Axis.ZP, 90);
+		// In the hand, item +X points to the holder's right, +Y forward and +Z up, so pitching the model 90 degrees puts the barrel (-Z)
+		// forward and the sights up.
 		poseStack.rotateDegrees(Axis.XP, 90);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
 	}
