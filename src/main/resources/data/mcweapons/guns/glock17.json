@@ -15,5 +15,14 @@
   "reload_empty_ticks": 50,
   "ads_ticks": 5,
   "ads_fov_multiplier": 0.8,
-  "move_speed_ads_multiplier": 0.7
+  "move_speed_ads_multiplier": 0.7,
+  "feel": {
+    "sway_gain": 0.02,
+    "sway_max_deg": 0.75,
+    "bob_scale": 0.3,
+    "recoil_push_back": 0.04,
+    "recoil_spring_stiffness": 0.35,
+    "recoil_spring_damping": 0.6,
+    "recoil_max_kicks": 2.5
+  }
 }

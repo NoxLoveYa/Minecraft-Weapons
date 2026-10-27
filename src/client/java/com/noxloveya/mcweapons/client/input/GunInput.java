@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
+import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
@@ -17,6 +18,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
@@ -28,6 +30,8 @@ public final class GunInput {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(McWeapons.id("main"));
 	public static final KeyMapping RELOAD = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.reload", InputConstants.KEY_R, CATEGORY));
 	public static final KeyMapping INSPECT = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.inspect", InputConstants.KEY_V, CATEGORY));
+	/** Opens the gun tuner for ops. The server checks the permission again on every change. */
+	public static final KeyMapping TUNER = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.tuner", InputConstants.KEY_F7, CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
@@ -88,6 +92,8 @@ public final class GunInput {
 			}
 			while (INSPECT.consumeClick()) {
 			}
+			while (TUNER.consumeClick()) {
+			}
 			reloadHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
@@ -135,6 +141,11 @@ public final class GunInput {
 			if (canInspect(player, stack, definition)) {
 				// The press and mag checks show a chambered slide and a loaded mag, so an empty gun only gets the look-over.
 				play(player, gun, slideLocked(player, stack, definition) ? "inspect" : nextInspect(player));
+			}
+		}
+		while (TUNER.consumeClick()) {
+			if (definition != null && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
+				minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
 			}
 		}
 		while (minecraft.options.keyAttack.consumeClick()) {
