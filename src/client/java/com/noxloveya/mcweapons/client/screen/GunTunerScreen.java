@@ -31,6 +31,7 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
@@ -465,7 +466,7 @@ public class GunTunerScreen extends Screen {
 		graphics.fill(ax - 1, ay - 1, ax + 2, ay + 2, TEXT);
 	}
 
-	/** The json key of the value under the mouse, after a short hover. */
+	/** After a short hover: what the value under the mouse changes, with its name and json key. */
 	private void hoverHint(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Field hovered = fields.stream().filter(field -> field.widget().isMouseOver(mouseX, mouseY)).findFirst().orElse(null);
 		long now = Util.getMillis();
@@ -476,13 +477,23 @@ public class GunTunerScreen extends Screen {
 		if (hovered == null || now - hoveredSince < TOOLTIP_DELAY) {
 			return;
 		}
-		Component text = ui(Component.literal(hovered.path()));
-		int w = font.width(text) + 10;
+		String key = key(hovered.path());
+		Component title = medium(Component.translatableWithFallback("gui.mcweapons.tuner.field." + key, key));
+		// A value without a description (a newer definition field) still gets its name and key.
+		String descriptionKey = "gui.mcweapons.tuner.field." + key + ".desc";
+		List<FormattedCharSequence> lines = Language.getInstance().has(descriptionKey) ? font.split(ui(Component.translatable(descriptionKey)), 170) : List.of();
+		Component path = ui(Component.literal(hovered.path()));
+		int w = 10 + Math.max(Math.max(font.width(title), font.width(path)), lines.stream().mapToInt(font::width).max().orElse(0));
+		int h = 8 + 10 + lines.size() * 10 + 4 + 10;
 		int x = Math.min(mouseX + 8, width - MARGIN - w);
-		int y = Math.min(mouseY + 12, height - MARGIN - 13);
-		rounded(graphics, x, y, x + w, y + 13, CARD);
-		roundedOutline(graphics, x, y, x + w, y + 13, EDGE);
-		graphics.text(font, text, x + 5, y + 3, LABEL, false);
+		int y = mouseY + 12 + h <= height - MARGIN ? mouseY + 12 : Math.max(MARGIN, mouseY - 4 - h);
+		rounded(graphics, x, y, x + w, y + h, CARD);
+		roundedOutline(graphics, x, y, x + w, y + h, EDGE);
+		graphics.text(font, title, x + 5, y + 5, TEXT, false);
+		for (int i = 0; i < lines.size(); i++) {
+			graphics.text(font, lines.get(i), x + 5, y + 16 + i * 10, LABEL, false);
+		}
+		graphics.text(font, path, x + 5, y + h - 12, MUTED, false);
 	}
 
 	/** The last Apply, Save, Copy or error, as a small card at the bottom that fades out. */
