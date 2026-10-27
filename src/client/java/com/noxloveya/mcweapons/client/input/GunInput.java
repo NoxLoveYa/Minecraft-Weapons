@@ -28,6 +28,8 @@ public final class GunInput {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(McWeapons.id("main"));
 	public static final KeyMapping RELOAD = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.reload", InputConstants.KEY_R, CATEGORY));
 	public static final KeyMapping INSPECT = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.inspect", InputConstants.KEY_V, CATEGORY));
+	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
+	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
 	private static boolean aiming;
 	/** Client game time of the last predicted shot, for the local RPM gate. */
@@ -37,6 +39,8 @@ public final class GunInput {
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
 	private static long predictedEmptyUntil;
 	private static String lastInspect = "";
+	/** Ticks the reload key has been held, or -1 when no press is being timed. */
+	private static int reloadHeldTicks = -1;
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
 
@@ -84,6 +88,7 @@ public final class GunInput {
 			}
 			while (INSPECT.consumeClick()) {
 			}
+			reloadHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
 			predictedReloadUntil = 0;
@@ -99,6 +104,7 @@ public final class GunInput {
 			drawnSlot = slot;
 			drawnItem = gun;
 			predictedReloadUntil = 0;
+			reloadHeldTicks = -1;
 			Viewmodel.reset();
 			play(player, gun, "draw");
 		}
@@ -106,11 +112,27 @@ public final class GunInput {
 			Viewmodel.tick(definition, aim);
 		}
 
+		// A tap reloads when the key is let go; holding it checks the mag instead.
 		while (RELOAD.consumeClick()) {
-			reload(player, stack, gun, definition);
+			// An empty gun has no rounds to check and is in a hurry, so it reloads on the press.
+			if (definition != null && slideLocked(player, stack, definition)) {
+				reload(player, stack, gun, definition);
+			} else {
+				reloadHeldTicks = 0;
+			}
+		}
+		if (reloadHeldTicks >= 0) {
+			if (!RELOAD.isDown()) {
+				if (reloadHeldTicks < MAG_CHECK_HOLD_TICKS) {
+					reload(player, stack, gun, definition);
+				}
+				reloadHeldTicks = -1;
+			} else if (++reloadHeldTicks == MAG_CHECK_HOLD_TICKS && canInspect(player, stack, definition)) {
+				play(player, gun, "inspect_mag_check");
+			}
 		}
 		while (INSPECT.consumeClick()) {
-			if (definition != null && !reloading(player, stack) && definition.readyToFire(lastShotTick, player.level().getGameTime(), 0)) {
+			if (canInspect(player, stack, definition)) {
 				// The press and mag checks show a chambered slide and a loaded mag, so an empty gun only gets the look-over.
 				play(player, gun, slideLocked(player, stack, definition) ? "inspect" : nextInspect(player));
 			}
@@ -158,6 +180,11 @@ public final class GunInput {
 		predictedEmptyUntil = 0;
 		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
 		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
+	}
+
+	/** Inspects are cosmetic, so they wait for reloads and shots to finish. */
+	private static boolean canInspect(LocalPlayer player, ItemStack stack, @Nullable GunDefinition definition) {
+		return definition != null && !reloading(player, stack) && definition.readyToFire(lastShotTick, player.level().getGameTime(), 0);
 	}
 
 	/** A random inspect variant, never the same one twice in a row. */
