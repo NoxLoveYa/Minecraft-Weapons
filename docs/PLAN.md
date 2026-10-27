@@ -1,6 +1,6 @@
 # Roadmap
 
-Fabric gun mod for Minecraft 1.21.1. Guns are animated GeckoLib models made in Blockbench, shown in a custom first-person viewmodel.
+Fabric gun mod for Minecraft 26.3. Guns are animated GeckoLib models made in Blockbench, shown in a custom first-person viewmodel.
 
 **Current phase: 1 (Foundation and the Glock)**
 
@@ -37,3 +37,4 @@ More guns built on the framework (for example a rifle, an SMG and a shotgun), a 
 
 - 2026-10-27: Fabric over NeoForge. bombo's call.
 - 2026-10-27: Minecraft 1.21.1 with GeckoLib 4.x. This is the most stable Fabric target for GeckoLib. GeckoLib 5 on 1.21.4 and later reworks the rendering API, so we can move once phase 1 is solid if we want to.
+- 2026-10-27: Moved to Minecraft **26.3**, Fabric Loader 0.19.5 or later, Java 25 and **GeckoLib 5** (5.5.7), to match the game bombo plays on. This replaces the entry above. Minecraft 26.x ships unobfuscated with Mojang names, so there is no mappings or Parchment layer anymore. bombo's call.
