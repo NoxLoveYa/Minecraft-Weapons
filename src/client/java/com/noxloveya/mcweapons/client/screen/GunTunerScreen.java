@@ -80,6 +80,7 @@ public class GunTunerScreen extends Screen {
 	private static final int ICON_APPLY = 0xE06C;
 	private static final int ICON_SAVE = 0xE14D;
 	private static final int ICON_COPY = 0xE09E;
+	private static final int ICON_PASTE = 0xE3E8;
 	private static final int ICON_RESET = 0xE148;
 	private static final int ICON_CLOSE = 0xE1B2;
 	private static final int ICON_DOWN = 0xE06D;
@@ -168,6 +169,8 @@ public class GunTunerScreen extends Screen {
 	/** False until the gun has settled in the hand and the panels have been placed around it. */
 	private boolean laidOut;
 	private boolean confirmingReset;
+	/** Right edge of the Copy, Apply JSON and Reset row, so the status card can keep clear of it. */
+	private int bottomButtonsRight;
 	private @Nullable Component status;
 	private boolean statusError;
 	private long statusUntil;
@@ -240,8 +243,11 @@ public class GunTunerScreen extends Screen {
 		addLeftOf(x, Component.translatable("gui.mcweapons.tuner.apply"), ICON_APPLY, ButtonStyle.PRIMARY, () -> send(TuneGunPayload.Action.APPLY, "gui.mcweapons.tuner.applied"));
 		int bottom = height - MARGIN - BUTTON_HEIGHT;
 		FlatButton copy = addRenderableWidget(new FlatButton(MARGIN, bottom, Component.translatable("gui.mcweapons.tuner.copy"), ICON_COPY, ButtonStyle.GHOST, this::copy));
-		addRenderableWidget(new FlatButton(MARGIN + copy.getWidth() + 4, bottom, Component.translatable("gui.mcweapons.tuner.reset"), ICON_RESET, ButtonStyle.DANGER,
-				() -> confirmingReset = true));
+		FlatButton paste = addRenderableWidget(new FlatButton(copy.getX() + copy.getWidth() + 4, bottom, Component.translatable("gui.mcweapons.tuner.paste"), ICON_PASTE,
+				ButtonStyle.GHOST, this::applyClipboard));
+		FlatButton reset = addRenderableWidget(new FlatButton(paste.getX() + paste.getWidth() + 4, bottom, Component.translatable("gui.mcweapons.tuner.reset"), ICON_RESET,
+				ButtonStyle.DANGER, () -> confirmingReset = true));
+		bottomButtonsRight = reset.getX() + reset.getWidth();
 
 		// The panels go around the gun where the hand actually holds it, so they wait until the showcase animation has settled.
 		GunRenderer renderer = renderer();
@@ -506,8 +512,13 @@ public class GunTunerScreen extends Screen {
 		Component text = fit(ui(status), width / 2);
 		Component mark = icon(statusError ? ICON_ERROR : ICON_OK);
 		int w = font.width(text) + 26;
-		int x = (width - w) / 2;
+		// On the bottom line, centered or just right of the buttons; only when it cannot fit there, above them.
+		int x = Math.max((width - w) / 2, bottomButtonsRight + 6);
 		int y = height - MARGIN - 18;
+		if (x + w > width - MARGIN) {
+			x = (width - w) / 2;
+			y -= BUTTON_HEIGHT + 4;
+		}
 		rounded(graphics, x, y, x + w, y + 18, ARGB.multiplyAlpha(CARD, alpha));
 		roundedOutline(graphics, x, y, x + w, y + 18, ARGB.multiplyAlpha(statusError ? 0x66FF6B6B : EDGE, alpha));
 		graphics.text(font, mark, x + 7, y + 5, ARGB.multiplyAlpha(statusError ? DANGER : TEXT, alpha), false);
@@ -637,6 +648,36 @@ public class GunTunerScreen extends Screen {
 			minecraft.keyboardHandler.setClipboard(GunDefinitions.toJsonText(id, tuned));
 			status(Component.translatable("gui.mcweapons.tuner.copied"), false);
 		}
+	}
+
+	/**
+	 * Loads gun json from the clipboard (Copy JSON's format, or the gun's data file) into every row and applies it. Json for another
+	 * gun, by its "item" field, is refused rather than applied to this one.
+	 */
+	private void applyClipboard() {
+		JsonObject json;
+		try {
+			json = JsonParser.parseString(minecraft.keyboardHandler.getClipboard()).getAsJsonObject();
+		} catch (RuntimeException e) {
+			status(Component.translatable("gui.mcweapons.tuner.paste.none"), true);
+			return;
+		}
+		JsonElement item = json.get("item");
+		JsonElement ownItem = GunDefinitions.toJson(id, synced).get("item");
+		if (item != null && ownItem != null && !item.equals(ownItem)) {
+			status(Component.translatable("gui.mcweapons.tuner.paste.other", item.getAsString()), true);
+			return;
+		}
+		DataResult<GunDefinition> result = GunDefinition.CODEC.parse(JsonOps.INSTANCE, json);
+		if (result.isError()) {
+			result.ifError(error -> status(Component.translatable("gui.mcweapons.tuner.invalid", error.message()), true));
+			return;
+		}
+		GunDefinition pasted = result.getOrThrow();
+		working = values(pasted);
+		init(width, height);
+		ClientPlayNetworking.send(new TuneGunPayload(id, pasted, TuneGunPayload.Action.APPLY));
+		status(Component.translatable("gui.mcweapons.tuner.pasted", gunName), false);
 	}
 
 	/** The working values as a definition, or null after showing why not. */
