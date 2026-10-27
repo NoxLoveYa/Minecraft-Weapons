@@ -26,7 +26,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Turns attack, use and the mod keys into gun intents while a gun is in the main hand, and predicts their animations. */
 public final class GunInput {
@@ -48,6 +50,8 @@ public final class GunInput {
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
 	private static long predictedEmptyUntil;
 	private static String lastInspect = "";
+	/** Mod keys that were down last tick, to tell a fresh press from a held key's repeats. */
+	private static final Set<KeyMapping> HELD_KEYS = new HashSet<>();
 	/** Ticks the reload key has been held, or -1 when no press is being timed. */
 	private static int reloadHeldTicks = -1;
 	private static int drawnSlot = -1;
@@ -101,14 +105,11 @@ public final class GunInput {
 		aiming = aim;
 
 		if (!holding) {
-			while (RELOAD.consumeClick()) {
-			}
-			while (INSPECT.consumeClick()) {
-			}
-			while (TUNER.consumeClick()) {
-			}
-			while (FIRE_MODE.consumeClick()) {
-			}
+			// Still read every tick, to keep their held state right.
+			freshPress(RELOAD);
+			freshPress(INSPECT);
+			freshPress(TUNER);
+			freshPress(FIRE_MODE);
 			predictedMode = null;
 			reloadHeldTicks = -1;
 			drawnSlot = -1;
@@ -136,7 +137,8 @@ public final class GunInput {
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.
-		while (RELOAD.consumeClick()) {
+		// Only a fresh press starts the timer: the key repeats while held, and a repeat restarting it made the release reload.
+		if (freshPress(RELOAD)) {
 			reloadHeldTicks = 0;
 		}
 		if (reloadHeldTicks >= 0) {
@@ -149,17 +151,13 @@ public final class GunInput {
 				inspect(player, gun, "inspect_mag_check");
 			}
 		}
-		while (INSPECT.consumeClick()) {
-			if (canInspect(player, stack, definition)) {
-				inspect(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
-			}
+		if (freshPress(INSPECT) && canInspect(player, stack, definition)) {
+			inspect(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
 		}
-		while (TUNER.consumeClick()) {
-			if (definition != null && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
-				minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
-			}
+		if (freshPress(TUNER) && definition != null && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
+			minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
 		}
-		while (FIRE_MODE.consumeClick()) {
+		if (freshPress(FIRE_MODE)) {
 			// Same check as the server: not mid-reload.
 			if (definition != null && !reloading(player, stack)) {
 				predictedMode = definition.nextFireMode(fireMode(player, stack, definition));
@@ -219,6 +217,24 @@ public final class GunInput {
 		predictedEmptyUntil = 0;
 		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
 		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
+	}
+
+	/**
+	 * Consumes a key's clicks and says whether it was freshly pressed this tick. The OS repeats a held key, and vanilla counts each repeat
+	 * as a click, so without this, holding a key would act again about 30 times a second.
+	 */
+	private static boolean freshPress(KeyMapping key) {
+		boolean clicked = false;
+		while (key.consumeClick()) {
+			clicked = true;
+		}
+		boolean fresh = clicked && !HELD_KEYS.contains(key);
+		if (key.isDown()) {
+			HELD_KEYS.add(key);
+		} else {
+			HELD_KEYS.remove(key);
+		}
+		return fresh;
 	}
 
 	/** Inspects are cosmetic, so they wait for reloads and shots to finish. */

@@ -169,6 +169,8 @@ public class GunTunerScreen extends Screen {
 	/** False until the gun has settled in the hand and the panels have been placed around it. */
 	private boolean laidOut;
 	private boolean confirmingReset;
+	/** The tuner key opened this screen; it only closes it again once that press has been let go. */
+	private boolean tunerKeyReleased;
 	/** Right edge of the Copy, Apply JSON and Reset row, so the status card can keep clear of it. */
 	private int bottomButtonsRight;
 	private @Nullable Component status;
@@ -626,12 +628,20 @@ public class GunTunerScreen extends Screen {
 			}
 			return true;
 		}
-		// The tuner key closes it again, unless it is being typed into a text box.
-		if (GunInput.TUNER.matches(event) && textFields.stream().noneMatch(EditBox::isFocused)) {
+		// The tuner key closes it again, unless it is being typed into a text box, or is still the press that opened it (repeating).
+		if (GunInput.TUNER.matches(event) && tunerKeyReleased && textFields.stream().noneMatch(EditBox::isFocused)) {
 			onClose();
 			return true;
 		}
 		return super.keyPressed(event);
+	}
+
+	@Override
+	public boolean keyReleased(KeyEvent event) {
+		if (GunInput.TUNER.matches(event)) {
+			tunerKeyReleased = true;
+		}
+		return super.keyReleased(event);
 	}
 
 	private void send(TuneGunPayload.Action action, String doneKey) {
