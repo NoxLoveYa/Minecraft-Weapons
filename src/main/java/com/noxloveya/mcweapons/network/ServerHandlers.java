@@ -27,6 +27,8 @@ import net.minecraft.server.permissions.Permissions;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.InclusiveRange;
+import net.minecraft.util.Prediction;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -68,7 +70,20 @@ public final class ServerHandlers {
 			if (!GunItem.holdsGun(player)) {
 				setAiming(player, false);
 			}
+			keepGunOutOfOffhand(player);
 		}));
+	}
+
+	/**
+	 * Guns are held in the main hand only. One that ends up in the offhand, by the swap key, an inventory click, creative or a command,
+	 * goes back into the inventory, or onto the ground when it is full. Checked here because there are too many ways in to guard each one.
+	 */
+	private static void keepGunOutOfOffhand(ServerPlayer player) {
+		ItemStack offhand = player.getOffhandItem();
+		if (offhand.getItem() instanceof GunItem) {
+			player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+			player.getInventory().placeItemBackInInventory(offhand, Prediction.SERVER_ONLY);
+		}
 	}
 
 	private static void shoot(ServerPlayer player, ShootPayload payload) {

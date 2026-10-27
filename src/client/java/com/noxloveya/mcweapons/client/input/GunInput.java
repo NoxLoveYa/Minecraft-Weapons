@@ -151,6 +151,9 @@ public final class GunInput {
 		while (minecraft.options.keyUse.consumeClick()) {
 			// Aiming reads keyUse.isDown() above, the clicks only need to be kept from vanilla.
 		}
+		while (minecraft.options.keySwapOffhand.consumeClick()) {
+			// Guns stay in the main hand; the server also moves any that reach the offhand another way.
+		}
 	}
 
 	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
