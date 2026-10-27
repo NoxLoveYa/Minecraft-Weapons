@@ -10,7 +10,7 @@ Tasks usually arrive as prompts copied from `docs/prompts/`. Each prompt names i
 
 ## Ground rules
 
-- Stack is fixed: Fabric, Minecraft **1.21.1**, Java 21, Fabric Loom with **Mojang mappings** (plus Parchment), Fabric API, and **GeckoLib 4.x for Fabric 1.21.1**. Do not change it without a decision recorded in `docs/PLAN.md`.
+- Stack is fixed: Fabric (Loader 0.19.5 or later), Minecraft **26.3**, Java 25, Fabric Loom (the game ships with Mojang names, so there are no mappings), Fabric API, and **GeckoLib 5 for Fabric 26.3**. Do not change it without a decision recorded in `docs/PLAN.md`.
 - Mod id is `mcweapons` and the base package is `com.noxloveya.mcweapons`.
 - Gameplay logic runs on the server. The client only predicts and presents (see DESIGN_RULES, "Client vs server").
 - Do not invent features outside the current spec. If something in the spec is unclear or does not work, write it down under "Open questions" at the bottom of that spec and choose the simplest option.

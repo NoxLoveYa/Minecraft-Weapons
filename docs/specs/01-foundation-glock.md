@@ -1,6 +1,6 @@
 # Spec 01: Foundation and the Glock
 
-**Status:** not started
+**Status:** 01a and 01b done
 **Prompts:** `docs/prompts/01a-scaffold-and-gun-framework.md`, `01b-glock-blockbench.md`, `01c-viewmodel-and-rendering.md`
 Prompts 01a and 01b don't depend on each other, so they can run in parallel. 01c needs both of them.
 
@@ -146,3 +146,30 @@ Follows DESIGN_RULES section 3. The Glock 17 is a polymer-frame pistol in black 
 - **Thin parts.** The sights, trigger and trigger guard are thinner than one texel, so they use per-face UV on small solid-color swatches. Everything 1 unit or thicker uses box UV.
 - **Arm texture areas.** The arm UV areas of `glock17.png`, (40,16) and (32,48), hold a Steve-like placeholder for the Blockbench preview only. In game the renderer replaces them with the player's skin.
 - **Item model.** No item model was exported. On 26.3, items take their model from `assets/mcweapons/items/glock17.json`, so 01c points that file at GeckoLib 5's item renderer when it adds rendering. The geo (format 1.12.0) and animation file (`geckolib_format_version` 2) are the formats GeckoLib 5 reads.
+
+### From 01a (scaffold and gun framework)
+
+Decisions made where the spec was silent. Each one is the simplest option, and can be changed if planning disagrees.
+
+- **Stack moved to 26.3.** The decision is in PLAN.md (2026-10-27). Section 1 still says 1.21.1, Java 21, Parchment and GeckoLib 4.x, so planning needs to update it. Pinned now: Minecraft 26.3, Loader 0.19.5 (the oldest the mod declares, matching bombo's install), Loom 1.19.3, Fabric API 0.165.0+26.3, GeckoLib 5.5.7 (`com.geckolib:geckolib-fabric-26.3`), and Java 25. There are no mappings: 26.x ships unobfuscated, so Parchment has nothing to layer onto. The Gradle wrapper is still 9.8.2, the same as the Fabric example mod's 26.3 branch.
+- **The `item` field in the gun JSON is not read.** `GunItem` points at its definition id, which is the file name (`guns/glock17.json` gives `mcweapons:glock17`), so `item` repeats information the code already has. It is also field 17, one more than DFU's `RecordCodecBuilder` takes. It stays in the file because the spec lists it. Either drop it from the spec, or make it the link and stop passing an id to `GunItem`.
+- **When the mag counts as full.** Reload is blocked when `ammo >= target`, where the target is `mag_size + 1` with a round left (and `chamber: true`) and `mag_size` when empty. So a fresh 17/17 Glock can still reload to 18, which chambers a round. If full should mean `ammo >= mag_size`, that is a one-line change in `GunDefinition.reloadTarget`.
+- **A fresh gun has no `mcweapons:ammo` component, which means a full mag.** Items are registered before data loads, so mag size can't be a default component. The component is written on the first shot.
+- **Sounds come from the definition id and are not registered in Java.** `mcweapons:<gun>.fire` and `.dry` are played as direct sound holders, so a new gun needs only `sounds.json` entries. That means there's no `ModSounds` class, although DESIGN_RULES lists one. The placeholders point at vanilla `entity.firework_rocket.blast` and `block.dispenser.fail`. Volume is 1, which carries 16 blocks.
+- **Sound prediction.** The shooter's client plays fire or dry as soon as the click happens, and the server plays the sound to everyone except the shooter. The client predicts from the synced ammo count, so with high ping at 1 round, the shooter can hear "fire" while others hear "dry".
+- **The dry click is also limited by the shot interval** and updates `last_shot_tick`, so spam-clicking an empty gun doesn't machine-gun clicks.
+- **`slot` must be the selected hotbar slot.** The server ignores shoot and reload payloads for any other slot. This also keeps out-of-range indexes away from the inventory.
+- **`client_tick` is sent but not used.** The server times everything by its own game time, and there's no lag compensation in phase 1.
+- **The spread `seed` comes from the client, as the spec says.** A modified client could send seeds that give no spread. A later fix is to mix the seed with a server salt, but then the client can't predict spread.
+- **Spread degrees are the cone's half-angle** (largest deviation), with shots spread evenly over the cone's disc.
+- **The aiming state is the movement speed modifier itself:** `mcweapons:ads_speed`, `ADD_MULTIPLIED_TOTAL`, `move_speed_ads_multiplier - 1`. It's removed when aiming stops, when a server tick sees no gun in the main hand, and on death or relog, because it's transient.
+- **Damage type `mcweapons:bullet` is tagged `minecraft:bypasses_cooldown`.** Otherwise vanilla's hurt cooldown would swallow most shots at 400 RPM. It is not tagged `is_projectile`, because endermen would dodge it. Armor and knockback work as in vanilla.
+- **Death message:** "%1$s was shot by %2$s using %3$s". Vanilla only names the weapon when it has a custom name, so the bullet damage source overrides the message to always name the gun.
+- **"First living entity hit" ignores non-living entities.** Shots pass through item frames, boats, dropped items and the like.
+- **Vanilla attack and use are suppressed without mixins.** Fabric's `AttackBlockCallback`, `AttackEntityCallback`, `UseBlockCallback`, `UseEntityCallback` and `UseItemCallback` return FAIL on both sides while a gun is in the main hand, which also blocks the offhand item. Attack and use clicks are consumed in `START_CLIENT_TICK`, before vanilla reads them. Spectators are left alone.
+- **No re-equip animation on every shot.** `GunItem` returns false from Fabric's `allowComponentsUpdateAnimation`. Otherwise every ammo change would replay the equip bob.
+- **Reload cancel.** A reloading gun that isn't the main-hand stack is cancelled on its next inventory tick (`GunItem.inventoryTick`). A gun that leaves the inventory mid-reload (dropped or put in a chest) keeps its timer, and the reload resolves the next time it ticks in a player's inventory.
+- **The HUD and tooltip show `ammo / mag_size`,** so a chambered Glock shows "18 / 17".
+- **The inspect key (V) is registered but does nothing until 01c.**
+- **Placeholder model.** `models/item/glock17.json` is a flat `item/generated` model that uses `textures/item/glock17_icon.png`, leaving `glock17.png` free for the 01b GeckoLib texture. 01c decides whether to keep the flat icon for the inventory.
+- **Added a JUnit test** (`fabric-loader-junit`). It parses `glock17.json` and checks the fire-rate gate, the reload targets, and a round trip of the definitions sync payload. Singleplayer never encodes payloads, so without the test that codec would only run on a dedicated server.
