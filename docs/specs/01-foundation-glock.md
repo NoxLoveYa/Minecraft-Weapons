@@ -1,6 +1,6 @@
 # Spec 01: Foundation and the Glock
 
-**Status:** 01a done
+**Status:** 01a and 01b done
 **Prompts:** `docs/prompts/01a-scaffold-and-gun-framework.md`, `01b-glock-blockbench.md`, `01c-viewmodel-and-rendering.md`
 Prompts 01a and 01b don't depend on each other, so they can run in parallel. 01c needs both of them.
 
@@ -134,6 +134,18 @@ Follows DESIGN_RULES section 3. The Glock 17 is a polymer-frame pistol in black 
 ## Open questions
 
 (The builder adds questions here.)
+
+### From 01b (Glock assets)
+
+- **Viewmodel space.** Nothing said where the model sits, so the Glock is built in camera space: the origin is the eye, forward is -Z (north), +X is right, +Y is up, and 16 units are 1 block. 01c can draw it straight in first-person view space with no vanilla item transforms, and the gun lands lower right. In Blockbench coordinates, `ads_anchor` rests at (6, -2, -14) and `muzzle` at (6, -3.75, -20). The geo file stores X negated (Bedrock convention), and GeckoLib flips it back.
+- **Root pivot.** `root` and `gun` pivot at the top of the grip, (6, -5.5, -11), so draw, kick and reload tilt rotate around the right hand.
+- **Arms during reload.** Because the arms are not under `gun`, the reloads key `arm_right` to follow the grip and `arm_left` to carry the mag and rack the slide. Both are solved to the animated positions, so the hands stay on the gun.
+- **Fire.** The Glock is striker-fired and has no hammer, so `fire` moves the slide 1.6 units back, pulls the trigger, and adds a 1.5° kick on `root` so the arms stay attached.
+- **Sound keyframes.** A tactical reload has no slide action, so `reload` only has `mag_out` (0.32 s) and `mag_in` (1.48 s). `reload_empty` adds `slide_back` (1.84 s) and `slide_release` (1.94 s).
+- **No slide lock.** Phase 1 has no locked-back state, so `reload_empty` starts with the slide forward and racks it by hand.
+- **Thin parts.** The sights, trigger and trigger guard are thinner than one texel, so they use per-face UV on small solid-color swatches. Everything 1 unit or thicker uses box UV.
+- **Arm texture areas.** The arm UV areas of `glock17.png`, (40,16) and (32,48), hold a Steve-like placeholder for the Blockbench preview only. In game the renderer replaces them with the player's skin.
+- **Item model.** No item model was exported. On 26.3, items take their model from `assets/mcweapons/items/glock17.json`, so 01c points that file at GeckoLib 5's item renderer when it adds rendering. The geo (format 1.12.0) and animation file (`geckolib_format_version` 2) are the formats GeckoLib 5 reads.
 
 ### From 01a (scaffold and gun framework)
 
