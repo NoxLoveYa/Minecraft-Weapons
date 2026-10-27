@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.client.render;
 
+import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
@@ -8,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
@@ -170,7 +171,7 @@ public final class GunHud {
 		safeBlockedUntil = Util.getMillis() + 400;
 	}
 
-	/** One of our shots landed (the server says so): a white X for a hit, gold in the head, red and longer for the kill, with a tick. */
+	/** One of our shots landed (the server says so): a white X for a hit, gold in the head, red and longer for the kill, each with its sound. */
 	public static void hitmarker(boolean headshot, boolean kill) {
 		long now = Util.getMillis();
 		hitmarkerStart = now;
@@ -179,7 +180,7 @@ public final class GunHud {
 		hitmarkerLength = kill || headshot ? 6 : 4;
 		LocalPlayer player = Minecraft.getInstance().player;
 		if (player != null) {
-			player.playSound(SoundEvents.ARROW_HIT_PLAYER, kill ? 0.5F : 0.3F, kill ? 1.0F : headshot ? 1.9F : 1.5F);
+			player.playSound(SoundEvent.createVariableRangeEvent(McWeapons.id(headshot && !kill ? "headshot" : "hitmarker")), kill ? 0.5F : 0.35F, kill ? 0.8F : 1.0F);
 		}
 	}
 

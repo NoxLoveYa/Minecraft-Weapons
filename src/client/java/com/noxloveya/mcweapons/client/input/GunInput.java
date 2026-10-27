@@ -101,6 +101,9 @@ public final class GunInput {
 		boolean aim = holding && minecraft.options.keyUse.isDown();
 		if (aim != aiming && player != null) {
 			ClientPlayNetworking.send(new AimPayload(aim));
+			if (holding) {
+				player.playSound(((GunItem)player.getMainHandItem().getItem()).sound(aim ? "aim_in" : "aim_out"), 1.0F, 1.0F);
+			}
 		}
 		aiming = aim;
 

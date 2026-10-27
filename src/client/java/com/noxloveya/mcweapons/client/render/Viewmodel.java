@@ -67,6 +67,10 @@ public final class Viewmodel {
 	}
 
 	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean showcasing) {
+		if (showcasing != showcaseOpen) {
+			// Played here, as the showcase animation loops and would repeat a sound keyframe every second.
+			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound("handling"), 1.0F, 1.0F);
+		}
 		showcaseOpen = showcasing;
 		showcaseO = showcase;
 		showcase = Mth.clamp(showcase + (showcasing ? SHOWCASE_STEP : -SHOWCASE_STEP), 0, 1);

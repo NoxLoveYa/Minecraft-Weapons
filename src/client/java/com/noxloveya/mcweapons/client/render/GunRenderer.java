@@ -38,6 +38,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
 	/** Share of the mag still loaded, 0 to 1. The {@code mag_round_N} bones (1 at the top) show that many rounds, so a mag check reads the count. */
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
+	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
+	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
 	/** Third person: the holder's gun arm is raised forward (aiming, reloading or inspecting), see {@link ThirdPersonGuns}. */
 	public static final DataTicket<Boolean> ARM_RAISED = DataTicket.create("mcweapons_arm_raised", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
@@ -121,6 +123,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		renderState.addGeckolibData(ARM_RAISED, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) != ThirdPersonGuns.Pose.HIP);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);
+		renderState.addGeckolibData(CHAMBERED, renderData != null && chambered(renderData));
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
 	}
 
@@ -135,6 +138,13 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			return GunInput.slideLocked(player, stack, definition);
 		}
 		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
+	}
+
+	/** Same rule as the HUD's chamber icon. A locked-back slide means the last round has gone, even before the server says so. */
+	private static boolean chambered(RenderData renderData) {
+		ItemStack stack = renderData.itemStack();
+		GunDefinition definition = GunItem.definition(stack);
+		return definition != null && definition.chamber() && GunItem.ammo(stack, definition) > 0 && !slideLocked(renderData);
 	}
 
 	/** Rounds in the mag over its size. The chambered round is not in the mag, and a reload brings a full one. */
@@ -192,6 +202,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			for (int round = (int)Math.ceil(fill * slots) + 1; round <= slots; round++) {
 				snapshots.get("mag_round_" + round).ifPresent(snapshot -> snapshot.skipRender(true));
 			}
+		}
+		if (Boolean.FALSE.equals(renderPassInfo.renderState().getGeckolibData(CHAMBERED))) {
+			snapshots.get("chamber_round").ifPresent(snapshot -> snapshot.skipRender(true));
 		}
 	}
 }

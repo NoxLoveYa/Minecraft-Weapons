@@ -12,6 +12,12 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `glock17/mag_in.ogg` | [gun mag in](https://pixabay.com/sound-effects/film-special-effects-gun-mag-in-384505/) | MelBeeBelBee |
 | `glock17/slide_back.ogg` | [gun slide back](https://pixabay.com/sound-effects/film-special-effects-gun-slide-back-384509/) | MelBeeBelBee |
 | `glock17/slide_release.ogg` | [gun slide forward](https://pixabay.com/sound-effects/film-special-effects-gun-slide-forward-384508/) | MelBeeBelBee |
+| `glock17/draw.ogg` | [Pistol Draw Unholster](https://pixabay.com/sound-effects/film-special-effects-pistol-draw-unholster-80799/) | freesound_community |
+| `glock17/handling_1.ogg` to `handling_4.ogg` | [Airsoft Pistol Handling](https://pixabay.com/sound-effects/film-special-effects-airsoft-pistol-handling-106028/) | freesound_community |
+| `glock17/select_1.ogg`, `glock17/select_2.ogg` | [Remington 700 Safety](https://pixabay.com/sound-effects/film-special-effects-remington-700-safety-48897/) | freesound_community |
+| `glock17/aim_in.ogg`, `glock17/aim_out.ogg` | [heavy cloth rustle](https://pixabay.com/sound-effects/film-special-effects-heavy-cloth-rustle-106346/) | freesound_community |
+| `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
+| `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 
 ## Fonts
 

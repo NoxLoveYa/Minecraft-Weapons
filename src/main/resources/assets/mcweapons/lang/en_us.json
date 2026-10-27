@@ -91,5 +91,10 @@
   "subtitles.mcweapons.gun.dry": "Gun clicks empty",
   "subtitles.mcweapons.gun.mag_out": "Magazine drops",
   "subtitles.mcweapons.gun.mag_in": "Magazine seats",
-  "subtitles.mcweapons.gun.slide": "Slide racks"
+  "subtitles.mcweapons.gun.slide": "Slide racks",
+  "subtitles.mcweapons.gun.draw": "Gun drawn",
+  "subtitles.mcweapons.gun.handling": "Gun handled",
+  "subtitles.mcweapons.gun.aim": "Gun raised",
+  "subtitles.mcweapons.hitmarker": "Hit confirmed",
+  "subtitles.mcweapons.headshot": "Headshot"
 }

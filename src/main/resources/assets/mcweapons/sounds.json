@@ -32,7 +32,47 @@
   "glock17.select": {
     "subtitle": "subtitles.mcweapons.gun.select",
     "sounds": [
-      { "name": "minecraft:block.lever.click", "type": "event", "volume": 0.3, "pitch": 1.7 }
+      { "name": "mcweapons:glock17/select_1", "volume": 0.45 },
+      { "name": "mcweapons:glock17/select_2", "volume": 0.45 }
+    ]
+  },
+  "glock17.draw": {
+    "subtitle": "subtitles.mcweapons.gun.draw",
+    "sounds": [
+      { "name": "mcweapons:glock17/draw", "volume": 0.5 }
+    ]
+  },
+  "glock17.handling": {
+    "subtitle": "subtitles.mcweapons.gun.handling",
+    "sounds": [
+      { "name": "mcweapons:glock17/handling_1", "volume": 0.4 },
+      { "name": "mcweapons:glock17/handling_2", "volume": 0.4 },
+      { "name": "mcweapons:glock17/handling_3", "volume": 0.4 },
+      { "name": "mcweapons:glock17/handling_4", "volume": 0.4 }
+    ]
+  },
+  "glock17.aim_in": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_in", "volume": 0.25 }
+    ]
+  },
+  "glock17.aim_out": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
+    ]
+  },
+  "hitmarker": {
+    "subtitle": "subtitles.mcweapons.hitmarker",
+    "sounds": [
+      { "name": "mcweapons:hitmarker" }
+    ]
+  },
+  "headshot": {
+    "subtitle": "subtitles.mcweapons.headshot",
+    "sounds": [
+      { "name": "mcweapons:headshot" }
     ]
   },
   "glock17.slide_release": {
