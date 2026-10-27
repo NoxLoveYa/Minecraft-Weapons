@@ -61,9 +61,12 @@ import java.util.stream.Collectors;
  * Drawn flat and monochrome in the mod's own fonts (Inter for text, Lucide for the white icons) rather than vanilla's widgets.
  */
 public class GunTunerScreen extends Screen {
-	private static final FontDescription UI_FONT = new FontDescription.Resource(McWeapons.id("ui"));
-	private static final FontDescription UI_MEDIUM = new FontDescription.Resource(McWeapons.id("ui_medium"));
-	private static final FontDescription ICON_FONT = new FontDescription.Resource(McWeapons.id("icons"));
+	// Font glyphs are sampled without smoothing, so they only look clean when rasterized at exactly the GUI scale: each font comes in
+	// variants _x1 to _x10 with that oversample, and init() picks the one for the current scale.
+	private static final int MAX_FONT_SCALE = 10;
+	private static FontDescription uiFont = fontAt("ui", 2);
+	private static FontDescription uiMedium = fontAt("ui_medium", 2);
+	private static FontDescription iconFont = fontAt("icons", 2);
 
 	// Lucide codepoints (font/lucide.ttf).
 	private static final int ICON_TUNER = 0xE29A;
@@ -201,6 +204,10 @@ public class GunTunerScreen extends Screen {
 
 	@Override
 	protected void init() {
+		int scale = Mth.clamp(minecraft.getWindow().getGuiScale(), 1, MAX_FONT_SCALE);
+		uiFont = fontAt("ui", scale);
+		uiMedium = fontAt("ui_medium", scale);
+		iconFont = fontAt("icons", scale);
 		panels.clear();
 		fields.clear();
 		textFields.clear();
@@ -684,8 +691,12 @@ public class GunTunerScreen extends Screen {
 		return value.isJsonArray() ? value.getAsJsonArray().asList().stream().map(JsonElement::getAsString).collect(Collectors.joining(", ")) : value.getAsString();
 	}
 
+	private static FontDescription fontAt(String name, int scale) {
+		return new FontDescription.Resource(McWeapons.id(name + "_x" + scale));
+	}
+
 	static Component ui(Component text) {
-		return text.copy().withStyle(style -> style.withFont(UI_FONT));
+		return text.copy().withStyle(style -> style.withFont(uiFont));
 	}
 
 	static Component ui(String text) {
@@ -693,11 +704,11 @@ public class GunTunerScreen extends Screen {
 	}
 
 	static Component medium(Component text) {
-		return text.copy().withStyle(style -> style.withFont(UI_MEDIUM));
+		return text.copy().withStyle(style -> style.withFont(uiMedium));
 	}
 
 	static Component icon(int codepoint) {
-		return Component.literal(Character.toString(codepoint)).withStyle(style -> style.withFont(ICON_FONT));
+		return Component.literal(Character.toString(codepoint)).withStyle(style -> style.withFont(iconFont));
 	}
 
 	/** {@code text} cut down with an ellipsis until it fits {@code maxWidth}. */
