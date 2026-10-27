@@ -8,8 +8,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
@@ -24,6 +26,17 @@ public final class GunHud {
 	private static final int DIM = 0xFF707070;
 	private static final int AMBER = 0xFFFFB648;
 	private static final int RED = 0xFFFF5555;
+	private static final int HIT_MARKER = 0xFFFFFF;
+	private static final int HEADSHOT_MARKER = 0xFFC83A;
+	private static final int KILL_MARKER = 0xFF3B3B;
+	private static final int HIT_MARKER_GAP = 4;
+	private static final long HIT_MARKER_MILLIS = 260;
+	private static final long KILL_MARKER_MILLIS = 480;
+
+	private static long hitmarkerStart;
+	private static long hitmarkerEnd;
+	private static int hitmarkerColor;
+	private static int hitmarkerLength;
 
 	private GunHud() {
 	}
@@ -80,6 +93,7 @@ public final class GunHud {
 		if (definition == null || !minecraft.options.getCameraType().isFirstPerson()) {
 			return false;
 		}
+		renderHitmarker(graphics);
 		float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 		float alpha = 1 - Viewmodel.ads(partialTick) * 2.5F;
 		if (alpha <= 0) {
@@ -98,6 +112,42 @@ public final class GunHud {
 		bar(graphics, x, y - gap - 4, x + 1, y - gap, color, shadow);
 		bar(graphics, x, y + 1 + gap, x + 1, y + 1 + gap + 4, color, shadow);
 		return true;
+	}
+
+	/** One of our shots landed (the server says so): a white X for a hit, gold in the head, red and longer for the kill, with a tick. */
+	public static void hitmarker(boolean headshot, boolean kill) {
+		long now = Util.getMillis();
+		hitmarkerStart = now;
+		hitmarkerEnd = now + (kill ? KILL_MARKER_MILLIS : HIT_MARKER_MILLIS);
+		hitmarkerColor = kill ? KILL_MARKER : headshot ? HEADSHOT_MARKER : HIT_MARKER;
+		hitmarkerLength = kill || headshot ? 6 : 4;
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (player != null) {
+			player.playSound(SoundEvents.ARROW_HIT_PLAYER, kill ? 0.5F : 0.3F, kill ? 1.0F : headshot ? 1.9F : 1.5F);
+		}
+	}
+
+	/** Four diagonal strokes around the crosshair that pop in a little big, settle, and fade. Shown while aiming too. */
+	private static void renderHitmarker(GuiGraphicsExtractor graphics) {
+		long now = Util.getMillis();
+		if (now >= hitmarkerEnd) {
+			return;
+		}
+		float age = (now - hitmarkerStart) / (float)(hitmarkerEnd - hitmarkerStart);
+		float scale = 1 + 0.5F * Math.max(0, 1 - age * 4);
+		int alpha = Math.round(255 * (1 - age * age));
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(graphics.guiWidth() / 2 + 0.5F, graphics.guiHeight() / 2 + 0.5F);
+		graphics.pose().scale(scale, scale);
+		for (int stroke = 0; stroke < 4; stroke++) {
+			graphics.pose().pushMatrix();
+			graphics.pose().rotate((45 + 90 * stroke) * Mth.DEG_TO_RAD);
+			graphics.pose().translate(0, -0.5F);
+			graphics.fill(HIT_MARKER_GAP - 1, -1, HIT_MARKER_GAP + hitmarkerLength + 1, 2, ARGB.color(alpha / 2, 0));
+			graphics.fill(HIT_MARKER_GAP, 0, HIT_MARKER_GAP + hitmarkerLength, 1, ARGB.color(alpha, hitmarkerColor));
+			graphics.pose().popMatrix();
+		}
+		graphics.pose().popMatrix();
 	}
 
 	private static void bar(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color, int shadow) {

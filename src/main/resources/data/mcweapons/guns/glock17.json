@@ -16,6 +16,7 @@
   "ads_ticks": 5,
   "ads_fov_multiplier": 0.8,
   "move_speed_ads_multiplier": 0.7,
+  "headshot_multiplier": 2.0,
   "feel": {
     "sway_gain": 0.005,
     "sway_max_deg": 0.015,

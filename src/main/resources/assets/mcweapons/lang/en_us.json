@@ -17,6 +17,7 @@
   "gui.mcweapons.tuner.field.fire_modes": "Fire modes",
   "gui.mcweapons.tuner.field.rpm": "RPM",
   "gui.mcweapons.tuner.field.damage": "Damage",
+  "gui.mcweapons.tuner.field.headshot_multiplier": "Headshot ×",
   "gui.mcweapons.tuner.field.range": "Range",
   "gui.mcweapons.tuner.field.mag_size": "Mag size",
   "gui.mcweapons.tuner.field.chamber": "Chamber",

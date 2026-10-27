@@ -15,6 +15,7 @@ import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.GunDefinitionsPayload;
+import com.noxloveya.mcweapons.network.HitMarkerPayload;
 import com.noxloveya.mcweapons.network.ShotFxPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -79,6 +80,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 		ClientPlayNetworking.registerGlobalReceiver(GunDefinitionsPayload.TYPE, (payload, context) -> GunDefinitions.set(payload.definitions()));
 		ClientPlayNetworking.registerGlobalReceiver(ShotFxPayload.TYPE, (payload, context) -> shotFx(context.client().level, payload));
+		ClientPlayNetworking.registerGlobalReceiver(HitMarkerPayload.TYPE, (payload, context) -> GunHud.hitmarker(payload.headshot(), payload.kill()));
 	}
 
 	/** Plays the sound keyframes from the gun animations (mag out, mag in, slide) at whoever holds the gun. */

@@ -48,6 +48,15 @@ class GunDefinitionTest {
 		assertEquals(glock, GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
 		json.remove("feel");
 		assertEquals(glock.withFeel(GunFeel.DEFAULT), GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+		// Headshot multiplier: read from the file, defaulted when missing, and at least 1.
+		assertEquals(2.0F, glock.headshotMultiplier());
+		JsonObject headshot = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
+		headshot.addProperty("headshot_multiplier", 3.5);
+		assertEquals(3.5F, GunDefinition.CODEC.parse(JsonOps.INSTANCE, headshot).getOrThrow().headshotMultiplier());
+		headshot.remove("headshot_multiplier");
+		assertEquals(GunDefinition.DEFAULT_HEADSHOT_MULTIPLIER, GunDefinition.CODEC.parse(JsonOps.INSTANCE, headshot).getOrThrow().headshotMultiplier());
+		headshot.addProperty("headshot_multiplier", 0.5);
+		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, headshot).isError(), "a headshot must not do less than a body shot");
 		// The ranges that keep tuner typos off the server.
 		json.addProperty("ads_fov_multiplier", 0);
 		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError(), "a zero FOV multiplier must be rejected");

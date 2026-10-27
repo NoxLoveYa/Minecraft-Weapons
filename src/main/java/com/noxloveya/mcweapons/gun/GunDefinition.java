@@ -27,7 +27,11 @@ public record GunDefinition(
 		int adsTicks,
 		float adsFovMultiplier,
 		float moveSpeedAdsMultiplier,
+		float headshotMultiplier,
 		GunFeel feel) {
+
+	/** Damage multiplier for hits in the head zone (see Hitscan) when the json leaves it out. */
+	public static final float DEFAULT_HEADSHOT_MULTIPLIER = 2;
 
 	// The json "item" field is not read: GunItem points at its definition id instead (see spec 01 open questions).
 	// The ranges also guard the gun tuner: a typo there must not reach the server, like a 6400 block raycast or a zero FOV.
@@ -50,23 +54,29 @@ public record GunDefinition(
 			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("move_speed_ads_multiplier").forGetter(GunDefinition::moveSpeedAdsMultiplier)
 	).apply(i, GunDefinition::new));
 
-	// RecordCodecBuilder stops at 16 fields, so the stats are one map codec and "feel" sits beside them.
-	// Feel is optional in the json but always written, so the tuner and saved files show every value.
+	// RecordCodecBuilder stops at 16 fields, so the stats are one map codec and the newer fields sit beside them.
+	// Those are optional in the json but always written, so the tuner and saved files show every value.
 	public static final Codec<GunDefinition> CODEC = RecordCodecBuilder.create(i -> i.group(
 			STATS.forGetter(definition -> definition),
+			Codec.floatRange(1, 10).optionalFieldOf("headshot_multiplier").forGetter(definition -> Optional.of(definition.headshotMultiplier())),
 			GunFeel.CODEC.optionalFieldOf("feel").forGetter(definition -> Optional.of(definition.feel()))
-	).apply(i, (stats, feel) -> stats.withFeel(feel.orElse(GunFeel.DEFAULT))));
+	).apply(i, (stats, headshot, feel) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER)).withFeel(feel.orElse(GunFeel.DEFAULT))));
 
-	/** The stats alone, with the default feel. */
+	/** The stats alone, with the default headshot multiplier and feel. */
 	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
 			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
 		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
-				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, GunFeel.DEFAULT);
+				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT);
 	}
 
 	public GunDefinition withFeel(GunFeel feel) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, feel);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel);
+	}
+
+	public GunDefinition withHeadshotMultiplier(float headshotMultiplier) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel);
 	}
 
 	public int shotIntervalTicks() {

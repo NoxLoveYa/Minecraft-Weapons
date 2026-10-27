@@ -21,12 +21,18 @@ import net.minecraft.world.phys.Vec3;
 
 public final class Hitscan {
 	public static final ResourceKey<DamageType> BULLET = ResourceKey.create(Registries.DAMAGE_TYPE, McWeapons.id("bullet"));
+	// How far under the eyes the head zone reaches, per block of body height: the top half block on a player (eyes at 1.62 of 1.8).
+	private static final float HEAD_BELOW_EYES = 0.32F / 1.8F;
 
 	private Hitscan() {
 	}
 
-	/** Casts one shot from the eyes, damages the first living entity before any block, and returns what it hit. */
-	public static HitResult fire(ServerPlayer player, ItemStack gun, GunDefinition definition, long seed, boolean aiming) {
+	/** What a shot did: what it hit and, for a living target, whether the damage landed, was a headshot, and killed it. */
+	public record Shot(HitResult hit, boolean hurt, boolean headshot, boolean killed) {
+	}
+
+	/** Casts one shot from the eyes and damages the first living entity before any block, more in the head. */
+	public static Shot fire(ServerPlayer player, ItemStack gun, GunDefinition definition, long seed, boolean aiming) {
 		// Uniform point in a cone whose half-angle is the spread.
 		RandomSource random = RandomSource.create(seed);
 		float spread = (aiming ? definition.spreadAdsDeg() : definition.spreadHipDeg()) * Mth.sqrt(random.nextFloat());
@@ -40,10 +46,21 @@ public final class Hitscan {
 		EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(player, eye, stop, new AABB(eye, stop).inflate(1.0),
 				entity -> entity instanceof LivingEntity && entity.isPickable() && !entity.isSpectator(), eye.distanceToSqr(stop));
 		if (entityHit == null) {
-			return blockHit;
+			return new Shot(blockHit, false, false, false);
 		}
-		entityHit.getEntity().hurt(bulletDamage(player, gun), definition.damage());
-		return entityHit;
+		LivingEntity target = (LivingEntity)entityHit.getEntity();
+		boolean headshot = inHeadZone(entityHit.getLocation().y, target.getEyeY(), target.getBbHeight());
+		float damage = definition.damage() * (headshot ? definition.headshotMultiplier() : 1);
+		boolean hurt = target.hurtServer(player.level(), bulletDamage(player, gun), damage);
+		return new Shot(entityHit, hurt, headshot, hurt && target.isDeadOrDying());
+	}
+
+	/**
+	 * The head zone is the top of the body down to a little under the eyes, scaled with the body so babies and small mobs get a smaller one.
+	 * A shot from above that lands on top of the box counts too.
+	 */
+	public static boolean inHeadZone(double hitY, double eyeY, float height) {
+		return hitY >= eyeY - HEAD_BELOW_EYES * height;
 	}
 
 	/** Vanilla only names the weapon when it has a custom name, so the death message is built here to always name the gun. */

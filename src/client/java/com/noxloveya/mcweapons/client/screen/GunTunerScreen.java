@@ -84,7 +84,7 @@ public class GunTunerScreen extends Screen {
 	private static final List<Group> GROUPS = List.of(
 			new Group("aim", Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
 			new Group("magazine", Side.BOTTOM, "magazine", List.of("mag_size", "chamber", "draw_ticks", "reload_ticks", "reload_empty_ticks")),
-			new Group("fire", Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "range")),
+			new Group("fire", Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "headshot_multiplier", "range")),
 			new Group("handling", Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale")),
 			// No anchor bone: wired to the back of the slide.
 			new Group("recoil", Side.RIGHT, null, List.of("recoil_pitch_deg", "recoil_yaw_deg", "feel.recoil_push_back", "feel.recoil_spring_stiffness",
@@ -93,6 +93,7 @@ public class GunTunerScreen extends Screen {
 	private static final Map<String, Range> RANGES = Map.ofEntries(
 			Map.entry("rpm", new Range(60, 1200, 10)),
 			Map.entry("damage", new Range(0, 40, 0.5)),
+			Map.entry("headshot_multiplier", new Range(1, 5, 0.1)),
 			Map.entry("range", new Range(8, 256, 1)),
 			Map.entry("mag_size", new Range(1, 50, 1)),
 			Map.entry("draw_ticks", new Range(0, 40, 1)),

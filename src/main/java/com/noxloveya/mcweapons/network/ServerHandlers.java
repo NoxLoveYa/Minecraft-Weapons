@@ -55,6 +55,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(TuneGunPayload.TYPE, TuneGunPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShotFxPayload.TYPE, ShotFxPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunDefinitionsPayload.TYPE, GunDefinitionsPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(HitMarkerPayload.TYPE, HitMarkerPayload.CODEC);
 
 		ServerPlayNetworking.registerGlobalReceiver(ShootPayload.TYPE, (payload, context) -> shoot(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(ReloadPayload.TYPE, (payload, context) -> reload(context.player(), payload.slot()));
@@ -90,7 +91,11 @@ public final class ServerHandlers {
 			return;
 		}
 		gun.set(ModComponents.AMMO, ammo - 1);
-		HitResult hit = Hitscan.fire(player, gun, definition, payload.seed(), isAiming(player));
+		Hitscan.Shot shot = Hitscan.fire(player, gun, definition, payload.seed(), isAiming(player));
+		HitResult hit = shot.hit();
+		if (shot.hurt()) {
+			ServerPlayNetworking.send(player, new HitMarkerPayload(shot.headshot(), shot.killed()));
+		}
 		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks.
 		playSound(player, item.sound("fire"), 3.0F);
 		ShotFxPayload fx = new ShotFxPayload(player.getId(), hit.getLocation(), hit.getType());
