@@ -9,6 +9,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
@@ -17,18 +18,14 @@ import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.TuneGunPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.KeyEvent;
@@ -36,8 +33,13 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -52,37 +54,62 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Ops-only tuner for the held gun's definition, opened and closed with the tuner key. While it is open the viewmodel presents the gun
- * sideways in the middle of the screen, and the values sit in panels around it like the arms of a plus, each wired to the part it is
- * about. The layout follows the gun's real size on screen. Apply uses the values live for everyone, Save also writes them into the world,
- * Reset goes back to the gun's own file.
+ * Ops-only tuner for the held gun's definition, opened and closed with the tuner key. While it is open the right hand holds the gun up
+ * sideways, and the values sit in panels around it like the arms of a plus, each wired to the part it is about. Apply uses the values
+ * live for everyone, Save also writes them into the world, Reset goes back to the gun's own file.
+ * <p>
+ * Drawn flat and monochrome in the mod's own fonts (Inter for text, Lucide for the white icons) rather than vanilla's widgets.
  */
 public class GunTunerScreen extends Screen {
-	private static final int PANEL = 0xD80D1015;
-	private static final int PANEL_BORDER = 0x30FFFFFF;
-	private static final int FIELD = 0xFF14181F;
-	private static final int FIELD_HOVER = 0xFF232935;
-	private static final int FIELD_BORDER = 0xFF2E3540;
-	private static final int TRACK = 0x30FFFFFF;
-	private static final int ACCENT = 0xFFE8A33A;
-	private static final int ACCENT_HOVER = 0xFFF5BC5C;
-	private static final int DANGER = 0xFFE0524A;
-	private static final int TEXT = 0xFFFFFFFF;
-	private static final int LABEL = 0xFFAEB5C0;
-	private static final int DIM_TEXT = 0xFF6E7684;
-	private static final int ON_ACCENT = 0xFF14181F;
-	private static final int INVALID_COLOR = 0xFFFF5555;
+	private static final FontDescription UI_FONT = new FontDescription.Resource(McWeapons.id("ui"));
+	private static final FontDescription UI_MEDIUM = new FontDescription.Resource(McWeapons.id("ui_medium"));
+	private static final FontDescription ICON_FONT = new FontDescription.Resource(McWeapons.id("icons"));
+
+	// Lucide codepoints (font/lucide.ttf).
+	private static final int ICON_TUNER = 0xE29A;
+	private static final int ICON_AIM = 0xE0AC;
+	private static final int ICON_FIRE = 0xE0D2;
+	private static final int ICON_HANDLING = 0xE1D7;
+	private static final int ICON_RECOIL = 0xE074;
+	private static final int ICON_MAGAZINE = 0xE58A;
+	private static final int ICON_OTHER = 0xE0B6;
+	private static final int ICON_APPLY = 0xE06C;
+	private static final int ICON_SAVE = 0xE14D;
+	private static final int ICON_COPY = 0xE09E;
+	private static final int ICON_RESET = 0xE148;
+	private static final int ICON_CLOSE = 0xE1B2;
+	private static final int ICON_DOWN = 0xE06D;
+	private static final int ICON_UP = 0xE070;
+	private static final int ICON_OK = 0xE226;
+	private static final int ICON_ERROR = 0xE077;
+	private static final int ICON_KEYS = 0xE24A;
+
+	private static final int PANEL = 0xD90C0E12;
+	private static final int CARD = 0xF50C0E12;
+	private static final int EDGE = 0x1AFFFFFF;
+	private static final int DIVIDER = 0x14FFFFFF;
+	private static final int ROW_HOVER = 0x0FFFFFFF;
+	private static final int ROW_FOCUS = 0x1FFFFFFF;
+	private static final int TRACK = 0x26FFFFFF;
+	private static final int FILL = 0xB3FFFFFF;
+	private static final int TEXT = 0xFFF4F5F7;
+	private static final int LABEL = 0xB3FFFFFF;
+	private static final int MUTED = 0x73FFFFFF;
+	private static final int WIRE = 0x59FFFFFF;
+	private static final int DARK = 0xFF0C0E12;
+	private static final int DANGER = 0xFFFF6B6B;
 	private static final int MARGIN = 6;
-	private static final int CORNER = 22; // rows kept free at the top and bottom for the title and the buttons
+	private static final int CORNER = 24; // rows kept free at the top and bottom for the title and the buttons
 	private static final int GAP = 10; // between a panel and the gun
 	private static final int BUTTON_HEIGHT = 16;
+	private static final long TOOLTIP_DELAY = 600;
 	private static final List<String> FIRE_MODES = List.of("semi", "auto", "semi, auto");
 
 	/** Which arm of the plus a panel sits on. The gun shows its left side, so the muzzle points left. */
 	private enum Side { TOP, BOTTOM, LEFT, RIGHT }
 
 	/** A titled panel of json values, by path ("rpm", or "feel.sway_gain" inside the feel object), wired to a bone of the gun. */
-	private record Group(String name, Side side, @Nullable String anchorBone, List<String> paths) {
+	private record Group(String name, int icon, Side side, @Nullable String anchorBone, List<String> paths) {
 	}
 
 	/** Slider range and step of a number. Ranges stay inside what the definition codec accepts. */
@@ -90,12 +117,12 @@ public class GunTunerScreen extends Screen {
 	}
 
 	private static final List<Group> GROUPS = List.of(
-			new Group("aim", Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
-			new Group("magazine", Side.BOTTOM, "magazine", List.of("mag_size", "chamber", "draw_ticks", "reload_ticks", "reload_empty_ticks")),
-			new Group("fire", Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "headshot_multiplier", "range")),
-			new Group("handling", Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale", "feel.breath_scale")),
+			new Group("aim", ICON_AIM, Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
+			new Group("magazine", ICON_MAGAZINE, Side.BOTTOM, "magazine", List.of("mag_size", "chamber", "draw_ticks", "reload_ticks", "reload_empty_ticks")),
+			new Group("fire", ICON_FIRE, Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "headshot_multiplier", "range")),
+			new Group("handling", ICON_HANDLING, Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale", "feel.breath_scale")),
 			// No anchor bone: wired to the back of the slide.
-			new Group("recoil", Side.RIGHT, null, List.of("recoil_pitch_deg", "recoil_yaw_deg", "feel.recoil_push_back", "feel.recoil_spring_stiffness",
+			new Group("recoil", ICON_RECOIL, Side.RIGHT, null, List.of("recoil_pitch_deg", "recoil_yaw_deg", "feel.recoil_push_back", "feel.recoil_spring_stiffness",
 					"feel.recoil_spring_damping", "feel.recoil_max_kicks")));
 
 	private static final Map<String, Range> RANGES = Map.ofEntries(
@@ -127,6 +154,7 @@ public class GunTunerScreen extends Screen {
 	private final Identifier id;
 	private final Component gunName;
 	private final List<Panel> panels = new ArrayList<>();
+	private final List<Field> fields = new ArrayList<>();
 	private final List<EditBox> textFields = new ArrayList<>();
 	/** Last definition seen in {@link GunDefinitions}; a new one (from Apply, Reset or another op) refills the widgets. */
 	private GunDefinition synced;
@@ -135,13 +163,23 @@ public class GunTunerScreen extends Screen {
 	private @Nullable Dropdown openDropdown;
 	/** False until the gun has settled in the hand and the panels have been placed around it. */
 	private boolean laidOut;
+	private boolean confirmingReset;
+	private @Nullable Component status;
+	private boolean statusError;
+	private long statusUntil;
+	private @Nullable Field hoveredField;
+	private long hoveredSince;
 	// Panel metrics, compact on short screens (1080p at the default GUI scale is only 270 GUI pixels tall).
 	private int panelWidth;
 	private int header;
 	private int row;
 	private int fieldHeight;
 
-	private record Panel(Component title, Side side, int x, int y, int height, int anchorX, int anchorY) {
+	private record Panel(Component title, int icon, Side side, int x, int y, int height, int anchorX, int anchorY) {
+	}
+
+	/** A value's widget and its json path, for the hover hint. */
+	private record Field(AbstractWidget widget, String path) {
 	}
 
 	public GunTunerScreen(Identifier id, GunDefinition definition, Component gunName) {
@@ -164,11 +202,13 @@ public class GunTunerScreen extends Screen {
 	@Override
 	protected void init() {
 		panels.clear();
+		fields.clear();
 		textFields.clear();
 		openDropdown = null;
+		hoveredField = null;
 		boolean compact = height < 360;
-		panelWidth = compact ? 112 : 128;
-		header = compact ? 11 : 13;
+		panelWidth = compact ? 116 : 132;
+		header = compact ? 14 : 16;
 		row = compact ? 13 : 16;
 		fieldHeight = compact ? 12 : 14;
 
@@ -177,7 +217,7 @@ public class GunTunerScreen extends Screen {
 		Set<String> other = new LinkedHashSet<>(paths(working));
 		GROUPS.forEach(group -> group.paths().forEach(other::remove));
 		if (!other.isEmpty()) {
-			groups.add(new Group("other", Side.RIGHT, null, List.copyOf(other)));
+			groups.add(new Group("other", ICON_OTHER, Side.RIGHT, null, List.copyOf(other)));
 		}
 		int[] sideHeight = new int[Side.values().length];
 		for (Group group : groups) {
@@ -185,16 +225,15 @@ public class GunTunerScreen extends Screen {
 			sideHeight[side] += (sideHeight[side] > 0 ? GAP : 0) + panelHeight(group);
 		}
 
-		// The corners are free in a plus: buttons top right and bottom left.
-		int right = width - MARGIN;
-		addRenderableWidget(new FlatButton(right - 44, MARGIN, 44, CommonComponents.GUI_DONE, 0, this::onClose));
-		addRenderableWidget(new FlatButton(right - 92, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.save"), 0,
-				() -> send(TuneGunPayload.Action.SAVE, "gui.mcweapons.tuner.saved")));
-		addRenderableWidget(new FlatButton(right - 140, MARGIN, 44, Component.translatable("gui.mcweapons.tuner.apply"), ACCENT,
-				() -> send(TuneGunPayload.Action.APPLY, "gui.mcweapons.tuner.applied")));
+		// The corners are free in a plus: actions top right, file tools bottom left.
+		int x = width - MARGIN - BUTTON_HEIGHT;
+		addRenderableWidget(new FlatButton(x, MARGIN, CommonComponents.GUI_DONE, ICON_CLOSE, ButtonStyle.ICON, this::onClose));
+		x = addLeftOf(x, Component.translatable("gui.mcweapons.tuner.save"), ICON_SAVE, ButtonStyle.GHOST, () -> send(TuneGunPayload.Action.SAVE, "gui.mcweapons.tuner.saved"));
+		addLeftOf(x, Component.translatable("gui.mcweapons.tuner.apply"), ICON_APPLY, ButtonStyle.PRIMARY, () -> send(TuneGunPayload.Action.APPLY, "gui.mcweapons.tuner.applied"));
 		int bottom = height - MARGIN - BUTTON_HEIGHT;
-		addRenderableWidget(new FlatButton(MARGIN, bottom, 60, Component.translatable("gui.mcweapons.tuner.copy"), 0, this::copy));
-		addRenderableWidget(new FlatButton(MARGIN + 64, bottom, 44, Component.translatable("gui.mcweapons.tuner.reset"), DANGER, this::confirmReset));
+		FlatButton copy = addRenderableWidget(new FlatButton(MARGIN, bottom, Component.translatable("gui.mcweapons.tuner.copy"), ICON_COPY, ButtonStyle.GHOST, this::copy));
+		addRenderableWidget(new FlatButton(MARGIN + copy.getWidth() + 4, bottom, Component.translatable("gui.mcweapons.tuner.reset"), ICON_RESET, ButtonStyle.DANGER,
+				() -> confirmingReset = true));
 
 		// The panels go around the gun where the hand actually holds it, so they wait until the showcase animation has settled.
 		GunRenderer renderer = renderer();
@@ -215,18 +254,18 @@ public class GunTunerScreen extends Screen {
 			int[] firstAnchor = anchor(stack.getFirst(), renderer, showcase, bounds, box);
 			int total = sideHeight[side.ordinal()];
 			Side wiredFrom = side;
-			int x = switch (side) {
+			int px = switch (side) {
 				case TOP, BOTTOM -> Mth.clamp(firstAnchor[0] - panelWidth / 2, MARGIN, width - MARGIN - panelWidth);
 				case LEFT -> Math.max(MARGIN, Math.round(box[0]) - GAP - panelWidth);
 				case RIGHT -> Math.min(width - MARGIN - panelWidth, Math.round(box[2]) + GAP);
 			};
-			int y = switch (side) {
+			int py = switch (side) {
 				case TOP -> Math.max(MARGIN, Math.round(box[1]) - GAP - total);
 				case BOTTOM -> Math.min(height - MARGIN - total, Math.round(box[3]) + GAP);
 				case LEFT, RIGHT -> Mth.clamp(firstAnchor[1] - panelHeight(stack.getFirst()) / 2, MARGIN + CORNER, Math.max(MARGIN + CORNER, height - MARGIN - CORNER - total));
 			};
-			if ((side == Side.LEFT || side == Side.RIGHT) && overlapsPanel(x, y, total)) {
-				x = side == Side.LEFT ? MARGIN : width - MARGIN - panelWidth;
+			if ((side == Side.LEFT || side == Side.RIGHT) && overlapsPanel(px, py, total)) {
+				px = side == Side.LEFT ? MARGIN : width - MARGIN - panelWidth;
 			}
 			if (side == Side.BOTTOM && Math.round(box[3]) + GAP + total > height - MARGIN) {
 				for (Side column : List.of(Side.RIGHT, Side.LEFT)) {
@@ -235,8 +274,8 @@ public class GunTunerScreen extends Screen {
 					// The bottom left corner holds the Copy and Reset buttons.
 					int floor = height - MARGIN - (column == Side.LEFT ? BUTTON_HEIGHT + GAP : 0);
 					if (columnX >= 0 && under + total <= floor) {
-						x = columnX;
-						y = under;
+						px = columnX;
+						py = under;
 						wiredFrom = column;
 						break;
 					}
@@ -244,13 +283,21 @@ public class GunTunerScreen extends Screen {
 			}
 			for (Group group : stack) {
 				int[] anchor = anchor(group, renderer, showcase, bounds, box);
-				panels.add(new Panel(Component.translatable("gui.mcweapons.tuner.group." + group.name()), wiredFrom, x, y, panelHeight(group), anchor[0], anchor[1]));
+				panels.add(new Panel(Component.translatable("gui.mcweapons.tuner.group." + group.name()), group.icon(), wiredFrom, px, py, panelHeight(group), anchor[0], anchor[1]));
 				for (int i = 0; i < group.paths().size(); i++) {
-					addField(group.paths().get(i), x + 4, y + header + 1 + i * row);
+					addField(group.paths().get(i), px + 3, py + header + 2 + i * row);
 				}
-				y += panelHeight(group) + GAP;
+				py += panelHeight(group) + GAP;
 			}
 		}
+	}
+
+	/** Adds a button ending just left of {@code right}, and returns where the next one should end. */
+	private int addLeftOf(int right, Component label, int icon, ButtonStyle style, Runnable action) {
+		FlatButton button = new FlatButton(0, MARGIN, label, icon, style, action);
+		button.setX(right - 4 - button.getWidth());
+		addRenderableWidget(button);
+		return button.getX();
 	}
 
 	private boolean overlapsPanel(int x, int y, int columnHeight) {
@@ -258,14 +305,14 @@ public class GunTunerScreen extends Screen {
 	}
 
 	private int panelHeight(Group group) {
-		return header + group.paths().size() * row + 2;
+		return header + 2 + group.paths().size() * row + 3;
 	}
 
-	/** One widget per value: a slider for numbers, a toggle for on/off, a dropdown for the fire modes, a text box for anything else. */
+	/** One widget per value: a slider for numbers, a switch for on/off, a dropdown for the fire modes, a text box for anything else. */
 	private void addField(String path, int x, int y) {
 		JsonElement value = get(path);
-		Component label = Component.translatableWithFallback("gui.mcweapons.tuner.field." + key(path), key(path));
-		int fieldWidth = panelWidth - 8;
+		Component label = ui(Component.translatableWithFallback("gui.mcweapons.tuner.field." + key(path), key(path)));
+		int fieldWidth = panelWidth - 6;
 		Range range = RANGES.get(path);
 		AbstractWidget widget;
 		if (path.equals("fire_modes")) {
@@ -275,7 +322,8 @@ public class GunTunerScreen extends Screen {
 		} else if (range != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
 			widget = new NumberSlider(x, y, fieldWidth, label, path, range, value.getAsDouble());
 		} else {
-			EditBox box = new EditBox(font, x, y, fieldWidth, fieldHeight, label);
+			EditBox box = new EditBox(font, x + 4, y + (fieldHeight - 8) / 2, fieldWidth - 8, fieldHeight, label);
+			box.setBordered(false);
 			box.setMaxLength(64);
 			box.setValue(text(value));
 			box.setResponder(text -> {
@@ -283,16 +331,15 @@ public class GunTunerScreen extends Screen {
 				JsonObject attempt = working.deepCopy();
 				holder(attempt, path).add(key(path), typed);
 				boolean valid = GunDefinition.CODEC.parse(JsonOps.INSTANCE, attempt).isSuccess();
-				box.setTextColor(valid ? TEXT : INVALID_COLOR);
+				box.setTextColor(valid ? TEXT : DANGER);
 				set(path, typed);
 			});
 			textFields.add(box);
 			widget = box;
 		}
-		widget.setTooltip(Tooltip.create(Component.literal(path)));
+		fields.add(new Field(widget, path));
 		addRenderableWidget(widget);
 	}
-
 
 	private static @Nullable GunRenderer renderer() {
 		LocalPlayer player = Minecraft.getInstance().player;
@@ -314,10 +361,7 @@ public class GunTunerScreen extends Screen {
 	}
 
 	/** Where a panel's wire meets the gun: its anchor bone, or the back of the slide. */
-	private int[] anchor(Group group, @Nullable GunRenderer renderer, @Nullable Matrix4f showcase, float @Nullable [] bounds, float[] box) {
-		if (renderer == null || showcase == null || bounds == null) {
-			return new int[] {Math.round((box[0] + box[2]) / 2), Math.round((box[1] + box[3]) / 2)};
-		}
+	private int[] anchor(Group group, GunRenderer renderer, Matrix4f showcase, float[] bounds, float[] box) {
 		Vector3f point = group.anchorBone() != null ? renderer.restPivot(group.anchorBone())
 				: new Vector3f((bounds[0] + bounds[3]) / 2, renderer.restPivot("ads_anchor").y, bounds[5]);
 		float[] screen = project(showcase, point);
@@ -341,35 +385,54 @@ public class GunTunerScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-		graphics.text(font, Component.translatable("gui.mcweapons.tuner").withStyle(ChatFormatting.BOLD), MARGIN, MARGIN, ACCENT, true);
-		graphics.text(font, gunName, MARGIN, MARGIN + 11, TEXT, true);
+		// While the confirm card is up, nothing underneath reacts to the mouse.
+		int pointerX = confirmingReset ? -1 : mouseX;
+		int pointerY = confirmingReset ? -1 : mouseY;
+
+		graphics.text(font, icon(ICON_TUNER), MARGIN, MARGIN + 1, TEXT, false);
+		graphics.text(font, medium(Component.translatable("gui.mcweapons.tuner")), MARGIN + 13, MARGIN + 1, TEXT, false);
+		graphics.text(font, ui(gunName), MARGIN + 13, MARGIN + 12, MUTED, false);
+
 		// The bottom right corner is the one the plus leaves free; on small screens a panel can reach it, and then the hint is left out.
-		Component hint = Component.translatable("gui.mcweapons.tuner.hint");
+		Component hint = ui(Component.translatable("gui.mcweapons.tuner.hint"));
 		int hintX = width - MARGIN - font.width(hint);
-		int hintY = height - MARGIN - 9;
-		if (panels.stream().noneMatch(panel -> hintX < panel.x() + panelWidth && panel.y() + panel.height() > hintY)) {
-			graphics.text(font, hint, hintX, hintY, DIM_TEXT, false);
+		int hintY = height - MARGIN - 11;
+		if (panels.stream().noneMatch(panel -> hintX - 14 < panel.x() + panelWidth && panel.y() + panel.height() > hintY)) {
+			graphics.text(font, icon(ICON_KEYS), hintX - 13, hintY, MUTED, false);
+			graphics.text(font, hint, hintX, hintY, MUTED, false);
+		}
+
+		for (Panel panel : panels) {
+			wire(graphics, panel);
 		}
 		for (Panel panel : panels) {
 			int x0 = panel.x();
 			int y0 = panel.y();
 			int x1 = x0 + panelWidth;
 			int y1 = y0 + panel.height();
-			// Dark glass with a hairline border, and a header tinted with the accent fading down.
-			graphics.fill(x0, y0, x1, y1, PANEL);
-			graphics.outline(x0, y0, panelWidth, panel.height(), PANEL_BORDER);
-			graphics.fillGradient(x0 + 1, y0 + 1, x1 - 1, y0 + header, 0x50E8A33A, 0x08E8A33A);
-			graphics.fill(x0 + 1, y0 + header, x1 - 1, y0 + header + 1, 0x40E8A33A);
-			graphics.text(font, panel.title().copy().withStyle(ChatFormatting.BOLD), x0 + 5, y0 + (header - 8) / 2 + 1, ACCENT, false);
-			wire(graphics, panel);
+			rounded(graphics, x0, y0, x1, y1, PANEL);
+			roundedOutline(graphics, x0, y0, x1, y1, EDGE);
+			int titleY = y0 + (header - 8) / 2;
+			graphics.text(font, icon(panel.icon()), x0 + 7, titleY, TEXT, false);
+			graphics.text(font, medium(panel.title()), x0 + 20, titleY, TEXT, false);
+			graphics.fill(x0 + 7, y0 + header, x1 - 7, y0 + header + 1, DIVIDER);
 		}
-		super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		super.extractRenderState(graphics, pointerX, pointerY, partialTick);
+		// Each overlay starts a new stratum: within one, text is drawn after every fill, so the rows' text would show through.
+		graphics.nextStratum();
 		if (openDropdown != null) {
-			openDropdown.extractList(graphics, mouseX, mouseY);
+			openDropdown.extractList(graphics, pointerX, pointerY);
+		} else {
+			hoverHint(graphics, pointerX, pointerY);
+		}
+		extractStatus(graphics);
+		if (confirmingReset) {
+			graphics.nextStratum();
+			extractConfirm(graphics, mouseX, mouseY);
 		}
 	}
 
-	/** The lit edge of a panel and a wire from it to the part of the gun it is about, ending in a dot. */
+	/** A thin line from the panel's edge to the part of the gun it is about, ending in a soft dot. */
 	private void wire(GuiGraphicsExtractor graphics, Panel panel) {
 		int x0 = panel.x();
 		int y0 = panel.y();
@@ -380,24 +443,122 @@ public class GunTunerScreen extends Screen {
 		switch (panel.side()) {
 			case TOP, BOTTOM -> {
 				int edge = panel.side() == Side.TOP ? y1 : y0;
-				int sx = Mth.clamp(ax, x0 + 4, x1 - 4);
-				graphics.fill(x0, edge - (panel.side() == Side.TOP ? 1 : 0), x1, edge + (panel.side() == Side.TOP ? 0 : 1), ACCENT);
-				graphics.fill(sx, Math.min(edge, ay), sx + 1, Math.max(edge, ay), ACCENT);
-				graphics.fill(Math.min(sx, ax), ay, Math.max(sx, ax) + 1, ay + 1, ACCENT);
+				int sx = Mth.clamp(ax, x0 + 8, x1 - 8);
+				graphics.fill(sx, Math.min(edge, ay), sx + 1, Math.max(edge, ay), WIRE);
+				graphics.fill(Math.min(sx, ax), ay, Math.max(sx, ax) + 1, ay + 1, WIRE);
 			}
 			case LEFT, RIGHT -> {
 				int edge = panel.side() == Side.LEFT ? x1 : x0;
-				int sy = Mth.clamp(ay, y0 + header / 2, y1 - 4);
-				graphics.fill(edge - (panel.side() == Side.LEFT ? 1 : 0), y0, edge + (panel.side() == Side.LEFT ? 0 : 1), y1, ACCENT);
-				graphics.fill(Math.min(edge, ax), sy, Math.max(edge, ax), sy + 1, ACCENT);
-				graphics.fill(ax, Math.min(sy, ay), ax + 1, Math.max(sy, ay) + 1, ACCENT);
+				int sy = Mth.clamp(ay, y0 + header / 2, y1 - 6);
+				graphics.fill(Math.min(edge, ax), sy, Math.max(edge, ax), sy + 1, WIRE);
+				graphics.fill(ax, Math.min(sy, ay), ax + 1, Math.max(sy, ay) + 1, WIRE);
 			}
 		}
-		graphics.fill(ax - 1, ay - 1, ax + 2, ay + 2, ACCENT);
+		graphics.fill(ax - 2, ay - 2, ax + 3, ay + 3, 0x40FFFFFF);
+		graphics.fill(ax - 1, ay - 1, ax + 2, ay + 2, TEXT);
+	}
+
+	/** The json key of the value under the mouse, after a short hover. */
+	private void hoverHint(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+		Field hovered = fields.stream().filter(field -> field.widget().isMouseOver(mouseX, mouseY)).findFirst().orElse(null);
+		long now = Util.getMillis();
+		if (hovered != hoveredField) {
+			hoveredField = hovered;
+			hoveredSince = now;
+		}
+		if (hovered == null || now - hoveredSince < TOOLTIP_DELAY) {
+			return;
+		}
+		Component text = ui(Component.literal(hovered.path()));
+		int w = font.width(text) + 10;
+		int x = Math.min(mouseX + 8, width - MARGIN - w);
+		int y = Math.min(mouseY + 12, height - MARGIN - 13);
+		rounded(graphics, x, y, x + w, y + 13, CARD);
+		roundedOutline(graphics, x, y, x + w, y + 13, EDGE);
+		graphics.text(font, text, x + 5, y + 3, LABEL, false);
+	}
+
+	/** The last Apply, Save, Copy or error, as a small card at the bottom that fades out. */
+	private void extractStatus(GuiGraphicsExtractor graphics) {
+		long left = statusUntil - Util.getMillis();
+		if (status == null || left <= 0) {
+			return;
+		}
+		float alpha = Math.min(1, left / 300F);
+		Component text = fit(ui(status), width / 2);
+		Component mark = icon(statusError ? ICON_ERROR : ICON_OK);
+		int w = font.width(text) + 26;
+		int x = (width - w) / 2;
+		int y = height - MARGIN - 18;
+		rounded(graphics, x, y, x + w, y + 18, ARGB.multiplyAlpha(CARD, alpha));
+		roundedOutline(graphics, x, y, x + w, y + 18, ARGB.multiplyAlpha(statusError ? 0x66FF6B6B : EDGE, alpha));
+		graphics.text(font, mark, x + 7, y + 5, ARGB.multiplyAlpha(statusError ? DANGER : TEXT, alpha), false);
+		graphics.text(font, text, x + 20, y + 5, ARGB.multiplyAlpha(TEXT, alpha), false);
+	}
+
+	private void status(Component message, boolean error) {
+		status = message;
+		statusError = error;
+		statusUntil = Util.getMillis() + (error ? 4500 : 2200);
+	}
+
+	/** Card bounds and its two buttons: x0, y0, x1, y1, cancel x0, cancel x1, reset x0, reset x1, buttons y0. */
+	private int[] confirmLayout(List<FormattedCharSequence> body) {
+		int cardWidth = 200;
+		int cardHeight = 10 + 11 + body.size() * 10 + 10 + BUTTON_HEIGHT + 10;
+		int x0 = (width - cardWidth) / 2;
+		int y0 = (height - cardHeight) / 2;
+		int buttonsY = y0 + cardHeight - 10 - BUTTON_HEIGHT;
+		int resetWidth = FlatButton.widthOf(font, ui(Component.translatable("gui.mcweapons.tuner.reset")), true);
+		int cancelWidth = FlatButton.widthOf(font, ui(Component.translatable("gui.mcweapons.tuner.cancel")), false);
+		int resetX1 = x0 + cardWidth - 10;
+		int resetX0 = resetX1 - resetWidth;
+		int cancelX1 = resetX0 - 4;
+		return new int[] {x0, y0, x0 + cardWidth, y0 + cardHeight, cancelX1 - cancelWidth, cancelX1, resetX0, resetX1, buttonsY};
+	}
+
+	private List<FormattedCharSequence> confirmBody() {
+		return font.split(ui(Component.translatable("gui.mcweapons.tuner.reset.message")), 180);
+	}
+
+	/** Reset asks first, on a card over a dimmed screen instead of vanilla's confirm screen. */
+	private void extractConfirm(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+		List<FormattedCharSequence> body = confirmBody();
+		int[] c = confirmLayout(body);
+		graphics.fill(0, 0, width, height, 0x99000000);
+		rounded(graphics, c[0], c[1], c[2], c[3], CARD);
+		roundedOutline(graphics, c[0], c[1], c[2], c[3], EDGE);
+		graphics.text(font, medium(Component.translatable("gui.mcweapons.tuner.reset.title", gunName)), c[0] + 10, c[1] + 10, TEXT, false);
+		for (int i = 0; i < body.size(); i++) {
+			graphics.text(font, body.get(i), c[0] + 10, c[1] + 23 + i * 10, LABEL, false);
+		}
+		boolean cancelHot = inside(mouseX, mouseY, c[4], c[8], c[5], c[8] + BUTTON_HEIGHT);
+		boolean resetHot = inside(mouseX, mouseY, c[6], c[8], c[7], c[8] + BUTTON_HEIGHT);
+		FlatButton.paint(graphics, font, c[4], c[8], c[5] - c[4], ui(Component.translatable("gui.mcweapons.tuner.cancel")), 0, ButtonStyle.GHOST, cancelHot);
+		FlatButton.paint(graphics, font, c[6], c[8], c[7] - c[6], ui(Component.translatable("gui.mcweapons.tuner.reset")), ICON_RESET, ButtonStyle.DANGER_FILLED, resetHot);
+	}
+
+	private static boolean inside(double x, double y, int x0, int y0, int x1, int y1) {
+		return x >= x0 && x < x1 && y >= y0 && y < y1;
+	}
+
+	private void resetToDefaults() {
+		confirmingReset = false;
+		ClientPlayNetworking.send(new TuneGunPayload(id, synced, TuneGunPayload.Action.RESET));
+		status(Component.translatable("gui.mcweapons.tuner.reset.done", gunName), false);
 	}
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		if (confirmingReset) {
+			int[] c = confirmLayout(confirmBody());
+			if (inside(event.x(), event.y(), c[6], c[8], c[7], c[8] + BUTTON_HEIGHT)) {
+				resetToDefaults();
+			} else if (inside(event.x(), event.y(), c[4], c[8], c[5], c[8] + BUTTON_HEIGHT) || !inside(event.x(), event.y(), c[0], c[1], c[2], c[3])) {
+				confirmingReset = false;
+			}
+			return true;
+		}
 		// An open dropdown sits above everything, so it takes the click first; a click anywhere else closes it.
 		if (openDropdown != null) {
 			Dropdown dropdown = openDropdown;
@@ -428,6 +589,14 @@ public class GunTunerScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
+		if (confirmingReset) {
+			if (event.isEscape()) {
+				confirmingReset = false;
+			} else if (event.isConfirmation()) {
+				resetToDefaults();
+			}
+			return true;
+		}
 		// The tuner key closes it again, unless it is being typed into a text box.
 		if (GunInput.TUNER.matches(event) && textFields.stream().noneMatch(EditBox::isFocused)) {
 			onClose();
@@ -440,7 +609,7 @@ public class GunTunerScreen extends Screen {
 		GunDefinition tuned = parsed();
 		if (tuned != null) {
 			ClientPlayNetworking.send(new TuneGunPayload(id, tuned, action));
-			toast(Component.translatable(doneKey, gunName));
+			status(Component.translatable(doneKey, gunName), false);
 		}
 	}
 
@@ -448,28 +617,15 @@ public class GunTunerScreen extends Screen {
 		GunDefinition tuned = parsed();
 		if (tuned != null) {
 			minecraft.keyboardHandler.setClipboard(GunDefinitions.toJsonText(id, tuned));
-			toast(Component.translatable("gui.mcweapons.tuner.copied"));
+			status(Component.translatable("gui.mcweapons.tuner.copied"), false);
 		}
-	}
-
-	private void confirmReset() {
-		minecraft.gui.setScreen(new ConfirmScreen(yes -> {
-			if (yes) {
-				ClientPlayNetworking.send(new TuneGunPayload(id, synced, TuneGunPayload.Action.RESET));
-			}
-			minecraft.gui.setScreen(this);
-		}, Component.translatable("gui.mcweapons.tuner.reset.title", gunName), Component.translatable("gui.mcweapons.tuner.reset.message")));
 	}
 
 	/** The working values as a definition, or null after showing why not. */
 	private @Nullable GunDefinition parsed() {
 		DataResult<GunDefinition> result = GunDefinition.CODEC.parse(JsonOps.INSTANCE, working);
-		result.ifError(error -> toast(Component.translatable("gui.mcweapons.tuner.invalid", error.message())));
+		result.ifError(error -> status(Component.translatable("gui.mcweapons.tuner.invalid", error.message()), true));
 		return result.result().orElse(null);
-	}
-
-	private void toast(Component message) {
-		SystemToast.addOrUpdate(minecraft.gui.toastManager(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION, Component.translatable("gui.mcweapons.tuner"), message);
 	}
 
 	private JsonElement get(String path) {
@@ -528,6 +684,57 @@ public class GunTunerScreen extends Screen {
 		return value.isJsonArray() ? value.getAsJsonArray().asList().stream().map(JsonElement::getAsString).collect(Collectors.joining(", ")) : value.getAsString();
 	}
 
+	static Component ui(Component text) {
+		return text.copy().withStyle(style -> style.withFont(UI_FONT));
+	}
+
+	static Component ui(String text) {
+		return ui(Component.literal(text));
+	}
+
+	static Component medium(Component text) {
+		return text.copy().withStyle(style -> style.withFont(UI_MEDIUM));
+	}
+
+	static Component icon(int codepoint) {
+		return Component.literal(Character.toString(codepoint)).withStyle(style -> style.withFont(ICON_FONT));
+	}
+
+	/** {@code text} cut down with an ellipsis until it fits {@code maxWidth}. */
+	private Component fit(Component text, int maxWidth) {
+		if (font.width(text) <= maxWidth) {
+			return text;
+		}
+		String plain = text.getString();
+		Style style = text.getStyle();
+		while (!plain.isEmpty() && font.width(Component.literal(plain + "…").withStyle(style)) > maxWidth) {
+			plain = plain.substring(0, plain.length() - 1);
+		}
+		return Component.literal(plain + "…").withStyle(style);
+	}
+
+	/** A rectangle with its corner pixels left out, which reads as slightly rounded. */
+	private static void rounded(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+		graphics.fill(x0 + 1, y0, x1 - 1, y1, color);
+		graphics.fill(x0, y0 + 1, x0 + 1, y1 - 1, color);
+		graphics.fill(x1 - 1, y0 + 1, x1, y1 - 1, color);
+	}
+
+	private static void roundedOutline(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+		graphics.fill(x0 + 1, y0, x1 - 1, y0 + 1, color);
+		graphics.fill(x0 + 1, y1 - 1, x1 - 1, y1, color);
+		graphics.fill(x0, y0 + 1, x0 + 1, y1 - 1, color);
+		graphics.fill(x1 - 1, y0 + 1, x1, y1 - 1, color);
+	}
+
+	/** Row background: nothing at rest, a faint highlight on hover, a stronger one when focused. */
+	private static void rowBackground(GuiGraphicsExtractor graphics, AbstractWidget widget) {
+		if (widget.isHoveredOrFocused()) {
+			rounded(graphics, widget.getX(), widget.getY(), widget.getX() + widget.getWidth(), widget.getY() + widget.getHeight(),
+					widget.isFocused() ? ROW_FOCUS : ROW_HOVER);
+		}
+	}
+
 	/** A number on a slider, snapped to its step. Drag or click it, or use the arrow keys for one step at a time. */
 	private final class NumberSlider extends AbstractSliderButton {
 		private final Component label;
@@ -564,23 +771,25 @@ public class GunTunerScreen extends Screen {
 			setMessage(Component.empty().append(label).append(": " + valueText()));
 		}
 
-		/** Flat field: label left, value right, and a thin accent track along the bottom up to the value, with a handle. */
+		/** Label left, value right, and a hairline track along the bottom filled up to the value. */
 		@Override
 		public void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-			boolean hot = isHoveredOrFocused();
-			field(graphics, this, hot);
-			int textY = getY() + (height - 9) / 2;
-			String value = valueText();
-			graphics.text(font, font.plainSubstrByWidth(label.getString(), width - 12 - font.width(value)), getX() + 4, textY, LABEL, false);
-			graphics.text(font, value, getX() + width - 4 - font.width(value), textY, hot ? ACCENT : TEXT, false);
+			rowBackground(graphics, this);
+			int textY = getY() + (height - 9) / 2 - 1;
+			Component value = ui(valueText());
+			int valueWidth = font.width(value);
+			graphics.text(font, fit(label, width - 14 - valueWidth), getX() + 4, textY, LABEL, false);
+			graphics.text(font, value, getX() + width - 4 - valueWidth, textY, TEXT, false);
 			// The vanilla slider maps clicks across x + 4 to x + width - 4, so the track spans the same.
 			int x0 = getX() + 4;
 			int x1 = getX() + width - 4;
 			int trackY = getY() + height - 2;
 			int at = x0 + (int)Math.round(this.value * (x1 - x0));
 			graphics.fill(x0, trackY, x1, trackY + 1, TRACK);
-			graphics.fill(x0, trackY, at, trackY + 1, ACCENT);
-			graphics.fill(at - 1, trackY - 1, at + 1, trackY + 2, hot ? TEXT : ACCENT_HOVER);
+			graphics.fill(x0, trackY, at, trackY + 1, isHoveredOrFocused() ? TEXT : FILL);
+			if (isHoveredOrFocused()) {
+				graphics.fill(at - 1, trackY - 1, at + 2, trackY + 2, TEXT);
+			}
 		}
 
 		@Override
@@ -624,8 +833,12 @@ public class GunTunerScreen extends Screen {
 		}
 
 		int optionAt(double mouseX, double mouseY) {
-			int index = (int)Math.floor((mouseY - getY() - height) / fieldHeight);
-			return mouseX >= getX() && mouseX < getX() + width && mouseY >= getY() + height && index < options.size() ? index : -1;
+			int index = (int)Math.floor((mouseY - listTop() - 2) / fieldHeight);
+			return mouseX >= getX() && mouseX < getX() + width && index >= 0 && index < options.size() ? index : -1;
+		}
+
+		private int listTop() {
+			return getY() + height + 2;
 		}
 
 		void select(int index) {
@@ -634,29 +847,39 @@ public class GunTunerScreen extends Screen {
 			openDropdown = null;
 		}
 
-		/** Same flat field as the sliders: label left, the picked value right, and an arrow. */
+		/** Like a slider row: label left, the picked value right with a chevron. */
 		@Override
 		protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-			boolean hot = isHoveredOrFocused() || openDropdown == this;
-			field(graphics, this, hot);
-			int textY = getY() + (height - 9) / 2 + 1;
-			int valueRight = getX() + width - 12;
-			graphics.text(font, font.plainSubstrByWidth(label.getString(), width - 20 - font.width(current)), getX() + 4, textY, LABEL, false);
-			graphics.text(font, current, valueRight - font.width(current), textY, hot ? ACCENT : TEXT, false);
-			graphics.text(font, openDropdown == this ? "▲" : "▼", getX() + width - 9, textY, ACCENT, false);
+			rowBackground(graphics, this);
+			if (openDropdown == this) {
+				rounded(graphics, getX(), getY(), getX() + width, getY() + height, ROW_FOCUS);
+			}
+			int textY = getY() + (height - 9) / 2;
+			Component value = ui(current);
+			int valueRight = getX() + width - 15;
+			graphics.text(font, fit(label, width - 24 - font.width(value)), getX() + 4, textY, LABEL, false);
+			graphics.text(font, value, valueRight - font.width(value), textY, TEXT, false);
+			graphics.text(font, icon(openDropdown == this ? ICON_UP : ICON_DOWN), getX() + width - 12, textY, LABEL, false);
 		}
 
 		void extractList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-			int top = getY() + height;
-			graphics.fill(getX(), top, getX() + width, top + options.size() * fieldHeight, 0xFF0A0C10);
-			graphics.outline(getX(), top, width, options.size() * fieldHeight, ACCENT);
+			int top = listTop();
+			int bottom = top + options.size() * fieldHeight + 4;
+			// Fully opaque: it lies over the rows below, whose white text shows through even a slightly see-through card.
+			rounded(graphics, getX(), top, getX() + width, bottom, 0xFF0C0E12);
+			roundedOutline(graphics, getX(), top, getX() + width, bottom, EDGE);
 			int hovered = optionAt(mouseX, mouseY);
 			for (int i = 0; i < options.size(); i++) {
-				int y = top + i * fieldHeight;
+				int y = top + 2 + i * fieldHeight;
 				if (i == hovered) {
-					graphics.fill(getX() + 1, y, getX() + width - 1, y + fieldHeight, FIELD_HOVER);
+					rounded(graphics, getX() + 2, y, getX() + width - 2, y + fieldHeight, ROW_FOCUS);
 				}
-				graphics.text(font, options.get(i), getX() + 6, y + (fieldHeight - 8) / 2, options.get(i).equals(current) ? ACCENT : TEXT, false);
+				boolean picked = options.get(i).equals(current);
+				int textY = y + (fieldHeight - 9) / 2;
+				graphics.text(font, ui(options.get(i)), getX() + 7, textY, picked || i == hovered ? TEXT : LABEL, false);
+				if (picked) {
+					graphics.text(font, icon(ICON_APPLY), getX() + width - 13, textY, TEXT, false);
+				}
 			}
 		}
 
@@ -666,13 +889,7 @@ public class GunTunerScreen extends Screen {
 		}
 	}
 
-	/** Background of every field: flat, a shade lighter and outlined in the accent while hovered or focused. */
-	private static void field(GuiGraphicsExtractor graphics, AbstractWidget widget, boolean hot) {
-		graphics.fill(widget.getX(), widget.getY(), widget.getX() + widget.getWidth(), widget.getY() + widget.getHeight(), hot ? FIELD_HOVER : FIELD);
-		graphics.outline(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight(), hot ? 0x80E8A33A : FIELD_BORDER);
-	}
-
-	/** An on/off value as a small switch: the knob slides right and the track lights up when on. */
+	/** An on/off value as a small pill switch: the knob slides right and the pill turns white when on. */
 	private final class Toggle extends AbstractButton {
 		private final Component label;
 		private final String path;
@@ -699,15 +916,15 @@ public class GunTunerScreen extends Screen {
 
 		@Override
 		protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-			field(graphics, this, isHoveredOrFocused());
-			graphics.text(font, label, getX() + 4, getY() + (height - 9) / 2 + 1, LABEL, false);
-			int trackWidth = 14;
-			int trackHeight = 6;
+			rowBackground(graphics, this);
+			graphics.text(font, label, getX() + 4, getY() + (height - 9) / 2, LABEL, false);
+			int trackWidth = 15;
+			int trackHeight = 8;
 			int x = getX() + width - 4 - trackWidth;
 			int y = getY() + (height - trackHeight) / 2;
-			graphics.fill(x, y, x + trackWidth, y + trackHeight, on ? ACCENT : 0xFF3A414D);
-			int knob = on ? x + trackWidth - trackHeight : x;
-			graphics.fill(knob, y - 1, knob + trackHeight, y + trackHeight + 1, TEXT);
+			rounded(graphics, x, y, x + trackWidth, y + trackHeight, on ? TEXT : TRACK);
+			int knob = on ? x + trackWidth - trackHeight + 1 : x + 1;
+			rounded(graphics, knob, y + 1, knob + trackHeight - 2, y + trackHeight - 1, on ? DARK : LABEL);
 		}
 
 		@Override
@@ -716,15 +933,23 @@ public class GunTunerScreen extends Screen {
 		}
 	}
 
-	/** A flat button. With an accent color it is filled with it (Apply) or outlined in it (Reset). */
+	private enum ButtonStyle { PRIMARY, GHOST, DANGER, DANGER_FILLED, ICON }
+
+	/** A flat button: an icon and a label (or the icon alone), white filled for the main action and outlined for the rest. */
 	private final class FlatButton extends AbstractButton {
-		private final int accent;
+		private final int icon;
+		private final ButtonStyle style;
 		private final Runnable action;
 
-		FlatButton(int x, int y, int width, Component label, int accent, Runnable action) {
-			super(x, y, width, BUTTON_HEIGHT, label);
-			this.accent = accent;
+		FlatButton(int x, int y, Component label, int icon, ButtonStyle style, Runnable action) {
+			super(x, y, style == ButtonStyle.ICON ? BUTTON_HEIGHT : widthOf(Minecraft.getInstance().font, ui(label), true), BUTTON_HEIGHT, label);
+			this.icon = icon;
+			this.style = style;
 			this.action = action;
+		}
+
+		static int widthOf(net.minecraft.client.gui.Font font, Component label, boolean withIcon) {
+			return font.width(label) + (withIcon ? 25 : 14);
 		}
 
 		@Override
@@ -734,13 +959,39 @@ public class GunTunerScreen extends Screen {
 
 		@Override
 		protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-			boolean hot = isHoveredOrFocused();
-			boolean filled = accent == ACCENT;
-			int background = filled ? (hot ? ACCENT_HOVER : ACCENT) : hot ? FIELD_HOVER : FIELD;
-			graphics.fill(getX(), getY(), getX() + width, getY() + height, background);
-			graphics.outline(getX(), getY(), width, height, accent != 0 ? accent : hot ? 0x80E8A33A : FIELD_BORDER);
-			int color = filled ? ON_ACCENT : accent != 0 && hot ? accent : TEXT;
-			graphics.centeredText(font, getMessage(), getX() + width / 2, getY() + (height - 8) / 2, color);
+			paint(graphics, font, getX(), getY(), width, style == ButtonStyle.ICON ? Component.empty() : ui(getMessage()), icon, style, isHoveredOrFocused());
+		}
+
+		static void paint(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font, int x, int y, int width, Component label, int icon, ButtonStyle style, boolean hot) {
+			int background = switch (style) {
+				case PRIMARY -> hot ? 0xFFFFFFFF : 0xFFE4E6EA;
+				case DANGER_FILLED -> hot ? 0xFFFF8585 : DANGER;
+				// Dark glass like the panels, so they stay readable over a bright sky or sand.
+				case DANGER -> hot ? 0xE62A1618 : PANEL;
+				case GHOST, ICON -> hot ? 0xE6262A31 : PANEL;
+			};
+			int content = switch (style) {
+				case PRIMARY -> DARK;
+				case DANGER_FILLED -> 0xFFFFFFFF;
+				case DANGER -> DANGER;
+				case GHOST, ICON -> TEXT;
+			};
+			rounded(graphics, x, y, x + width, y + BUTTON_HEIGHT, background);
+			if (style == ButtonStyle.GHOST || style == ButtonStyle.ICON || style == ButtonStyle.DANGER) {
+				roundedOutline(graphics, x, y, x + width, y + BUTTON_HEIGHT, style == ButtonStyle.DANGER ? 0x40FF6B6B : EDGE);
+			}
+			int textY = y + (BUTTON_HEIGHT - 9) / 2;
+			if (label.getString().isEmpty()) {
+				Component glyph = icon(icon);
+				graphics.text(font, glyph, x + (width - font.width(glyph)) / 2, textY, content, false);
+				return;
+			}
+			int textX = x + 7;
+			if (icon != 0) {
+				graphics.text(font, icon(icon), textX, textY, content, false);
+				textX += 11;
+			}
+			graphics.text(font, label, textX, textY, content, false);
 		}
 
 		@Override
