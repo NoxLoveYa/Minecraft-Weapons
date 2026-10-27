@@ -30,6 +30,9 @@ import org.joml.Vector3fc;
 public final class Viewmodel {
 	private static final float ADS_PUSH_FORWARD = 0.1F;
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
+	// Showcase for the gun tuner: the gun's middle floats to this point in view space, turned so its left side faces the eye.
+	private static final Vector3fc SHOWCASE_CENTER = new Vector3f(0, 0.02F, -1.1F);
+	private static final float SHOWCASE_STEP = 0.15F;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
 	private static GunFeel feel = GunFeel.DEFAULT;
@@ -48,11 +51,16 @@ public final class Viewmodel {
 	private static float swayPitch;
 	private static float swayPitchO;
 	private static boolean swaySnap = true;
+	/** 0 in the hand, 1 turned sideways in the middle of the screen while the gun tuner is open. */
+	private static float showcase;
+	private static float showcaseO;
 
 	private Viewmodel() {
 	}
 
-	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming) {
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean showcasing) {
+		showcaseO = showcase;
+		showcase = Mth.clamp(showcase + (showcasing ? SHOWCASE_STEP : -SHOWCASE_STEP), 0, 1);
 		if (swaySnap) {
 			swayYaw = player.getYRot();
 			swayPitch = player.getXRot();
@@ -76,6 +84,7 @@ public final class Viewmodel {
 
 	public static void reset() {
 		ads = adsO = 0;
+		showcase = showcaseO = 0;
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
@@ -98,6 +107,12 @@ public final class Viewmodel {
 
 	public static float recoil(float partialTick) {
 		return Mth.lerp(partialTick, recoilO, recoil);
+	}
+
+	/** How much of the camera's walk bob to keep: the held gun's bob_scale, so view and gun bob together, or all of it without a gun. */
+	public static float viewBobScale() {
+		LocalPlayer player = Minecraft.getInstance().player;
+		return player != null && GunItem.holdsGun(player) ? feel.bobScale() : 1;
 	}
 
 	public static float fovMultiplier(float partialTick) {
@@ -148,8 +163,22 @@ public final class Viewmodel {
 		renderState.addGeckolibData(DataTickets.HAS_GLINT, false);
 
 		float aim = ads(partialTick);
-		float loose = 1 - 0.8F * aim; // sway and bob drop to 20% at full ADS
+		float show = Mth.lerp(partialTick, showcaseO, showcase);
+		show = show * show * (3 - 2 * show);
+		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
+		float loose = (1 - 0.8F * aim) * (1 - show);
+		renderState.addGeckolibData(GunRenderer.HIDE_ARMS, show > 0);
 		poseStack.pushPose();
+
+		// 0. Showcase (gun tuner): float the gun's middle to the center of the screen and turn it so the left side faces the eye,
+		// tilted a little so the top and the muzzle read as 3D.
+		if (show > 0) {
+			Vector3f middle = renderer.restPivot("gun").add(renderer.restPivot("muzzle")).mul(0.5F);
+			poseStack.translate((SHOWCASE_CENTER.x() - middle.x) * show, (SHOWCASE_CENTER.y() - middle.y) * show, (SHOWCASE_CENTER.z() - middle.z) * show);
+			poseStack.rotateAround(Axis.ZP.rotationDegrees(-6 * show), middle.x, middle.y, middle.z);
+			poseStack.rotateAround(Axis.XP.rotationDegrees(14 * show), middle.x, middle.y, middle.z);
+			poseStack.rotateAround(Axis.YP.rotationDegrees(90 * show), middle.x, middle.y, middle.z);
+		}
 
 		// 1. ADS: slide the model so ads_anchor lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view.

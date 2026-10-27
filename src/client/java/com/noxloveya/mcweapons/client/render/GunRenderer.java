@@ -31,6 +31,8 @@ import org.jspecify.annotations.Nullable;
 public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Identifier> SKIN = DataTicket.create("mcweapons_skin", Identifier.class);
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
+	/** Set by the viewmodel while the gun is showcased for the tuner, where it floats without hands. */
+	public static final DataTicket<Boolean> HIDE_ARMS = DataTicket.create("mcweapons_hide_arms", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
@@ -112,7 +114,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 
 	@Override
 	public void adjustModelBonesForRender(RenderPassInfo<GeoRenderState> renderPassInfo, BoneSnapshots snapshots) {
-		if (!firstPerson(renderPassInfo.renderState())) {
+		if (!firstPerson(renderPassInfo.renderState()) || Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(HIDE_ARMS))) {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));
 		}

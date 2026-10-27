@@ -11,6 +11,7 @@ import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
+import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.GunDefinitionsPayload;
@@ -37,6 +38,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 public class McWeaponsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
@@ -54,12 +57,26 @@ public class McWeaponsClient implements ClientModInitializer {
 		GunItem.soundKeyframes = McWeaponsClient::playKeyframeSound;
 		GunInput.register();
 		Tracers.register();
-		HudElementRegistry.addLast(McWeapons.id("ammo"), GunHud::renderAmmo);
+		HudElementRegistry.addLast(McWeapons.id("ammo"), (graphics, deltaTracker) -> {
+			if (!GunTunerScreen.isOpen()) {
+				GunHud.renderAmmo(graphics, deltaTracker);
+			}
+		});
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (HudElement)(graphics, deltaTracker) -> {
-			if (!GunHud.renderCrosshair(graphics, deltaTracker)) {
+			if (!GunTunerScreen.isOpen() && !GunHud.renderCrosshair(graphics, deltaTracker)) {
 				vanilla.extractRenderState(graphics, deltaTracker);
 			}
 		});
+		// The tuner's panels fill the screen around the showcased gun, so the HUD under them is hidden while it is open.
+		for (Identifier element : List.of(VanillaHudElements.HOTBAR, VanillaHudElements.CHAT, VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR,
+				VanillaHudElements.FOOD_BAR, VanillaHudElements.AIR_BAR, VanillaHudElements.MOUNT_HEALTH, VanillaHudElements.INFO_BAR,
+				VanillaHudElements.EXPERIENCE_LEVEL, VanillaHudElements.INFO_BAR_FOREGROUND, VanillaHudElements.HELD_ITEM_TOOLTIP, VanillaHudElements.MOB_EFFECTS)) {
+			HudElementRegistry.replaceElement(element, vanilla -> (HudElement)(graphics, deltaTracker) -> {
+				if (!GunTunerScreen.isOpen()) {
+					vanilla.extractRenderState(graphics, deltaTracker);
+				}
+			});
+		}
 		ClientPlayNetworking.registerGlobalReceiver(GunDefinitionsPayload.TYPE, (payload, context) -> GunDefinitions.set(payload.definitions()));
 		ClientPlayNetworking.registerGlobalReceiver(ShotFxPayload.TYPE, (payload, context) -> shotFx(context.client().level, payload));
 	}

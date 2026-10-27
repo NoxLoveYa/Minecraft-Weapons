@@ -1,7 +1,7 @@
 {
   "item": "mcweapons:glock17",
   "fire_modes": ["semi"],
-  "rpm": 400,
+  "rpm": 600,
   "damage": 5.0,
   "range": 64,
   "mag_size": 17,
@@ -17,10 +17,10 @@
   "ads_fov_multiplier": 0.8,
   "move_speed_ads_multiplier": 0.7,
   "feel": {
-    "sway_gain": 0.04,
-    "sway_max_deg": 1.0,
-    "sway_follow": 0.3,
-    "bob_scale": 0.3,
+    "sway_gain": 0.005,
+    "sway_max_deg": 0.015,
+    "sway_follow": 0.01,
+    "bob_scale": 0.0,
     "recoil_push_back": 0.04,
     "recoil_spring_stiffness": 0.35,
     "recoil_spring_damping": 0.6,

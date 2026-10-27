@@ -25,14 +25,14 @@ class GunDefinitionTest {
 		try (Reader reader = new InputStreamReader(getClass().getResourceAsStream("/data/mcweapons/guns/glock17.json"), StandardCharsets.UTF_8)) {
 			glock = GunDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader)).getOrThrow();
 		}
-		assertEquals(400, glock.rpm());
+		assertEquals(600, glock.rpm());
 		assertEquals(17, glock.magSize());
 
-		// ceil(1200 / 400) = 3 ticks, the server allows 1 tick less.
-		assertEquals(3, glock.shotIntervalTicks());
-		assertFalse(glock.readyToFire(100, 102, 0));
-		assertTrue(glock.readyToFire(100, 103, 0));
-		assertTrue(glock.readyToFire(100, 102, 1));
+		// ceil(1200 / 600) = 2 ticks, the server allows 1 tick less.
+		assertEquals(2, glock.shotIntervalTicks());
+		assertFalse(glock.readyToFire(100, 101, 0));
+		assertTrue(glock.readyToFire(100, 102, 0));
+		assertTrue(glock.readyToFire(100, 101, 1));
 		assertTrue(glock.readyToFire(500, 10, 0), "a later clock from another world must not lock the gun");
 
 		// Tactical reload ends at mag + 1, empty reload at mag, and a full gun cannot reload.
@@ -42,11 +42,11 @@ class GunDefinitionTest {
 		assertEquals(18, glock.reloadTarget(18));
 
 		// Feel is optional in the json but always written back, so the tuner and its saved files show every value.
-		assertEquals(GunFeel.DEFAULT, glock.feel());
 		JsonObject json = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
 		assertTrue(json.has("feel"));
-		json.remove("feel");
 		assertEquals(glock, GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+		json.remove("feel");
+		assertEquals(glock.withFeel(GunFeel.DEFAULT), GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
 		// The ranges that keep tuner typos off the server.
 		json.addProperty("ads_fov_multiplier", 0);
 		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError(), "a zero FOV multiplier must be rejected");
