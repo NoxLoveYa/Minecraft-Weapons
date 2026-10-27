@@ -9,6 +9,8 @@ import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.Tracers;
+import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.GunDefinitionsPayload;
@@ -51,6 +53,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		};
 		GunItem.soundKeyframes = McWeaponsClient::playKeyframeSound;
 		GunInput.register();
+		Tracers.register();
 		HudElementRegistry.addLast(McWeapons.id("ammo"), GunHud::renderAmmo);
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (HudElement)(graphics, deltaTracker) -> {
 			if (!GunHud.renderCrosshair(graphics, deltaTracker)) {
@@ -72,16 +75,32 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 	}
 
+	/** Rough muzzle position of a gun held in someone's right hand, seen from outside. */
+	private static Vec3 heldMuzzle(Entity holder) {
+		Vec3 look = holder.getLookAngle();
+		Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
+		return holder.getEyePosition().add(look.scale(0.7)).add(right.scale(0.35)).add(0, -0.45, 0);
+	}
+
 	private static void shotFx(@Nullable ClientLevel level, ShotFxPayload fx) {
 		if (level == null) {
 			return;
 		}
+		Minecraft minecraft = Minecraft.getInstance();
 		Entity shooter = level.getEntity(fx.shooterId());
 		// Someone else's shot: play the fire animation on their third-person gun and puff smoke at its muzzle.
-		if (shooter instanceof LivingEntity living && shooter != Minecraft.getInstance().player && living.getMainHandItem().getItem() instanceof GunItem gun) {
+		if (shooter instanceof LivingEntity living && shooter != minecraft.player && living.getMainHandItem().getItem() instanceof GunItem gun) {
 			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
-			Vec3 muzzle = shooter.getEyePosition().add(shooter.getLookAngle().scale(0.8)).add(0, -0.25, 0);
+			Vec3 muzzle = heldMuzzle(shooter);
 			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
+		}
+		if (shooter != null) {
+			// Our own shot in first person starts where the viewmodel's muzzle is drawn; everyone else's from their hand.
+			Vec3 from = shooter == minecraft.player && minecraft.options.getCameraType().isFirstPerson()
+					&& GeoRenderProvider.of(minecraft.player.getMainHandItem()).getGeoItemRenderer() instanceof GunRenderer renderer
+					? Viewmodel.muzzlePosition(renderer, minecraft.gameRenderer.mainCamera(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false))
+					: heldMuzzle(shooter);
+			Tracers.spawn(from, fx.hitPos());
 		}
 		if (fx.hitType() == HitResult.Type.MISS) {
 			return;

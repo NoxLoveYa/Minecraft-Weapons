@@ -192,6 +192,7 @@ Decisions made where the spec was silent. Each one is the simplest option, and c
 - **Sounds.** `mag_out`, `mag_in`, `slide_back` and `slide_release` are placeholders (vanilla iron trapdoor and crossbow loading). They play at the holder from the animation's sound keyframes.
 - **Muzzle flash.** First person only: additive textured quads at the `muzzle` bone for 45 ms, with a random roll per shot (`textures/effect/muzzle_flash.png`).
 - **Impacts.** Smoke on blocks and crit particles on entities, plus debris particles taken from the block that was hit.
+- **Bullet tracers (bombo asked for them).** Every shot gets a 2.5-block glowing streak that flies at 220 blocks/s from the muzzle to the server's hit point (from `ShotFxPayload`). It is visual only. Your own first-person shot starts where the viewmodel's muzzle is drawn, corrected for the hand's fixed 70° FOV. Other players' shots, and yours in third person, start at an estimated right-hand muzzle. While aiming, the tracer runs straight down the line of sight, so it mostly hides behind the sights.
 - **HUD (bombo asked for a custom one).**
   - A bottom-right panel shows the gun name, fire mode, a large round count (amber at a quarter mag or less, red at 0) over the mag size, and a reload progress bar. When the gun is empty and not reloading, a blinking "RELOAD [R]" hint appears.
   - The crosshair is four ticks spaced to match the hip spread cone at the current FOV, widening while the recoil settles. It fades out while aiming, and vanilla's crosshair is used whenever no gun is held.

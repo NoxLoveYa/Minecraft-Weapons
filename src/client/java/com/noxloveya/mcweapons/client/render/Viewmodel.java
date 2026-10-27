@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.ClientAvatarState;
 import net.minecraft.client.player.LocalPlayer;
@@ -17,7 +18,9 @@ import net.minecraft.client.renderer.state.level.PlayerRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 /**
  * First-person gun. Draws the GeckoLib model straight in view space and adds, on top of the animation and in this
@@ -83,6 +86,22 @@ public final class Viewmodel {
 
 	public static float fovMultiplier(float partialTick) {
 		return Mth.lerp(ads(partialTick), 1, adsFovMultiplier);
+	}
+
+	/** World position where the first-person muzzle appears on screen, so effects can start from it. */
+	public static Vec3 muzzlePosition(GunRenderer renderer, Camera camera, float partialTick) {
+		float aim = ads(partialTick);
+		Vector3f anchor = renderer.restPivot("ads_anchor");
+		Vector3f muzzle = renderer.restPivot("muzzle").add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
+		// The hand is drawn with a fixed FOV, so scale the sideways offset until the point lands on the same pixel at the world FOV.
+		float scale = (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
+		Vector3fc left = camera.leftVector();
+		Vector3fc up = camera.upVector();
+		Vector3fc forward = camera.forwardVector();
+		float x = -muzzle.x * scale;
+		float y = muzzle.y * scale;
+		float z = -muzzle.z;
+		return camera.position().add(left.x() * x + up.x() * y + forward.x() * z, left.y() * x + up.y() * y + forward.y() * z, left.z() * x + up.z() * y + forward.z() * z);
 	}
 
 	public static boolean muzzleFlash() {
