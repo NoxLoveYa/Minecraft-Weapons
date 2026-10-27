@@ -145,4 +145,4 @@ Follows DESIGN_RULES section 3. The Glock 17 is a polymer-frame pistol in black 
 - **No slide lock.** Phase 1 has no locked-back state, so `reload_empty` starts with the slide forward and racks it by hand.
 - **Thin parts.** The sights, trigger and trigger guard are thinner than one texel, so they use per-face UV on small solid-color swatches. Everything 1 unit or thicker uses box UV.
 - **Arm texture areas.** The arm UV areas of `glock17.png`, (40,16) and (32,48), hold a Steve-like placeholder for the Blockbench preview only. In game the renderer replaces them with the player's skin.
-- **Item model.** No `models/item/glock17.json` was exported. When 01c switches to `GeoItemRenderer`, the item model needs the parent `builtin/entity`.
+- **Item model.** No item model was exported. On 26.3, items take their model from `assets/mcweapons/items/glock17.json`, so 01c points that file at GeckoLib 5's item renderer when it adds rendering. The geo (format 1.12.0) and animation file (`geckolib_format_version` 2) are the formats GeckoLib 5 reads.
