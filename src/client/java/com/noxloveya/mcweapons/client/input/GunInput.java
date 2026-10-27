@@ -9,6 +9,7 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.network.AimPayload;
+import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
 import com.noxloveya.mcweapons.network.ShootPayload;
 import com.noxloveya.mcweapons.registry.ModComponents;
@@ -129,12 +130,12 @@ public final class GunInput {
 				}
 				reloadHeldTicks = -1;
 			} else if (++reloadHeldTicks == MAG_CHECK_HOLD_TICKS && canInspect(player, stack, definition)) {
-				play(player, gun, "inspect_mag_check");
+				inspect(player, gun, "inspect_mag_check");
 			}
 		}
 		while (INSPECT.consumeClick()) {
 			if (canInspect(player, stack, definition)) {
-				play(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
+				inspect(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
 			}
 		}
 		while (TUNER.consumeClick()) {
@@ -206,6 +207,12 @@ public final class GunInput {
 		}
 		lastInspect = options.get(pick);
 		return lastInspect;
+	}
+
+	/** Inspects are picked here, so the server is told which one to show everyone else. */
+	private static void inspect(LocalPlayer player, GunItem gun, String action) {
+		play(player, gun, action);
+		ClientPlayNetworking.send(new GunAnimationPayload(player.getId(), action));
 	}
 
 	private static void play(LocalPlayer player, GunItem gun, String action) {

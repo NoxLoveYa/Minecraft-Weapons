@@ -9,6 +9,7 @@ import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
@@ -58,6 +59,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		GunItem.soundKeyframes = McWeaponsClient::playKeyframeSound;
 		GunInput.register();
 		Tracers.register();
+		ThirdPersonGuns.register();
 		HudElementRegistry.addLast(McWeapons.id("ammo"), (graphics, deltaTracker) -> {
 			if (!GunTunerScreen.isOpen()) {
 				GunHud.renderAmmo(graphics, deltaTracker);
@@ -107,6 +109,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 		Minecraft minecraft = Minecraft.getInstance();
 		Entity shooter = level.getEntity(fx.shooterId());
+		ThirdPersonGuns.flash(fx.shooterId());
 		// Someone else's shot: play the fire animation on their third-person gun and puff smoke at its muzzle.
 		if (shooter instanceof LivingEntity living && shooter != minecraft.player && living.getMainHandItem().getItem() instanceof GunItem gun) {
 			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");

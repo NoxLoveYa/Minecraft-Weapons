@@ -55,6 +55,8 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(ReloadPayload.TYPE, ReloadPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(AimPayload.TYPE, AimPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(TuneGunPayload.TYPE, TuneGunPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShotFxPayload.TYPE, ShotFxPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunDefinitionsPayload.TYPE, GunDefinitionsPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(HitMarkerPayload.TYPE, HitMarkerPayload.CODEC);
@@ -63,6 +65,7 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(ReloadPayload.TYPE, (payload, context) -> reload(context.player(), payload.slot()));
 		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming()));
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
+		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 
 		ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) ->
 				ServerPlayNetworking.send(player, new GunDefinitionsPayload(GunDefinitions.all())));
@@ -132,6 +135,22 @@ public final class ServerHandlers {
 		int ticks = ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks();
 		// GunItem.inventoryTick adds the rounds once this tick is reached, or cancels if the gun leaves the main hand.
 		gun.set(ModComponents.GUN_STATE, new GunState(player.level().getGameTime() + ticks, state.lastShotTick()));
+		showOthers(player, ammo == 0 ? "reload_empty" : "reload");
+	}
+
+	/** Inspects are the client's own choice (and cosmetic), so the server only checks one is possible before passing it on. */
+	// shortcut: no rate limit on relayed inspects; add a per-player cooldown if a client spams them.
+	private static void inspect(ServerPlayer player, String action) {
+		if (GunItem.INSPECT_ACTIONS.contains(action) && GunItem.holdsGun(player)
+				&& !player.getMainHandItem().getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading()) {
+			showOthers(player, action);
+		}
+	}
+
+	/** Plays a gun animation for everyone who can see {@code player}; their own client already played it. */
+	private static void showOthers(ServerPlayer player, String action) {
+		GunAnimationPayload payload = new GunAnimationPayload(player.getId(), action);
+		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, payload));
 	}
 
 	private static void setAiming(ServerPlayer player, boolean aiming) {

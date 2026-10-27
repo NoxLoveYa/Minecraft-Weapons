@@ -38,6 +38,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Boolean> MUZZLE_FLASH = DataTicket.create("mcweapons_muzzle_flash", Boolean.class);
 	/** Share of the mag still loaded, 0 to 1. The {@code mag_round_N} bones (1 at the top) show that many rounds, so a mag check reads the count. */
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
+	/** Third person: the holder's gun arm is raised forward (aiming, reloading or inspecting), see {@link ThirdPersonGuns}. */
+	public static final DataTicket<Boolean> ARM_RAISED = DataTicket.create("mcweapons_arm_raised", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
@@ -113,7 +115,10 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (renderData != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() instanceof AbstractClientPlayer player) {
 			renderState.addGeckolibData(SKIN, player.getSkin().body().texturePath());
 		}
-		renderState.addGeckolibData(MUZZLE_FLASH, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.muzzleFlash());
+		LivingEntity holder = renderData == null || renderData.itemOwner() == null ? null : renderData.itemOwner().asLivingEntity();
+		boolean firstPerson = renderData != null && renderData.renderPerspective().firstPerson();
+		renderState.addGeckolibData(MUZZLE_FLASH, firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder));
+		renderState.addGeckolibData(ARM_RAISED, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) != ThirdPersonGuns.Pose.HIP);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
@@ -158,9 +163,12 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		PoseStack poseStack = renderPassInfo.poseStack();
 		Vector3f grip = restPivot("gun");
 		poseStack.scale(THIRD_PERSON_SCALE, THIRD_PERSON_SCALE, THIRD_PERSON_SCALE);
-		// In the hand, item +X points to the holder's right, +Y forward and +Z up, so pitching the model 90 degrees puts the barrel (-Z)
-		// forward and the sights up.
-		poseStack.rotateDegrees(Axis.XP, 90);
+		// In a hanging hand, item +X points to the holder's right, +Y forward and +Z up, so pitching the model 90 degrees puts the barrel
+		// (-Z) forward and the sights up. With the arm raised forward (ThirdPersonGuns), the hand's -Z already runs along the arm and +Y
+		// up, which is the model's own frame.
+		if (!Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(ARM_RAISED))) {
+			poseStack.rotateDegrees(Axis.XP, 90);
+		}
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
 	}
 
@@ -169,6 +177,10 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (!firstPerson(renderPassInfo.renderState())) {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));
+			// Root and gun translations frame the gun for the first-person camera, and in a hand they would pull it out of the grip.
+			// Their rotations pivot on the grip and stay: the draw flick, the fire kick, the reload tilt and the inspect turns.
+			snapshots.get("root").ifPresent(snapshot -> snapshot.setTranslation(0, 0, 0));
+			snapshots.get("gun").ifPresent(snapshot -> snapshot.setTranslation(0, 0, 0));
 		}
 		// The follower pushes the stack up, so rounds go from the bottom: hide every round bone below the share still loaded.
 		Float fill = renderPassInfo.renderState().getGeckolibData(MAG_FILL);
