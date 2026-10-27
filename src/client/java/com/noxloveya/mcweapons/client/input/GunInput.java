@@ -21,6 +21,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /** Turns attack, use and the mod keys into gun intents while a gun is in the main hand, and predicts their animations. */
 public final class GunInput {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(McWeapons.id("main"));
@@ -34,6 +36,7 @@ public final class GunInput {
 	private static long predictedReloadUntil;
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
 	private static long predictedEmptyUntil;
+	private static String lastInspect = "";
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
 
@@ -108,7 +111,8 @@ public final class GunInput {
 		}
 		while (INSPECT.consumeClick()) {
 			if (definition != null && !reloading(player, stack) && definition.readyToFire(lastShotTick, player.level().getGameTime(), 0)) {
-				play(player, gun, "inspect");
+				// The press and mag checks show a chambered slide and a loaded mag, so an empty gun only gets the look-over.
+				play(player, gun, slideLocked(player, stack, definition) ? "inspect" : nextInspect(player));
 			}
 		}
 		while (minecraft.options.keyAttack.consumeClick()) {
@@ -154,6 +158,18 @@ public final class GunInput {
 		predictedEmptyUntil = 0;
 		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
 		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
+	}
+
+	/** A random inspect variant, never the same one twice in a row. */
+	private static String nextInspect(LocalPlayer player) {
+		List<String> options = GunItem.INSPECT_ACTIONS;
+		int last = options.indexOf(lastInspect);
+		int pick = player.getRandom().nextInt(last < 0 ? options.size() : options.size() - 1);
+		if (last >= 0 && pick >= last) {
+			pick++;
+		}
+		lastInspect = options.get(pick);
+		return lastInspect;
 	}
 
 	private static void play(LocalPlayer player, GunItem gun, String action) {

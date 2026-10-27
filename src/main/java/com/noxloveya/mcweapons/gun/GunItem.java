@@ -38,7 +38,9 @@ import java.util.function.Function;
 /** Every gun is an instance of this class. Its stats live in the definition it points to. */
 public class GunItem extends Item implements GeoItem {
 	public static final String MAIN_CONTROLLER = "main";
-	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect");
+	/** Inspect variants; the client picks one at random each time. */
+	public static final List<String> INSPECT_ACTIONS = List.of("inspect", "inspect_press_check", "inspect_mag_check");
+	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check", "inspect_mag_check");
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
 
