@@ -5,6 +5,8 @@ import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
+import com.geckolib.animation.object.PlayState;
+import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.cache.animation.keyframeevent.SoundKeyframeData;
 import com.geckolib.util.GeckoLibUtil;
 import com.noxloveya.mcweapons.registry.ModComponents;
@@ -37,6 +39,8 @@ import java.util.function.Function;
 public class GunItem extends Item implements GeoItem {
 	public static final String MAIN_CONTROLLER = "main";
 	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect");
+	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
+	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
 
 	// Both hooks are filled in by the client entrypoint, because this class also loads on a dedicated server.
 	// The render provider is a GeckoLib GeoRenderProvider, typed as Object since its class pulls in client-only types.
@@ -70,7 +74,17 @@ public class GunItem extends Item implements GeoItem {
 			main.triggerableAnim(action, RawAnimation.begin().thenPlay(animationName(action)));
 		}
 		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
-		controllers.add(main);
+		// Registered after main so it wins on the slide, barrel and slide stop while the gun is empty, whatever main is playing.
+		RawAnimation locked = RawAnimation.begin().thenLoop(animationName("slide_locked"));
+		AnimationController<GunItem> slideLock = new AnimationController<>("slide_lock", 0, test -> {
+			if (Boolean.TRUE.equals(test.getData(SLIDE_LOCKED))) {
+				return test.setAndContinue(locked);
+			}
+			// STOP alone keeps holding the last pose; reset hands the slide back to the main controller.
+			test.controller().reset();
+			return PlayState.STOP;
+		});
+		controllers.add(main, slideLock);
 	}
 
 	@Override

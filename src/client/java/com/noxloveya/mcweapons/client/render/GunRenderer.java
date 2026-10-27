@@ -10,12 +10,19 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.registry.ModComponents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -72,6 +79,20 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			renderState.addGeckolibData(SKIN, player.getSkin().body().texturePath());
 		}
 		renderState.addGeckolibData(MUZZLE_FLASH, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.muzzleFlash());
+		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
+	}
+
+	private static boolean slideLocked(RenderData renderData) {
+		ItemStack stack = renderData.itemStack();
+		GunDefinition definition = GunItem.definition(stack);
+		if (definition == null) {
+			return false;
+		}
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player) {
+			return GunInput.slideLocked(player, stack, definition);
+		}
+		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
 	}
 
 	@Override

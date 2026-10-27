@@ -32,6 +32,8 @@ public final class GunInput {
 	private static long lastShotTick;
 	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
 	private static long predictedReloadUntil;
+	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
+	private static long predictedEmptyUntil;
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
 
@@ -49,6 +51,11 @@ public final class GunInput {
 	/** True while the held gun is reloading, by the server's state or by our own prediction. */
 	public static boolean reloading(LocalPlayer player, ItemStack stack) {
 		return stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading() || player.level().getGameTime() < predictedReloadUntil;
+	}
+
+	/** An empty gun that is not reloading has its slide locked back. */
+	public static boolean slideLocked(LocalPlayer player, ItemStack stack, GunDefinition definition) {
+		return !reloading(player, stack) && (GunItem.ammo(stack, definition) == 0 || player.level().getGameTime() < predictedEmptyUntil);
 	}
 
 	/** Game time the current reload ends, preferring the server's timer over our prediction. */
@@ -121,11 +128,15 @@ public final class GunInput {
 			return;
 		}
 		lastShotTick = now;
-		boolean loaded = GunItem.ammo(stack, definition) > 0;
-		player.playSound(gun.sound(loaded ? "fire" : "dry"), 1.0F, 1.0F);
-		if (loaded) {
+		int ammo = GunItem.ammo(stack, definition);
+		player.playSound(gun.sound(ammo > 0 ? "fire" : "dry"), 1.0F, 1.0F);
+		if (ammo > 0) {
 			play(player, gun, "fire");
 			Viewmodel.onShot(player, definition);
+			if (ammo == 1) {
+				// Covers the round trip until the server says the gun is empty.
+				predictedEmptyUntil = now + 10;
+			}
 		}
 		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, player.getRandom().nextLong()));
 	}
@@ -140,6 +151,7 @@ public final class GunInput {
 			return;
 		}
 		predictedReloadUntil = player.level().getGameTime() + (ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks());
+		predictedEmptyUntil = 0;
 		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
 		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
 	}

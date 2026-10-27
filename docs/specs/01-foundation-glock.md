@@ -197,3 +197,16 @@ Decisions made where the spec was silent. Each one is the simplest option, and c
   - A bottom-right panel shows the gun name, fire mode, a large round count (amber at a quarter mag or less, red at 0) over the mag size, and a reload progress bar. When the gun is empty and not reloading, a blinking "RELOAD [R]" hint appears.
   - The crosshair is four ticks spaced to match the hip spread cone at the current FOV, widening while the recoil settles. It fades out while aiming, and vanilla's crosshair is used whenever no gun is held.
 - **Not handled.** A left-handed main arm still draws the gun on the right. With full ADS the left forearm fills the lower left of the view, which is a candidate for an arm-pose pass.
+- **Glock rebuilt to match a Gen 6 reference photo (bombo's request).**
+  - At 1 unit = 16.9 mm, the slide is 11 × 1.6 × 1.5 units, with a beveled top, front and rear serrations, the left-side engraving, and the ejection port and extractor on the right.
+  - The frame has a dust cover with a rail slot, a square trigger guard with front grooves, and an 18°-raked stippled grip with a beavertail and the Glock logo.
+  - The takedown lever, slide stop and mag release are separate parts, the mag base is flared with a visible round, and the rear sight has a white U-outline with a white front post.
+- **Texture 128×128 with per-face UV.** The parts are fractional sizes, and box UV can't map those, so DESIGN_RULES 3.3's "box UV where possible" doesn't apply here. Faces are packed at about 4 texels per unit (5.8 on the slide). The arm bones keep box UV at (40,16) and (32,48), and the arm layer rescales them to the 64×64 skin.
+- **Extra bones:** `barrel`, `slide_stop` and `mag_release`, all under `gun`. The guide rod is a static cube on `gun`.
+- **Moving parts.**
+  - `fire` drives the slide 2.2 units back (about a real Glock's stroke), which exposes the barrel crown and guide rod. The barrel follows 0.6 units with a 3° tilt, and the trigger pulls and resets.
+  - Both reloads press the mag release.
+  - `reload_empty` starts with the slide locked back. The left hand pulls it slightly further and lets it go, and the slide stop drops.
+- **Slide lock (beyond the spec, bombo asked for the moving parts).** An empty gun that isn't reloading holds its slide back, with the slide stop up. A second controller, `slide_lock`, plays `animation.glock17.slide_locked` on top of `main`.
+  - For our own gun, the lock is predicted for about half a second after the last shot, until the server confirms the gun is empty. Other players' guns use their synced ammo count.
+  - GeckoLib 5 holds a stopped controller's last pose, so the lock controller resets itself whenever the gun isn't locked.

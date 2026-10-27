@@ -31,13 +31,16 @@ public class ArmSkinLayer extends CustomBoneTextureGeoLayer<GunItem, GeoItemRend
 		return skin != null ? skin : this.texture;
 	}
 
-	// The base class rescales UVs by texture size, but a skin that is still downloading reports the placeholder's size. Skins are always 64x64, like the gun sheet.
+	// The base class rescales UVs by the real texture sizes, but a skin that is still downloading reports the placeholder's size.
+	// Skins are always 64x64, so rescale from the gun sheet's declared size instead.
 	@Override
 	protected void renderBone(RenderPassInfo<GeoRenderState> renderPassInfo, GeoBone bone, SubmitNodeCollector renderTasks) {
 		RenderType renderType = getRenderType(renderPassInfo.renderState(), getTextureResource(renderPassInfo.renderState()));
 		if (renderType == null) {
 			return;
 		}
+		float widthRatio = renderPassInfo.model().properties().textureWidth() / 64.0F;
+		float heightRatio = renderPassInfo.model().properties().textureHeight() / 64.0F;
 		int packedLight = renderPassInfo.packedLight();
 		int packedOverlay = renderPassInfo.packedOverlay();
 		int renderColor = renderPassInfo.renderColor();
@@ -48,7 +51,7 @@ public class ArmSkinLayer extends CustomBoneTextureGeoLayer<GunItem, GeoItemRend
 			bone.translateAwayFromPivotPoint(poseStack);
 			for (GeoCube cube : ((CuboidGeoBone)bone).cubes) {
 				poseStack.pushPose();
-				renderCube(cube, poseStack, buffer, packedLight, packedOverlay, renderColor, 1, 1);
+				renderCube(cube, poseStack, buffer, packedLight, packedOverlay, renderColor, widthRatio, heightRatio);
 				poseStack.popPose();
 			}
 			poseStack.popPose();
