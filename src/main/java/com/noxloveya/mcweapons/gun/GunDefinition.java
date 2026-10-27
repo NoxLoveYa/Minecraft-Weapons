@@ -1,11 +1,13 @@
 package com.noxloveya.mcweapons.gun;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.Mth;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Stats of one gun, loaded from {@code data/<namespace>/guns/<gun>.json}. */
 public record GunDefinition(
@@ -24,27 +26,48 @@ public record GunDefinition(
 		int reloadEmptyTicks,
 		int adsTicks,
 		float adsFovMultiplier,
-		float moveSpeedAdsMultiplier) {
+		float moveSpeedAdsMultiplier,
+		GunFeel feel) {
 
 	// The json "item" field is not read: GunItem points at its definition id instead (see spec 01 open questions).
-	public static final Codec<GunDefinition> CODEC = RecordCodecBuilder.create(i -> i.group(
+	// The ranges also guard the gun tuner: a typo there must not reach the server, like a 6400 block raycast or a zero FOV.
+	private static final MapCodec<GunDefinition> STATS = RecordCodecBuilder.mapCodec(i -> i.group(
 			Codec.STRING.listOf().fieldOf("fire_modes").forGetter(GunDefinition::fireModes),
 			ExtraCodecs.POSITIVE_INT.fieldOf("rpm").forGetter(GunDefinition::rpm),
-			Codec.FLOAT.fieldOf("damage").forGetter(GunDefinition::damage),
-			Codec.DOUBLE.fieldOf("range").forGetter(GunDefinition::range),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("damage").forGetter(GunDefinition::damage),
+			Codec.doubleRange(0, 512).fieldOf("range").forGetter(GunDefinition::range),
 			ExtraCodecs.POSITIVE_INT.fieldOf("mag_size").forGetter(GunDefinition::magSize),
 			Codec.BOOL.fieldOf("chamber").forGetter(GunDefinition::chamber),
-			Codec.FLOAT.fieldOf("spread_hip_deg").forGetter(GunDefinition::spreadHipDeg),
-			Codec.FLOAT.fieldOf("spread_ads_deg").forGetter(GunDefinition::spreadAdsDeg),
-			Codec.FLOAT.fieldOf("recoil_pitch_deg").forGetter(GunDefinition::recoilPitchDeg),
-			Codec.FLOAT.fieldOf("recoil_yaw_deg").forGetter(GunDefinition::recoilYawDeg),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("spread_hip_deg").forGetter(GunDefinition::spreadHipDeg),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("spread_ads_deg").forGetter(GunDefinition::spreadAdsDeg),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("recoil_pitch_deg").forGetter(GunDefinition::recoilPitchDeg),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("recoil_yaw_deg").forGetter(GunDefinition::recoilYawDeg),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("draw_ticks").forGetter(GunDefinition::drawTicks),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("reload_ticks").forGetter(GunDefinition::reloadTicks),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("reload_empty_ticks").forGetter(GunDefinition::reloadEmptyTicks),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("ads_ticks").forGetter(GunDefinition::adsTicks),
-			Codec.FLOAT.fieldOf("ads_fov_multiplier").forGetter(GunDefinition::adsFovMultiplier),
-			Codec.FLOAT.fieldOf("move_speed_ads_multiplier").forGetter(GunDefinition::moveSpeedAdsMultiplier)
+			Codec.floatRange(0.1F, 1).fieldOf("ads_fov_multiplier").forGetter(GunDefinition::adsFovMultiplier),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("move_speed_ads_multiplier").forGetter(GunDefinition::moveSpeedAdsMultiplier)
 	).apply(i, GunDefinition::new));
+
+	// RecordCodecBuilder stops at 16 fields, so the stats are one map codec and "feel" sits beside them.
+	// Feel is optional in the json but always written, so the tuner and saved files show every value.
+	public static final Codec<GunDefinition> CODEC = RecordCodecBuilder.create(i -> i.group(
+			STATS.forGetter(definition -> definition),
+			GunFeel.CODEC.optionalFieldOf("feel").forGetter(definition -> Optional.of(definition.feel()))
+	).apply(i, (stats, feel) -> stats.withFeel(feel.orElse(GunFeel.DEFAULT))));
+
+	/** The stats alone, with the default feel. */
+	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
+			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
+		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
+				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, GunFeel.DEFAULT);
+	}
+
+	public GunDefinition withFeel(GunFeel feel) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, feel);
+	}
 
 	public int shotIntervalTicks() {
 		return Mth.ceil(1200.0F / rpm);

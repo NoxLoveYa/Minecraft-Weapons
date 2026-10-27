@@ -7,6 +7,7 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.gun.GunDefinition;
+import com.noxloveya.mcweapons.gun.GunFeel;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -27,17 +28,11 @@ import org.joml.Vector3fc;
  * order: ADS lerp, sway, bob, recoil (DESIGN_RULES 4). State is ticked by {@link com.noxloveya.mcweapons.client.input.GunInput}.
  */
 public final class Viewmodel {
-	// Recoil is a damped spring in "kicks" (1 = one shot). These settle in about 6 ticks with a small overshoot.
-	private static final float SPRING_STIFFNESS = 0.35F;
-	private static final float SPRING_DAMPING = 0.6F;
-	private static final float MAX_KICKS = 2.5F;
-	private static final float RECOIL_PUSH_BACK = 0.04F;
 	private static final float ADS_PUSH_FORWARD = 0.1F;
-	private static final float SWAY_GAIN = 0.02F; // vanilla hands use 0.1
-	private static final float SWAY_MAX = 0.75F; // degrees
-	private static final float BOB_SCALE = 0.3F; // of vanilla's view bob, which bounces a full-size gun far too much
 	private static final long MUZZLE_FLASH_NANOS = 45_000_000L;
 
+	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
+	private static GunFeel feel = GunFeel.DEFAULT;
 	private static float ads;
 	private static float adsO;
 	private static float adsFovMultiplier = 1;
@@ -57,8 +52,9 @@ public final class Viewmodel {
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
 		adsFovMultiplier = definition.adsFovMultiplier();
 		recoilPitch = definition.recoilPitchDeg();
+		feel = definition.feel();
 		recoilO = recoil;
-		recoilVelocity += -SPRING_STIFFNESS * recoil - SPRING_DAMPING * recoilVelocity;
+		recoilVelocity += -feel.recoilSpringStiffness() * recoil - feel.recoilSpringDamping() * recoilVelocity;
 		recoil += recoilVelocity;
 	}
 
@@ -70,7 +66,7 @@ public final class Viewmodel {
 
 	/** A local shot: model kick, a camera pitch kick that does not recover by itself, and the muzzle flash. */
 	public static void onShot(LocalPlayer player, GunDefinition definition) {
-		recoil = Math.min(recoil + 1, MAX_KICKS);
+		recoil = Math.min(recoil + 1, definition.feel().recoilMaxKicks());
 		player.setXRot(Mth.clamp(player.getXRot() - definition.recoilPitchDeg(), -90, 90));
 		player.setYRot(player.getYRot() + (player.getRandom().nextFloat() * 2 - 1) * definition.recoilYawDeg());
 		muzzleFlashUntil = System.nanoTime() + MUZZLE_FLASH_NANOS;
@@ -140,14 +136,14 @@ public final class Viewmodel {
 
 		// 2. Sway: the model lags behind the mouse, using vanilla's smoothed view lag but much weaker and capped,
 		// since vanilla's hand strength swings a full-size gun several degrees on a flick.
-		poseStack.rotateDegrees(Axis.XP, Mth.clamp((hands.viewXRot - hands.xBob) * SWAY_GAIN, -SWAY_MAX, SWAY_MAX) * loose);
-		poseStack.rotateDegrees(Axis.YP, Mth.clamp((hands.viewYRot - hands.yBob) * SWAY_GAIN, -SWAY_MAX, SWAY_MAX) * loose);
+		poseStack.rotateDegrees(Axis.XP, Mth.clamp((hands.viewXRot - hands.xBob) * feel.swayGain(), -feel.swayMaxDeg(), feel.swayMaxDeg()) * loose);
+		poseStack.rotateDegrees(Axis.YP, Mth.clamp((hands.viewYRot - hands.yBob) * feel.swayGain(), -feel.swayMaxDeg(), feel.swayMaxDeg()) * loose);
 
 		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
 		if (minecraft.options.bobView().get()) {
 			ClientAvatarState avatar = player.avatarState();
 			float walk = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
-			float bob = avatar.getInterpolatedBob(partialTick) * BOB_SCALE * loose;
+			float bob = avatar.getInterpolatedBob(partialTick) * feel.bobScale() * loose;
 			poseStack.translate(Mth.sin(walk) * bob * 0.5F, -Math.abs(Mth.cos(walk) * bob), 0);
 			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
@@ -156,7 +152,7 @@ public final class Viewmodel {
 		// 4. Recoil: kick the muzzle up and push the gun back, pivoting on the grip.
 		float kick = recoil(partialTick);
 		Vector3f grip = renderer.restPivot("gun");
-		poseStack.translate(grip.x, grip.y, grip.z + kick * RECOIL_PUSH_BACK);
+		poseStack.translate(grip.x, grip.y, grip.z + kick * feel.recoilPushBack());
 		poseStack.rotateDegrees(Axis.XP, kick * recoilPitch);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
 

@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.gun;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import com.noxloveya.mcweapons.McWeapons;
@@ -39,6 +40,16 @@ class GunDefinitionTest {
 		assertEquals(17, glock.reloadTarget(0));
 		assertEquals(18, glock.reloadTarget(17), "a fresh gun (17, chamber empty) may still chamber a round");
 		assertEquals(18, glock.reloadTarget(18));
+
+		// Feel is optional in the json but always written back, so the tuner and its saved files show every value.
+		assertEquals(GunFeel.DEFAULT, glock.feel());
+		JsonObject json = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
+		assertTrue(json.has("feel"));
+		json.remove("feel");
+		assertEquals(glock, GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+		// The ranges that keep tuner typos off the server.
+		json.addProperty("ads_fov_multiplier", 0);
+		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError(), "a zero FOV multiplier must be rejected");
 
 		// Singleplayer never encodes payloads, so this is the only check of the multiplayer sync codec.
 		ByteBuf buf = Unpooled.buffer();
