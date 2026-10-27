@@ -1,0 +1,11 @@
+{
+  "item.mcweapons.glock17": "Glock 17",
+  "itemGroup.mcweapons": "Minecraft Weapons",
+  "gui.mcweapons.ammo": "%s / %s",
+  "key.categories.mcweapons": "Minecraft Weapons",
+  "key.mcweapons.reload": "Reload",
+  "key.mcweapons.inspect": "Inspect",
+  "death.attack.mcweapons.bullet": "%1$s was shot by %2$s using %3$s",
+  "subtitles.mcweapons.gun.fire": "Gunshot",
+  "subtitles.mcweapons.gun.dry": "Gun clicks empty"
+}

@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "mcweapons",
+	"version": "${version}",
+	"name": "Minecraft Weapons",
+	"description": "Animated guns with a first-person viewmodel, built on GeckoLib.",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.noxloveya.mcweapons.McWeapons"
+		],
+		"client": [
+			"com.noxloveya.mcweapons.client.McWeaponsClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*",
+		"geckolib": ">=4.9.3"
+	}
+}

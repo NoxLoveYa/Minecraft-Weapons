@@ -1,0 +1,14 @@
+{
+  "glock17.fire": {
+    "subtitle": "subtitles.mcweapons.gun.fire",
+    "sounds": [
+      { "name": "minecraft:entity.firework_rocket.blast", "type": "event" }
+    ]
+  },
+  "glock17.dry": {
+    "subtitle": "subtitles.mcweapons.gun.dry",
+    "sounds": [
+      { "name": "minecraft:block.dispenser.fail", "type": "event" }
+    ]
+  }
+}
