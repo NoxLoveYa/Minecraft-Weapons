@@ -20,12 +20,12 @@ import java.util.Locale;
 /** Ammo panel in the bottom right, and a spread crosshair that fades out while aiming. */
 public final class GunHud {
 	private static final int MARGIN = 8;
-	private static final int PANEL = 0x99000000;
 	private static final int WHITE = 0xFFFFFFFF;
 	private static final int GRAY = 0xFFA8A8A8;
 	private static final int DIM = 0xFF707070;
 	private static final int AMBER = 0xFFFFB648;
 	private static final int RED = 0xFFFF5555;
+	private static final int BULLET_WIDTH = 4;
 	private static final int HIT_MARKER = 0xFFFFFF;
 	private static final int HEADSHOT_MARKER = 0xFFC83A;
 	private static final int KILL_MARKER = 0xFF3B3B;
@@ -50,40 +50,86 @@ public final class GunHud {
 		Font font = Minecraft.getInstance().font;
 		ItemStack stack = player.getMainHandItem();
 		int ammo = GunItem.ammo(stack, definition);
-		int ammoColor = ammo == 0 ? RED : ammo <= definition.magSize() / 4 ? AMBER : WHITE;
+		// The count is what is in the mag; a chambered round (any round at all, on a gun with a chamber) is the bullet icon beside it.
+		boolean chambered = definition.chamber() && ammo > 0;
+		int inMag = ammo - (chambered ? 1 : 0);
+		int color = ammo == 0 ? RED : inMag <= definition.magSize() / 4 ? AMBER : WHITE;
 		String name = stack.getHoverName().getString().toUpperCase(Locale.ROOT);
-		String mode = definition.fireModes().isEmpty() ? "" : definition.fireModes().getFirst().toUpperCase(Locale.ROOT);
-		String count = String.valueOf(ammo);
-		String total = "/ " + definition.magSize();
+		String mode = definition.fireModes().isEmpty() ? "" : String.join("/", definition.fireModes()).toUpperCase(Locale.ROOT);
+		String count = String.valueOf(inMag);
+		String total = "/" + definition.magSize();
 
-		int countWidth = font.width(count) * 2;
-		int width = Math.max(font.width(name) + 8 + font.width(mode), countWidth + 4 + font.width(total)) + 14;
+		// Right-aligned rows, bottom up: progress line, round ticks, count, then name and fire mode.
 		int right = graphics.guiWidth() - MARGIN;
 		int bottom = graphics.guiHeight() - MARGIN;
+		int countWidth = font.width(count) * 2;
+		int totalWidth = font.width(total);
+		int ticksWidth = definition.magSize() * 3 - 1;
+		int nameRow = font.width(name) + 6 + font.width(mode) + 6;
+		int width = Math.max(Math.max(countWidth + 3 + BULLET_WIDTH + 3 + totalWidth, ticksWidth), nameRow);
 		int left = right - width;
-		int top = bottom - 38;
+		int top = bottom - 46;
 
-		graphics.fill(left, top, right, bottom, PANEL);
-		graphics.fill(left, top, left + 2, bottom, ammoColor);
-		graphics.text(font, name, left + 8, top + 6, GRAY, false);
-		graphics.text(font, mode, right - 6 - font.width(mode), top + 6, DIM, false);
+		// A backdrop that fades in from the left instead of a hard box.
+		backdrop(graphics, left - 28, top - 4, right + MARGIN, bottom + MARGIN);
+
+		int nameY = top;
+		graphics.text(font, mode, right - 3 - font.width(mode), nameY + 2, GRAY, false);
+		graphics.outline(right - 6 - font.width(mode), nameY, font.width(mode) + 6, 12, DIM);
+		graphics.text(font, name, right - nameRow, nameY + 2, GRAY, true);
+
+		int countY = top + 15;
+		int totalX = right - totalWidth;
+		graphics.text(font, total, totalX, countY + 9, GRAY, true);
+		bullet(graphics, totalX - 3 - BULLET_WIDTH, countY + 6, chambered);
 		graphics.pose().pushMatrix();
-		graphics.pose().translate(left + 8, top + 17);
+		graphics.pose().translate(totalX - 6 - BULLET_WIDTH - countWidth, countY);
 		graphics.pose().scale(2, 2);
-		graphics.text(font, count, 0, 0, ammoColor, true);
+		graphics.text(font, count, 0, 0, color, true);
 		graphics.pose().popMatrix();
-		graphics.text(font, total, left + 8 + countWidth + 4, top + 25, GRAY, true);
 
+		// One tick per round the mag holds, lit for the ones still in it.
+		int ticksY = bottom - 9;
+		for (int round = 0; round < definition.magSize(); round++) {
+			int x = right - ticksWidth + round * 3;
+			graphics.fill(x, ticksY, x + 2, ticksY + 5, round < inMag ? ARGB.color(230, color) : 0x40FFFFFF);
+		}
+
+		graphics.fill(right - width, bottom - 1, right, bottom, 0x30FFFFFF);
 		if (GunInput.reloading(player, stack)) {
 			int reloadTicks = ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks();
 			float now = player.level().getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);
 			float progress = Mth.clamp(1 - (GunInput.reloadEnd(stack) - now) / Math.max(1, reloadTicks), 0, 1);
-			graphics.fill(left, bottom - 2, right, bottom, 0x40FFFFFF);
-			graphics.fill(left, bottom - 2, left + Math.round(width * progress), bottom, WHITE);
+			graphics.fill(right - width, bottom - 1, right - width + Math.round(width * progress), bottom, AMBER);
 		} else if (ammo == 0 && System.currentTimeMillis() / 400 % 2 == 0) {
 			String hint = "RELOAD [" + GunInput.RELOAD.getTranslatedKeyMessage().getString().toUpperCase(Locale.ROOT) + "]";
-			graphics.text(font, hint, right - font.width(hint), top - 11, RED, true);
+			graphics.text(font, hint, right - font.width(hint), top - 14, RED, true);
 		}
+	}
+
+	/** Dark on the right fading to nothing on the left, in thin vertical slices. */
+	private static void backdrop(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1) {
+		int slices = 24;
+		for (int i = 0; i < slices; i++) {
+			int a = x0 + (x1 - x0) * i / slices;
+			int b = x0 + (x1 - x0) * (i + 1) / slices;
+			float t = (i + 1) / (float)slices;
+			graphics.fillGradient(a, y0, b, y1, ARGB.color(Math.round(90 * t * t), 0), ARGB.color(Math.round(150 * t * t), 0));
+		}
+	}
+
+	/** The chambered round: a small upright cartridge, or just its outline when the chamber is empty. */
+	private static void bullet(GuiGraphicsExtractor graphics, int x, int y, boolean chambered) {
+		if (!chambered) {
+			graphics.outline(x, y, BULLET_WIDTH, 10, 0x60FFFFFF);
+			return;
+		}
+		graphics.fill(x - 1, y - 1, x + BULLET_WIDTH + 1, y + 11, 0x80000000);
+		graphics.fill(x + 1, y, x + BULLET_WIDTH - 1, y + 1, 0xFFE09A5A);
+		graphics.fill(x, y + 1, x + BULLET_WIDTH, y + 3, 0xFFC8743A);
+		graphics.fill(x, y + 3, x + BULLET_WIDTH, y + 9, 0xFFE2B248);
+		graphics.fill(x + 1, y + 4, x + 2, y + 8, 0xFFF6D98A);
+		graphics.fill(x, y + 9, x + BULLET_WIDTH, y + 10, 0xFFA07A2A);
 	}
 
 	/** Draws the gun crosshair and returns true, or returns false so vanilla draws its own. Hidden while aiming. */

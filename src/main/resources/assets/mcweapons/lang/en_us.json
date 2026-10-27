@@ -8,6 +8,7 @@
   "key.mcweapons.tuner": "Gun Tuner (ops only)",
   "gui.mcweapons.tuner": "Gun Tuner",
   "gui.mcweapons.tuner.title": "Gun Tuner: %s",
+  "gui.mcweapons.tuner.hint": "← → steps the focused slider",
   "gui.mcweapons.tuner.group.aim": "AIM",
   "gui.mcweapons.tuner.group.magazine": "MAGAZINE",
   "gui.mcweapons.tuner.group.fire": "FIRE",
