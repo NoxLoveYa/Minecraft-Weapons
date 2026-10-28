@@ -20,7 +20,7 @@ public record Reticle(int color, float size, Shape shape) {
 	public static final List<Integer> COLORS = List.of(0xFF3223, 0x3CFF50, 0x30E0FF, 0xFFE030, 0xFF40E0, 0xFFFFFF);
 	public static final float MIN_SIZE = 0.25F;
 	public static final float MAX_SIZE = 1.25F;
-	public static final float DEFAULT_SIZE = 0.5F;
+	public static final float DEFAULT_SIZE = 0.45F;
 	public static final Reticle DEFAULT = new Reticle(COLORS.getFirst(), DEFAULT_SIZE, Shape.DOT);
 
 	public static final Codec<Reticle> CODEC = RecordCodecBuilder.create(i -> i.group(

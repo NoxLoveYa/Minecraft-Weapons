@@ -25,6 +25,7 @@ public class AttachmentItem extends Item {
 	private float zoom;
 	private float maxZoom;
 	private boolean scope;
+	private float eyeDistance = Attachments.DEFAULT_EYE_DISTANCE;
 
 	public AttachmentItem(AttachmentSlot slot, Properties properties) {
 		super(properties);
@@ -122,7 +123,7 @@ public class AttachmentItem extends Item {
 
 	/**
 	 * A magnifying scope, looked through like a real one: its lens shows the world at its magnification, with its reticle
-	 * ({@code textures/gui/scope/<item>.png}) etched in, while the view around it is not zoomed (drawn by the client).
+	 * ({@code textures/gui/scope/<item>.png}) etched in, while the view around it is blurred (drawn by the client).
 	 */
 	public AttachmentItem scope() {
 		this.scope = true;
@@ -131,6 +132,16 @@ public class AttachmentItem extends Item {
 
 	public boolean isScope() {
 		return scope;
+	}
+
+	/** A scope's eye sits {@code blocks} behind its eyepiece when aimed, until the holder sets another (see {@link Attachments#eyeDistance}). */
+	public AttachmentItem eyeDistance(float blocks) {
+		this.eyeDistance = blocks;
+		return this;
+	}
+
+	public float defaultEyeDistance() {
+		return eyeDistance;
 	}
 
 	/** {@code definition} as this attachment changes it. */

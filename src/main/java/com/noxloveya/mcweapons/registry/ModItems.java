@@ -24,8 +24,8 @@ public final class ModItems {
 	// On the model the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone); the magnified ones are looked through (ScopeRenderer).
 	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, item -> item.zoom(1.25F));
 	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope());
-	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope());
-	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope());
+	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope().eyeDistance(0.104F));
+	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().eyeDistance(0.104F));
 	public static final AttachmentItem SNIPER_SCOPE = attachment("sniper_scope", AttachmentSlot.OPTIC, item -> item.zoom(4).scope());
 	public static final AttachmentItem VARIABLE_SCOPE = attachment("variable_scope", AttachmentSlot.OPTIC, item -> item.zoom(6, 10).scope());
 	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));

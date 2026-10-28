@@ -16,6 +16,7 @@ import java.util.Map;
 public final class Attachments {
 	/** The eye distances the attachment menu steps through for a scope (see {@link #eyeDistance}), in blocks of the first-person view. */
 	public static final List<Float> EYE_DISTANCES = List.of(0.065F, 0.0845F, 0.104F, 0.13F, 0.1625F, 0.195F, 0.26F, 0.325F, 0.39F);
+	/** 100% in the menu; a scope's own default may differ ({@link AttachmentItem#eyeDistance}). */
 	public static final float DEFAULT_EYE_DISTANCE = 0.13F;
 
 	private Attachments() {
@@ -24,14 +25,14 @@ public final class Attachments {
 	/** How far behind {@code scope}'s eyepiece the eye sits when it is aimed on {@code gun}. */
 	public static float eyeDistance(ItemStack gun, AttachmentItem scope) {
 		Map<Identifier, Float> distances = gun.getOrDefault(ModComponents.EYE_DISTANCE, Map.of());
-		return distances.getOrDefault(BuiltInRegistries.ITEM.getKey(scope), DEFAULT_EYE_DISTANCE);
+		return distances.getOrDefault(BuiltInRegistries.ITEM.getKey(scope), scope.defaultEyeDistance());
 	}
 
 	/** Sets {@link #eyeDistance}, kept within {@link #EYE_DISTANCES}' range. Looks only, so whoever sends it may. */
 	public static void setEyeDistance(ItemStack gun, AttachmentItem scope, float distance) {
 		Map<Identifier, Float> distances = new HashMap<>(gun.getOrDefault(ModComponents.EYE_DISTANCE, Map.<Identifier, Float>of()));
 		distances.put(BuiltInRegistries.ITEM.getKey(scope), Float.isFinite(distance)
-				? Mth.clamp(distance, EYE_DISTANCES.getFirst(), EYE_DISTANCES.getLast()) : DEFAULT_EYE_DISTANCE);
+				? Mth.clamp(distance, EYE_DISTANCES.getFirst(), EYE_DISTANCES.getLast()) : scope.defaultEyeDistance());
 		gun.set(ModComponents.EYE_DISTANCE, Map.copyOf(distances));
 	}
 
