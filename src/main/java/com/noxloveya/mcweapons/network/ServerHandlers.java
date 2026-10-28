@@ -66,6 +66,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(FireModePayload.TYPE, FireModePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(AttachPayload.TYPE, AttachPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(ReticlePayload.TYPE, ReticlePayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
@@ -79,6 +80,13 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot()));
 		ServerPlayNetworking.registerGlobalReceiver(AttachPayload.TYPE, (payload, context) -> attach(context.player(), payload));
+		ServerPlayNetworking.registerGlobalReceiver(ReticlePayload.TYPE, (payload, context) -> {
+			// Looks only, and Reticle keeps its own values in range, so any held gun takes it.
+			ItemStack gun = heldGun(context.player(), payload.slot());
+			if (!gun.isEmpty()) {
+				gun.set(ModComponents.RETICLE, payload.reticle());
+			}
+		});
 
 		ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) ->
 				ServerPlayNetworking.send(player, new GunDefinitionsPayload(GunDefinitions.all())));

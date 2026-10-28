@@ -18,12 +18,14 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
 import com.noxloveya.mcweapons.network.AttachPayload;
 import com.noxloveya.mcweapons.network.FireModePayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
+import com.noxloveya.mcweapons.network.ReticlePayload;
 import com.noxloveya.mcweapons.network.ShootPayload;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -130,6 +132,15 @@ public final class GunInput {
 		}
 		play(player, gun, attachment != null ? slot.attachAction() : slot.detachAction());
 		ClientPlayNetworking.send(new AttachPayload(player.getInventory().getSelectedSlot(), slot, Optional.ofNullable(attachment).map(BuiltInRegistries.ITEM::getKey)));
+	}
+
+	/** Draws the held gun's optic reticle like {@code reticle}: here straight away, and on the server, which syncs it to everyone. */
+	public static void reticle(LocalPlayer player, Reticle reticle) {
+		ItemStack stack = player.getMainHandItem();
+		if (stack.getItem() instanceof GunItem) {
+			stack.set(ModComponents.RETICLE, reticle);
+			ClientPlayNetworking.send(new ReticlePayload(player.getInventory().getSelectedSlot(), reticle));
+		}
 	}
 
 	/** The attachment we asked to fit into {@code slot}, for the attach animation to show before the server's attachments arrive. */

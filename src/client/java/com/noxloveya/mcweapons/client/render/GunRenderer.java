@@ -23,6 +23,7 @@ import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -58,6 +59,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	/** Attachment item ids to draw: the ones fitted, and one on its way on or off in an attach or detach animation. */
 	@SuppressWarnings("unchecked")
 	public static final DataTicket<Set<Identifier>> ATTACHMENTS = (DataTicket<Set<Identifier>>)(DataTicket<?>)DataTicket.create("mcweapons_attachments", Set.class);
+	/** How a fitted optic draws its reticle (see {@link ReticleLayer}). */
+	public static final DataTicket<Reticle> RETICLE = DataTicket.create("mcweapons_reticle", Reticle.class);
 	/** What each holder last had fitted per slot, so a detach animation can still show the attachment the server already took off. */
 	private static final Map<Long, Map<AttachmentSlot, Identifier>> LAST_FITTED = new HashMap<>();
 	/** Third person: the holder aims with both hands, the gun arm turned in (see {@link ThirdPersonGuns#poseAimHold}). */
@@ -147,6 +150,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		boolean silenced = renderData != null && Attachments.silenced(renderData.itemStack());
 		renderState.addGeckolibData(MUZZLE_FLASH, !silenced && (firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder)));
 		renderState.addGeckolibData(ATTACHMENTS, renderData != null ? shownAttachments(gun, renderData.itemStack(), holder) : Set.of());
+		renderState.addGeckolibData(RETICLE, renderData != null ? renderData.itemStack().getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT) : Reticle.DEFAULT);
 		renderState.addGeckolibData(THIRD_PERSON_AIM, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);

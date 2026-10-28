@@ -10,20 +10,33 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.gun.Reticle;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-/** The glowing dot of a fitted optic, at its {@code <attachment>_reticle} bone, facing back at the eye like a real one. */
+/**
+ * The glowing reticle of a fitted optic, at its {@code <attachment>_reticle} bone, facing back at the eye like a real one. Its shape,
+ * color and size come from the gun's {@link Reticle}; the textures are white and the color tints them.
+ */
 public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
-	private static final Identifier TEXTURE = McWeapons.id("textures/effect/red_dot.png");
-	// Half the quad, halo included, in blocks: the core comes out a few pixels across at the ADS distance.
-	private static final float RADIUS = 0.011F;
+	private static final Map<Reticle.Shape, Identifier> TEXTURES = new EnumMap<>(Reticle.Shape.class);
+	// Half the quad, halo included, in blocks, at size 1: the dot's core comes out a few pixels across at the ADS distance.
+	private static final float RADIUS = 0.022F;
 	private static final int FULL_BRIGHT = 0xF000F0;
+
+	static {
+		for (Reticle.Shape shape : Reticle.Shape.values()) {
+			TEXTURES.put(shape, McWeapons.id("textures/effect/reticle_" + shape.getSerializedName() + ".png"));
+		}
+	}
 
 	public ReticleLayer(GunRenderer renderer) {
 		super(renderer);
@@ -36,20 +49,23 @@ public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Render
 			return;
 		}
 		for (Identifier id : shown) {
-			renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone -> consumer.accept(bone, this::submitDot));
+			renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone -> consumer.accept(bone, this::submitReticle));
 		}
 	}
 
-	private void submitDot(RenderPassInfo<GeoRenderState> renderPassInfo, GeoBone bone, SubmitNodeCollector renderTasks) {
-		renderTasks.submitCustomGeometry(renderPassInfo.poseStack(), RenderTypes.eyes(TEXTURE), (pose, buffer) -> {
-			vertex(buffer, pose, -RADIUS, -RADIUS, 0, 1);
-			vertex(buffer, pose, RADIUS, -RADIUS, 1, 1);
-			vertex(buffer, pose, RADIUS, RADIUS, 1, 0);
-			vertex(buffer, pose, -RADIUS, RADIUS, 0, 0);
+	private void submitReticle(RenderPassInfo<GeoRenderState> renderPassInfo, GeoBone bone, SubmitNodeCollector renderTasks) {
+		Reticle reticle = Objects.requireNonNullElse(renderPassInfo.getGeckolibData(GunRenderer.RETICLE), Reticle.DEFAULT);
+		float radius = RADIUS * reticle.size();
+		int color = 0xFF000000 | reticle.color();
+		renderTasks.submitCustomGeometry(renderPassInfo.poseStack(), RenderTypes.eyes(TEXTURES.get(reticle.shape())), (pose, buffer) -> {
+			vertex(buffer, pose, -radius, -radius, 0, 1, color);
+			vertex(buffer, pose, radius, -radius, 1, 1, color);
+			vertex(buffer, pose, radius, radius, 1, 0, color);
+			vertex(buffer, pose, -radius, radius, 0, 0, color);
 		});
 	}
 
-	private static void vertex(VertexConsumer buffer, PoseStack.Pose pose, float x, float y, float u, float v) {
-		buffer.addVertex(pose, x, y, 0).setColor(-1).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(FULL_BRIGHT).setNormal(pose, 0, 0, 1);
+	private static void vertex(VertexConsumer buffer, PoseStack.Pose pose, float x, float y, float u, float v, int color) {
+		buffer.addVertex(pose, x, y, 0).setColor(color).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(FULL_BRIGHT).setNormal(pose, 0, 0, 1);
 	}
 }

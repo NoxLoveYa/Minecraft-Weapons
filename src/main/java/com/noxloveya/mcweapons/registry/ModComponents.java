@@ -3,6 +3,7 @@ package com.noxloveya.mcweapons.registry;
 import com.mojang.serialization.Codec;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.gun.Reticle;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -29,6 +30,10 @@ public final class ModComponents {
 	public static final DataComponentType<Map<String, Identifier>> ATTACHMENTS = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("attachments"),
 			DataComponentType.<Map<String, Identifier>>builder().persistent(Codec.unboundedMap(Codec.STRING, Identifier.CODEC))
 					.networkSynchronized(ByteBufCodecs.map(HashMap::new, ByteBufCodecs.STRING_UTF8, Identifier.STREAM_CODEC)).build());
+
+	/** How the gun's optic draws its reticle (see {@link Reticle}). Absent means the default red dot. */
+	public static final DataComponentType<Reticle> RETICLE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("reticle"),
+			DataComponentType.<Reticle>builder().persistent(Reticle.CODEC).networkSynchronized(Reticle.STREAM_CODEC).build());
 
 	private ModComponents() {
 	}

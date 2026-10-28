@@ -1,11 +1,14 @@
 package com.noxloveya.mcweapons.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.gun.Reticle;
+import com.noxloveya.mcweapons.registry.ModComponents;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -18,8 +21,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.DIVIDER;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.EDGE;
@@ -47,16 +53,53 @@ public class AttachmentScreen extends Screen {
 	private static final int ICON_KEYS = 0xE24A;
 	private static final Map<AttachmentSlot, Integer> SLOT_ICONS = Map.of(AttachmentSlot.MUZZLE, 0xE626, AttachmentSlot.OPTIC, 0xE29E,
 			AttachmentSlot.UNDERBARREL, 0xE0D3, AttachmentSlot.MAGAZINE, 0xE58A);
+	private static final int ICON_COLLAPSED = 0xE06F;
+	private static final int ICON_EXPANDED = 0xE06D;
 	private static final int WIDTH = 160;
 	private static final int HEADER = 16;
 	private static final int ROW = 15;
+	/** Lang key suffixes of {@link Reticle#COLORS}, in the same order. */
+	private static final List<String> COLOR_NAMES = List.of("red", "green", "cyan", "yellow", "magenta", "white");
 
-	/** One clickable line: fit {@code attachment} (null for none) into {@code slot}. */
-	private record Row(AttachmentSlot slot, @Nullable AttachmentItem attachment, int y) {
+	/** A setting of an optic's reticle, shown under the optic's row once its arrow is opened (right click). */
+	private enum Option {
+		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3);
+
+		final int icon;
+
+		Option(int icon) {
+			this.icon = icon;
+		}
+
+		Reticle step(Reticle reticle, int step) {
+			return switch (this) {
+				case COLOR -> reticle.cycleColor(step);
+				case SIZE -> reticle.cycleSize(step);
+				case SHAPE -> reticle.cycleShape(step);
+			};
+		}
+
+		Component value(Reticle reticle) {
+			return switch (this) {
+				case COLOR -> {
+					int index = Reticle.COLORS.indexOf(reticle.color());
+					yield index < 0 ? Component.literal(String.format("#%06X", reticle.color()))
+							: Component.translatable("gui.mcweapons.reticle.color." + COLOR_NAMES.get(index));
+				}
+				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
+				case SHAPE -> Component.translatable("gui.mcweapons.reticle.shape." + reticle.shape().getSerializedName());
+			};
+		}
+	}
+
+	/** One clickable line: fit {@code attachment} (null for none) into {@code slot}, or, with an {@code option}, change that setting of it. */
+	private record Row(AttachmentSlot slot, @Nullable AttachmentItem attachment, @Nullable Option option, int y) {
 	}
 
 	private final List<Row> rows = new ArrayList<>();
 	private final Map<AttachmentSlot, Integer> sectionTops = new EnumMap<>(AttachmentSlot.class);
+	/** Attachments whose options are open. */
+	private final Set<AttachmentItem> expanded = new HashSet<>();
 	private int top;
 	private int bottom;
 	/** The key opened this screen; it only closes it again once that press has been let go. */
@@ -93,17 +136,26 @@ public class AttachmentScreen extends Screen {
 		int height = 34;
 		for (List<AttachmentItem> items : fitting.values()) {
 			height += HEADER + (items.size() + 1) * ROW + 6;
+			for (AttachmentItem item : items) {
+				height += open(item) ? Option.values().length * ROW : 0;
+			}
 		}
 		top = Math.max(MARGIN, (this.height - height) / 2);
 		int y = top + 34;
 		for (Map.Entry<AttachmentSlot, List<AttachmentItem>> section : fitting.entrySet()) {
 			sectionTops.put(section.getKey(), y);
 			y += HEADER;
-			rows.add(new Row(section.getKey(), null, y));
+			rows.add(new Row(section.getKey(), null, null, y));
 			y += ROW;
 			for (AttachmentItem item : section.getValue()) {
-				rows.add(new Row(section.getKey(), item, y));
+				rows.add(new Row(section.getKey(), item, null, y));
 				y += ROW;
+				if (open(item)) {
+					for (Option option : Option.values()) {
+						rows.add(new Row(section.getKey(), item, option, y));
+						y += ROW;
+					}
+				}
 			}
 			y += 6;
 		}
@@ -112,6 +164,15 @@ public class AttachmentScreen extends Screen {
 
 	private ItemStack held() {
 		return minecraft.player == null ? ItemStack.EMPTY : minecraft.player.getMainHandItem();
+	}
+
+	/** Optics have reticle options (drawn by ReticleLayer); nothing else has any yet. */
+	private static boolean hasOptions(@Nullable AttachmentItem attachment) {
+		return attachment != null && attachment.slot() == AttachmentSlot.OPTIC;
+	}
+
+	private boolean open(AttachmentItem attachment) {
+		return hasOptions(attachment) && expanded.contains(attachment);
 	}
 
 	@Override
@@ -145,7 +206,23 @@ public class AttachmentScreen extends Screen {
 			graphics.text(font, icon(SLOT_ICONS.get(section.getKey())), x0 + 8, y + 5, MUTED, false);
 			graphics.text(font, ui(Component.translatable("gui.mcweapons.attachments.slot." + section.getKey().getSerializedName())), x0 + 21, y + 5, MUTED, false);
 		}
+		Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 		for (Row row : rows) {
+			if (row.option() != null) {
+				// Looks only: changeable any time, even mid-reload or before the optic is fitted.
+				if (hovered(row, mouseX, mouseY)) {
+					rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + ROW, ROW_HOVER);
+				}
+				graphics.text(font, icon(row.option().icon), x0 + 23, row.y() + 4, MUTED, false);
+				graphics.text(font, ui(Component.translatable("gui.mcweapons.reticle." + row.option().name().toLowerCase(Locale.ROOT))), x0 + 36, row.y() + 4, 0xD9FFFFFF, false);
+				Component value = ui(row.option().value(reticle));
+				int valueX = x1 - 9 - font.width(value);
+				graphics.text(font, value, valueX, row.y() + 4, TEXT, false);
+				if (row.option() == Option.COLOR) {
+					graphics.fill(valueX - 10, row.y() + 4, valueX - 3, row.y() + 11, 0xFF000000 | reticle.color());
+				}
+				continue;
+			}
 			AttachmentItem fitted = Attachments.in(gun, row.slot());
 			boolean current = fitted == row.attachment();
 			boolean available = row.attachment() == null || owned(player, row.attachment()) > 0 || player != null && player.hasInfiniteMaterials();
@@ -158,6 +235,9 @@ public class AttachmentScreen extends Screen {
 			graphics.text(font, icon(glyph), x0 + 10, row.y() + 4, color, false);
 			Component name = row.attachment() == null ? Component.translatable("gui.mcweapons.attachments.none") : new ItemStack(row.attachment()).getHoverName();
 			graphics.text(font, ui(name), x0 + 23, row.y() + 4, color, false);
+			if (hasOptions(row.attachment())) {
+				graphics.text(font, icon(open(row.attachment()) ? ICON_EXPANDED : ICON_COLLAPSED), x0 + 26 + font.width(ui(name)), row.y() + 4, MUTED, false);
+			}
 			Component note = note(player, row, current);
 			if (note != null) {
 				Component text = ui(note);
@@ -207,13 +287,26 @@ public class AttachmentScreen extends Screen {
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
 		LocalPlayer player = minecraft.player;
 		ItemStack gun = held();
-		if (player != null && !GunInput.busy(player, gun)) {
-			for (Row row : rows) {
-				if (hovered(row, event.x(), event.y()) && Attachments.in(gun, row.slot()) != row.attachment()
-						&& (row.attachment() == null || player.hasInfiniteMaterials() || owned(player, row.attachment()) > 0)) {
-					GunInput.attach(player, row.slot(), row.attachment());
-					return true;
+		boolean right = event.button() == InputConstants.MOUSE_BUTTON_RIGHT;
+		for (Row row : rows) {
+			if (player == null || !hovered(row, event.x(), event.y())) {
+				continue;
+			}
+			if (row.option() != null) {
+				// Left steps forward, right steps back.
+				GunInput.reticle(player, row.option().step(gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT), right ? -1 : 1));
+				return true;
+			}
+			if (right && hasOptions(row.attachment())) {
+				if (!expanded.remove(row.attachment())) {
+					expanded.add(row.attachment());
 				}
+				return true;
+			}
+			if (!right && !GunInput.busy(player, gun) && Attachments.in(gun, row.slot()) != row.attachment()
+					&& (row.attachment() == null || player.hasInfiniteMaterials() || owned(player, row.attachment()) > 0)) {
+				GunInput.attach(player, row.slot(), row.attachment());
+				return true;
 			}
 		}
 		return super.mouseClicked(event, doubleClick);
