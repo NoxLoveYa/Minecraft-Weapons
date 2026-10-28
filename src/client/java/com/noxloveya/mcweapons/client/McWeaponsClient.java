@@ -10,9 +10,11 @@ import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.MuzzleLight;
 import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.BulletImpactPayload;
@@ -116,6 +118,9 @@ public class McWeaponsClient implements ClientModInitializer {
 			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
 			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
 			Casings.eject(shooter, gun);
+			if (!Attachments.silenced(living.getMainHandItem())) {
+				MuzzleLight.flash(bullet.shooterId(), muzzle);
+			}
 		}
 		Tracers.fire(bullet.shooterId(), bullet.shotId(), bullet.origin(), bullet.velocity(), bullet.gravity(), bullet.range(), muzzle, false);
 	}

@@ -11,6 +11,9 @@
 		],
 		"client": [
 			"com.noxloveya.mcweapons.client.McWeaponsClient"
+		],
+		"lambdynlights:initializer": [
+			"com.noxloveya.mcweapons.client.compat.LambDynLightsCompat"
 		]
 	},
 	"mixins": [

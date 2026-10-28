@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.MuzzleLight;
 import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
@@ -270,7 +271,11 @@ public final class GunInput {
 			Vec3 direction = Ballistics.direction(xRot, yRot, seed, aiming ? definition.spreadAdsDeg() : definition.spreadHipDeg());
 			// Rounded like the server's bullet (see Bullets.fire), so this tracer and the bullet follow one path.
 			Vec3 velocity = new Vec3(direction.scale(definition.bullet().speedPerTick()).toVector3f());
-			Tracers.fire(player.getId(), shotId, origin, velocity, (float)definition.bullet().gravityPerTick(), (float)definition.range(), Tracers.muzzle(player), true);
+			Vec3 muzzle = Tracers.muzzle(player);
+			Tracers.fire(player.getId(), shotId, origin, velocity, (float)definition.bullet().gravityPerTick(), (float)definition.range(), muzzle, true);
+			if (!Attachments.silenced(stack)) {
+				MuzzleLight.flash(player.getId(), muzzle);
+			}
 			Viewmodel.onShot(player, definition);
 			if (ammo == 1) {
 				// Covers the round trip until the server says the gun is empty.
