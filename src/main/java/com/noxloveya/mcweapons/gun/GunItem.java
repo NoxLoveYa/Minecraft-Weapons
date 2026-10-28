@@ -31,17 +31,22 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 /** Every gun is an instance of this class. Its stats live in the definition it points to. */
 public class GunItem extends Item implements GeoItem {
 	public static final String MAIN_CONTROLLER = "main";
 	/** Inspect variants; the client picks one at random each time. */
 	public static final List<String> INSPECT_ACTIONS = List.of("inspect", "inspect_press_check", "inspect_mag_check");
-	public static final List<String> TRIGGERED_ACTIONS = List.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check", "inspect_mag_check",
-			"fire_mode");
+	/** Fitting and removing attachments, {@code attach_<slot>} and {@code detach_<slot>}: each takes this long. */
+	public static final List<String> ATTACHMENT_ACTIONS = Arrays.stream(AttachmentSlot.values()).flatMap(slot -> Stream.of(slot.attachAction(), slot.detachAction())).toList();
+	public static final int ATTACHMENT_TICKS = 26;
+	public static final List<String> TRIGGERED_ACTIONS = Stream.concat(Stream.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
+			"inspect_mag_check", "fire_mode"), ATTACHMENT_ACTIONS.stream()).toList();
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
 	/** Set by the renderer while the gun tuner shows the gun, so the arms hold it up sideways. */
@@ -184,6 +189,12 @@ public class GunItem extends Item implements GeoItem {
 		}
 		lines.accept(Component.translatable("gui.mcweapons.ammo", ammo(stack, definition), definition.magSize()).withStyle(ChatFormatting.GRAY));
 		lines.accept(Component.literal("9x19mm").withStyle(ChatFormatting.GRAY)); // shortcut: caliber is hardcoded, phase 3 moves it into the definition
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			AttachmentItem attachment = Attachments.in(stack, slot);
+			if (attachment != null) {
+				lines.accept(Component.literal("+ ").append(new ItemStack(attachment).getHoverName()).withStyle(ChatFormatting.DARK_AQUA));
+			}
+		}
 	}
 
 	// Ammo and state change on every shot; without this vanilla replays the re-equip animation each time.

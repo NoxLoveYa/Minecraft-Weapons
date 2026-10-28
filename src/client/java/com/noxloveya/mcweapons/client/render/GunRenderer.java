@@ -16,6 +16,9 @@ import com.geckolib.renderer.base.RenderPassInfo;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
@@ -23,6 +26,7 @@ import com.noxloveya.mcweapons.registry.ModComponents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,6 +36,12 @@ import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 /** One renderer for every gun: geo, texture and animations are found by gun id through GeckoLib's defaulted item paths. */
 public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Identifier> SKIN = DataTicket.create("mcweapons_skin", Identifier.class);
@@ -40,6 +50,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
 	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
+	/** Attachment item ids to draw: the ones fitted, and one on its way on or off in an attach or detach animation. */
+	@SuppressWarnings("unchecked")
+	public static final DataTicket<Set<Identifier>> ATTACHMENTS = (DataTicket<Set<Identifier>>)(DataTicket<?>)DataTicket.create("mcweapons_attachments", Set.class);
+	/** What each holder last had fitted per slot, so a detach animation can still show the attachment the server already took off. */
+	private static final Map<Long, Map<AttachmentSlot, Identifier>> LAST_FITTED = new HashMap<>();
 	/** Third person: the holder aims with both hands, the gun arm turned in (see {@link ThirdPersonGuns#poseAimHold}). */
 	public static final DataTicket<Boolean> THIRD_PERSON_AIM = DataTicket.create("mcweapons_third_person_aim", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
@@ -120,12 +135,56 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		LivingEntity holder = renderData == null || renderData.itemOwner() == null ? null : renderData.itemOwner().asLivingEntity();
 		boolean firstPerson = renderData != null && renderData.renderPerspective().firstPerson();
-		renderState.addGeckolibData(MUZZLE_FLASH, firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder));
+		boolean silenced = renderData != null && Attachments.silenced(renderData.itemStack());
+		renderState.addGeckolibData(MUZZLE_FLASH, !silenced && (firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder)));
+		renderState.addGeckolibData(ATTACHMENTS, renderData != null ? shownAttachments(gun, renderData.itemStack(), holder) : Set.of());
 		renderState.addGeckolibData(THIRD_PERSON_AIM, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);
 		renderState.addGeckolibData(CHAMBERED, renderData != null && chambered(renderData));
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
+	}
+
+	/**
+	 * The fitted attachments, plus the one in the hand during an attach or detach animation: an attachment being fitted shows before the
+	 * server's attachments arrive (our own pick, see GunInput), and one being taken off still shows after they have.
+	 */
+	private static Set<Identifier> shownAttachments(GunItem gun, ItemStack stack, @Nullable LivingEntity holder) {
+		Map<String, Identifier> fitted = Attachments.of(stack);
+		if (holder == null) {
+			return Set.copyOf(fitted.values());
+		}
+		var main = gun.getAnimatableInstanceCache().getManagerForId(instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		Map<AttachmentSlot, Identifier> last = LAST_FITTED.computeIfAbsent(instanceId(holder), id -> new EnumMap<>(AttachmentSlot.class));
+		Set<Identifier> shown = new HashSet<>();
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			Identifier id = fitted.get(slot.getSerializedName());
+			if (id != null) {
+				last.put(slot, id);
+			}
+			if (main != null && main.isTriggeredAnimation(slot.detachAction())) {
+				id = last.get(slot);
+			} else if (id == null && main != null && main.isTriggeredAnimation(slot.attachAction()) && holder == Minecraft.getInstance().player) {
+				AttachmentItem pending = GunInput.pending(slot);
+				id = pending == null ? null : BuiltInRegistries.ITEM.getKey(pending);
+			}
+			if (id != null) {
+				shown.add(id);
+			}
+		}
+		return shown;
+	}
+
+	/** The bone shots leave from: a fitted attachment's own {@code <attachment>_muzzle} locator (a silencer's tip), or the gun's {@code muzzle}. */
+	public String muzzleBone(ItemStack stack) {
+		BakedGeoModel model = getGeoModel().getBakedModel(this.modelId);
+		for (Identifier id : Attachments.of(stack).values()) {
+			String bone = id.getPath() + "_muzzle";
+			if (model.getBone(bone).isPresent()) {
+				return bone;
+			}
+		}
+		return "muzzle";
 	}
 
 	private static boolean slideLocked(RenderData renderData) {
@@ -207,6 +266,12 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		if (Boolean.FALSE.equals(renderPassInfo.renderState().getGeckolibData(CHAMBERED))) {
 			snapshots.get("chamber_round").ifPresent(snapshot -> snapshot.skipRender(true));
+		}
+		// Each attachment is a bone named after its item; only the ones to show are drawn.
+		Set<Identifier> shown = renderPassInfo.renderState().getGeckolibData(ATTACHMENTS);
+		for (AttachmentItem attachment : AttachmentItem.all()) {
+			Identifier id = BuiltInRegistries.ITEM.getKey(attachment);
+			snapshots.get(id.getPath()).ifPresent(snapshot -> snapshot.skipRender(shown == null || !shown.contains(id)));
 		}
 	}
 }

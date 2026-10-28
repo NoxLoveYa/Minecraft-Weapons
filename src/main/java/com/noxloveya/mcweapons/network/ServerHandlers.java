@@ -4,6 +4,9 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.combat.Hitscan;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
@@ -16,6 +19,7 @@ import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -57,6 +61,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(TuneGunPayload.TYPE, TuneGunPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(FireModePayload.TYPE, FireModePayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(AttachPayload.TYPE, AttachPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(ShotFxPayload.TYPE, ShotFxPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunDefinitionsPayload.TYPE, GunDefinitionsPayload.CODEC);
@@ -68,6 +73,7 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot()));
+		ServerPlayNetworking.registerGlobalReceiver(AttachPayload.TYPE, (payload, context) -> attach(context.player(), payload));
 
 		ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) ->
 				ServerPlayNetworking.send(player, new GunDefinitionsPayload(GunDefinitions.all())));
@@ -116,8 +122,9 @@ public final class ServerHandlers {
 		if (shot.hurt()) {
 			ServerPlayNetworking.send(player, new HitMarkerPayload(shot.headshot(), shot.killed()));
 		}
-		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks.
-		playSound(player, item.sound("fire"), 3.0F);
+		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks, and silenced ones about 16.
+		boolean silenced = Attachments.silenced(gun);
+		playSound(player, item.sound(silenced ? "fire_silenced" : "fire"), silenced ? 1.0F : 3.0F);
 		ShotFxPayload fx = new ShotFxPayload(player.getId(), hit.getLocation(), hit.getType());
 		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, fx));
 		ServerPlayNetworking.send(player, fx);
@@ -149,6 +156,50 @@ public final class ServerHandlers {
 		}
 		gun.set(ModComponents.FIRE_MODE, definition.nextFireMode(gun.get(ModComponents.FIRE_MODE)));
 		showOthers(player, "fire_mode");
+	}
+
+	/**
+	 * Fits an attachment into a part of the held gun, or empties the part. It must fit the gun and, outside creative, come out of the
+	 * player's inventory; whatever it replaces goes back there (or onto the ground when full). Not during a reload, like the client.
+	 */
+	private static void attach(ServerPlayer player, AttachPayload payload) {
+		ItemStack gun = heldGun(player, payload.slot());
+		GunDefinition definition = GunItem.definition(gun);
+		if (definition == null || gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading()) {
+			return;
+		}
+		AttachmentSlot part = payload.part();
+		AttachmentItem wanted = null;
+		if (payload.attachment().isPresent()) {
+			if (!(BuiltInRegistries.ITEM.getValue(payload.attachment().get()) instanceof AttachmentItem item) || item.slot() != part || !Attachments.fits(definition, item)) {
+				return;
+			}
+			wanted = item;
+		}
+		AttachmentItem current = Attachments.in(gun, part);
+		if (current == wanted) {
+			return;
+		}
+		boolean creative = player.hasInfiniteMaterials();
+		if (wanted != null && !creative && !takeOne(player, wanted)) {
+			return;
+		}
+		Attachments.set(gun, part, wanted);
+		if (current != null && !creative) {
+			player.getInventory().placeItemBackInInventory(new ItemStack(current), Prediction.SERVER_ONLY);
+		}
+		showOthers(player, wanted != null ? part.attachAction() : part.detachAction());
+	}
+
+	private static boolean takeOne(ServerPlayer player, AttachmentItem attachment) {
+		for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+			ItemStack stack = player.getInventory().getItem(i);
+			if (stack.is(attachment)) {
+				stack.shrink(1);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Inspects are the client's own choice (and cosmetic), so the server only checks one is possible before passing it on. */

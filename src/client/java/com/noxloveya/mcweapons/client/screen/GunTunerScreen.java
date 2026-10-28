@@ -89,21 +89,21 @@ public class GunTunerScreen extends Screen {
 	private static final int ICON_ERROR = 0xE077;
 	private static final int ICON_KEYS = 0xE24A;
 
-	private static final int PANEL = 0xD90C0E12;
-	private static final int CARD = 0xF50C0E12;
-	private static final int EDGE = 0x1AFFFFFF;
-	private static final int DIVIDER = 0x14FFFFFF;
-	private static final int ROW_HOVER = 0x0FFFFFFF;
+	static final int PANEL = 0xD90C0E12;
+	static final int CARD = 0xF50C0E12;
+	static final int EDGE = 0x1AFFFFFF;
+	static final int DIVIDER = 0x14FFFFFF;
+	static final int ROW_HOVER = 0x0FFFFFFF;
 	private static final int ROW_FOCUS = 0x1FFFFFFF;
 	private static final int TRACK = 0x26FFFFFF;
 	private static final int FILL = 0xB3FFFFFF;
-	private static final int TEXT = 0xFFF4F5F7;
-	private static final int LABEL = 0xB3FFFFFF;
-	private static final int MUTED = 0x73FFFFFF;
+	static final int TEXT = 0xFFF4F5F7;
+	static final int LABEL = 0xB3FFFFFF;
+	static final int MUTED = 0x73FFFFFF;
 	private static final int WIRE = 0x59FFFFFF;
-	private static final int DARK = 0xFF0C0E12;
-	private static final int DANGER = 0xFFFF6B6B;
-	private static final int MARGIN = 6;
+	static final int DARK = 0xFF0C0E12;
+	static final int DANGER = 0xFFFF6B6B;
+	static final int MARGIN = 6;
 	private static final int CORNER = 24; // rows kept free at the top and bottom for the title and the buttons
 	private static final int GAP = 10; // between a panel and the gun
 	private static final int BUTTON_HEIGHT = 16;
@@ -210,10 +210,7 @@ public class GunTunerScreen extends Screen {
 
 	@Override
 	protected void init() {
-		int scale = Mth.clamp(minecraft.getWindow().getGuiScale(), 1, MAX_FONT_SCALE);
-		uiFont = fontAt("ui", scale);
-		uiMedium = fontAt("ui_medium", scale);
-		iconFont = fontAt("icons", scale);
+		useFontScale(minecraft);
 		panels.clear();
 		fields.clear();
 		textFields.clear();
@@ -753,6 +750,14 @@ public class GunTunerScreen extends Screen {
 		return value.isJsonArray() ? value.getAsJsonArray().asList().stream().map(JsonElement::getAsString).collect(Collectors.joining(", ")) : value.getAsString();
 	}
 
+	/** Picks the font variants rasterized at the current GUI scale, for every screen drawn in the mod's fonts. */
+	static void useFontScale(Minecraft minecraft) {
+		int scale = Mth.clamp(minecraft.getWindow().getGuiScale(), 1, MAX_FONT_SCALE);
+		uiFont = fontAt("ui", scale);
+		uiMedium = fontAt("ui_medium", scale);
+		iconFont = fontAt("icons", scale);
+	}
+
 	private static FontDescription fontAt(String name, int scale) {
 		return new FontDescription.Resource(McWeapons.id(name + "_x" + scale));
 	}
@@ -787,13 +792,13 @@ public class GunTunerScreen extends Screen {
 	}
 
 	/** A rectangle with its corner pixels left out, which reads as slightly rounded. */
-	private static void rounded(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+	static void rounded(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
 		graphics.fill(x0 + 1, y0, x1 - 1, y1, color);
 		graphics.fill(x0, y0 + 1, x0 + 1, y1 - 1, color);
 		graphics.fill(x1 - 1, y0 + 1, x1, y1 - 1, color);
 	}
 
-	private static void roundedOutline(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+	static void roundedOutline(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
 		graphics.fill(x0 + 1, y0, x1 - 1, y0 + 1, color);
 		graphics.fill(x0 + 1, y1 - 1, x1 - 1, y1, color);
 		graphics.fill(x0, y0 + 1, x0 + 1, y1 - 1, color);

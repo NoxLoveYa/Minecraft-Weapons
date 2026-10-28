@@ -63,6 +63,25 @@
       { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
     ]
   },
+  "glock17.fire_silenced": {
+    "subtitle": "subtitles.mcweapons.gun.fire_silenced",
+    "sounds": [
+      { "name": "mcweapons:glock17/fire_silenced", "volume": 0.6 }
+    ]
+  },
+  "glock17.attach_twist": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_twist", "volume": 0.5 }
+    ]
+  },
+  "glock17.attach_click": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_click_1", "volume": 0.6 },
+      { "name": "mcweapons:glock17/attach_click_2", "volume": 0.6 }
+    ]
+  },
   "glock17.casing": {
     "subtitle": "subtitles.mcweapons.gun.casing",
     "sounds": [

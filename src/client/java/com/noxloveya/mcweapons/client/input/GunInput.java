@@ -5,12 +5,17 @@ import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
+import com.noxloveya.mcweapons.client.screen.AttachmentScreen;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
+import com.noxloveya.mcweapons.network.AttachPayload;
 import com.noxloveya.mcweapons.network.FireModePayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
@@ -22,13 +27,17 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Turns attack, use and the mod keys into gun intents while a gun is in the main hand, and predicts their animations. */
@@ -40,6 +49,8 @@ public final class GunInput {
 	public static final KeyMapping TUNER = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.tuner", InputConstants.KEY_F7, CATEGORY));
 	/** Steps through the gun's fire modes and safe. */
 	public static final KeyMapping FIRE_MODE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.fire_mode", InputConstants.KEY_B, CATEGORY));
+	/** Opens the attachment menu for the held gun. */
+	public static final KeyMapping ATTACHMENTS = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.attachments", InputConstants.KEY_G, CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
@@ -60,6 +71,10 @@ public final class GunInput {
 	/** The fire mode we switched to, used until the server's fire_mode arrives. */
 	private static @Nullable String predictedMode;
 	private static long predictedModeUntil;
+	/** End of the attach or detach animation we started; the gun does nothing else until then. */
+	private static long attachingUntil;
+	/** What we asked to fit into each slot, shown in the hand during the attach animation until the server's attachments arrive. */
+	private static final Map<AttachmentSlot, AttachmentItem> PENDING = new EnumMap<>(AttachmentSlot.class);
 
 	private GunInput() {
 	}
@@ -85,6 +100,33 @@ public final class GunInput {
 	/** The held gun's fire mode, by our own switch until the server's arrives. */
 	public static String fireMode(LocalPlayer player, ItemStack stack, GunDefinition definition) {
 		return predictedMode != null && player.level().getGameTime() < predictedModeUntil ? definition.fireMode(predictedMode) : GunItem.fireMode(stack, definition);
+	}
+
+	/** Reloading, or fitting an attachment: the gun takes no other action. */
+	public static boolean busy(LocalPlayer player, ItemStack stack) {
+		return reloading(player, stack) || player.level().getGameTime() < attachingUntil;
+	}
+
+	/**
+	 * Fits {@code attachment} into {@code slot} of the held gun (null takes the slot's attachment off): plays the attach or detach
+	 * animation straight away and asks the server, which checks it fits and swaps the items with the inventory.
+	 */
+	public static void attach(LocalPlayer player, AttachmentSlot slot, @Nullable AttachmentItem attachment) {
+		ItemStack stack = player.getMainHandItem();
+		if (!(stack.getItem() instanceof GunItem gun) || busy(player, stack)) {
+			return;
+		}
+		attachingUntil = player.level().getGameTime() + GunItem.ATTACHMENT_TICKS;
+		if (attachment != null) {
+			PENDING.put(slot, attachment);
+		}
+		play(player, gun, attachment != null ? slot.attachAction() : slot.detachAction());
+		ClientPlayNetworking.send(new AttachPayload(player.getInventory().getSelectedSlot(), slot, Optional.ofNullable(attachment).map(BuiltInRegistries.ITEM::getKey)));
+	}
+
+	/** The attachment we asked to fit into {@code slot}, for the attach animation to show before the server's attachments arrive. */
+	public static @Nullable AttachmentItem pending(AttachmentSlot slot) {
+		return PENDING.get(slot);
 	}
 
 	/** Game time the current reload ends, preferring the server's timer over our prediction. */
@@ -114,7 +156,10 @@ public final class GunInput {
 			freshPress(INSPECT);
 			freshPress(TUNER);
 			freshPress(FIRE_MODE);
+			freshPress(ATTACHMENTS);
 			predictedMode = null;
+			attachingUntil = 0;
+			PENDING.clear();
 			reloadHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
@@ -133,6 +178,8 @@ public final class GunInput {
 			predictedReloadUntil = 0;
 			reloadHeldTicks = -1;
 			predictedMode = null;
+			attachingUntil = 0;
+			PENDING.clear();
 			Viewmodel.reset();
 			play(player, gun, "draw");
 		}
@@ -161,9 +208,12 @@ public final class GunInput {
 		if (freshPress(TUNER) && definition != null && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
 			minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
 		}
+		if (freshPress(ATTACHMENTS) && definition != null && !definition.attachments().isEmpty()) {
+			minecraft.gui.setScreen(new AttachmentScreen());
+		}
 		if (freshPress(FIRE_MODE)) {
-			// Same check as the server: not mid-reload.
-			if (definition != null && !reloading(player, stack)) {
+			// Same check as the server: not mid-reload (and not while fitting an attachment).
+			if (definition != null && !busy(player, stack)) {
 				predictedMode = definition.nextFireMode(fireMode(player, stack, definition));
 				predictedModeUntil = player.level().getGameTime() + 20;
 				play(player, gun, "fire_mode");
@@ -186,7 +236,7 @@ public final class GunInput {
 
 	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
 		long now = player.level().getGameTime();
-		if (definition == null || reloading(player, stack) || !definition.shotDue(nextShotDue, now)) {
+		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
 		// On safe the trigger does not move: no shot, no click, and the server ignores it too.
@@ -196,7 +246,7 @@ public final class GunInput {
 		}
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		int ammo = GunItem.ammo(stack, definition);
-		player.playSound(gun.sound(ammo > 0 ? "fire" : "dry"), 1.0F, 1.0F);
+		player.playSound(gun.sound(ammo == 0 ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
 		if (ammo > 0) {
 			play(player, gun, "fire");
 			// Before the recoil kick moves the view.
@@ -212,7 +262,7 @@ public final class GunInput {
 
 	/** Same checks as the server, so the animation only starts for a reload the server will accept. */
 	private static void reload(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
-		if (definition == null || reloading(player, stack)) {
+		if (definition == null || busy(player, stack)) {
 			return;
 		}
 		int ammo = GunItem.ammo(stack, definition);
@@ -245,7 +295,7 @@ public final class GunInput {
 
 	/** Inspects are cosmetic, so they wait for reloads and shots to finish. */
 	private static boolean canInspect(LocalPlayer player, ItemStack stack, @Nullable GunDefinition definition) {
-		return definition != null && !reloading(player, stack) && definition.shotDue(nextShotDue, player.level().getGameTime());
+		return definition != null && !busy(player, stack) && definition.shotDue(nextShotDue, player.level().getGameTime());
 	}
 
 	/** A random inspect variant, never the same one twice in a row. A slide locked back on an empty gun cannot be press checked. */

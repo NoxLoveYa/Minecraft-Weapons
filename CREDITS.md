@@ -17,6 +17,9 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `glock17/select_1.ogg`, `glock17/select_2.ogg` | [Remington 700 Safety](https://pixabay.com/sound-effects/film-special-effects-remington-700-safety-48897/) | freesound_community |
 | `glock17/aim_in.ogg`, `glock17/aim_out.ogg` | [heavy cloth rustle](https://pixabay.com/sound-effects/film-special-effects-heavy-cloth-rustle-106346/) | freesound_community |
 | `glock17/casing_1.ogg` to `casing_4.ogg` | [Brass bullet shell drop onto concrete, multiple takes](https://pixabay.com/sound-effects/film-special-effects-brass-bullet-shell-drop-onto-concrete-multiple-takes-75000/) | freesound_community |
+| `glock17/fire_silenced.ogg` | [Silenced Gunshot](https://pixabay.com/sound-effects/film-special-effects-silenced-gunshot-81063/) | freesound_community |
+| `glock17/attach_twist.ogg` | [screwing and unscrewing brass](https://pixabay.com/sound-effects/film-special-effects-screwing-and-unscrewing-brass-31579/) | freesound_community |
+| `glock17/attach_click_1.ogg`, `attach_click_2.ogg` | [Metallic attach, release](https://pixabay.com/sound-effects/film-special-effects-metallic-attach-release-35932/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 

@@ -7,6 +7,7 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.PerBoneRender;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.GeoRenderLayer;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
@@ -40,6 +41,10 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 					consumer.accept(bone, (info, portBone, renderTasks) -> Casings.recordHeldPort(holder, info.poseStack().last().pose())));
 			renderPassInfo.model().getBone("magazine").ifPresent(bone ->
 					consumer.accept(bone, (info, magBone, renderTasks) -> ThirdPersonGuns.recordMag(holder, info.poseStack().last().pose())));
+			for (AttachmentSlot slot : AttachmentSlot.values()) {
+				renderPassInfo.model().getBone("attach_" + slot.getSerializedName()).ifPresent(bone ->
+						consumer.accept(bone, (info, slotBone, renderTasks) -> ThirdPersonGuns.recordSlot(holder, slot, info.poseStack().last().pose())));
+			}
 		}
 	}
 }

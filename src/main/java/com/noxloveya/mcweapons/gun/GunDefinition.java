@@ -3,6 +3,7 @@ package com.noxloveya.mcweapons.gun;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.Mth;
 
@@ -31,7 +32,8 @@ public record GunDefinition(
 		float adsFovMultiplier,
 		float moveSpeedAdsMultiplier,
 		float headshotMultiplier,
-		GunFeel feel) {
+		GunFeel feel,
+		List<Identifier> attachments) {
 
 	/** Damage multiplier for hits in the head zone (see Hitscan) when the json leaves it out. */
 	public static final float DEFAULT_HEADSHOT_MULTIPLIER = 2;
@@ -62,24 +64,32 @@ public record GunDefinition(
 	public static final Codec<GunDefinition> CODEC = RecordCodecBuilder.create(i -> i.group(
 			STATS.forGetter(definition -> definition),
 			Codec.floatRange(1, 10).optionalFieldOf("headshot_multiplier").forGetter(definition -> Optional.of(definition.headshotMultiplier())),
-			GunFeel.CODEC.optionalFieldOf("feel").forGetter(definition -> Optional.of(definition.feel()))
-	).apply(i, (stats, headshot, feel) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER)).withFeel(feel.orElse(GunFeel.DEFAULT))));
+			GunFeel.CODEC.optionalFieldOf("feel").forGetter(definition -> Optional.of(definition.feel())),
+			// Attachment item ids that fit this gun; each goes in the slot its item names.
+			Identifier.CODEC.listOf().optionalFieldOf("attachments").forGetter(definition -> Optional.of(definition.attachments()))
+	).apply(i, (stats, headshot, feel, attachments) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER)).withFeel(feel.orElse(GunFeel.DEFAULT))
+			.withAttachments(attachments.orElse(List.of()))));
 
-	/** The stats alone, with the default headshot multiplier and feel. */
+	/** The stats alone, with the default headshot multiplier and feel, and no attachments. */
 	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
 			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
 		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
-				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT);
+				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of());
 	}
 
 	public GunDefinition withFeel(GunFeel feel) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
 	}
 
 	public GunDefinition withHeadshotMultiplier(float headshotMultiplier) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
+	}
+
+	public GunDefinition withAttachments(List<Identifier> attachments) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments));
 	}
 
 	/** The fire mode that blocks the trigger. Every gun has it after its own modes, whatever its definition lists. */

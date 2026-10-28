@@ -1,6 +1,8 @@
 package com.noxloveya.mcweapons.registry;
 
 import com.noxloveya.mcweapons.McWeapons;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
@@ -12,14 +14,18 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.function.UnaryOperator;
+
 public final class ModItems {
 	public static final GunItem GLOCK17 = gun("glock17");
+	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences());
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
 			FabricCreativeModeTab.builder()
 					.title(Component.translatable("itemGroup.mcweapons"))
 					.icon(() -> new ItemStack(GLOCK17))
-					.displayItems((parameters, output) -> BuiltInRegistries.ITEM.stream().filter(item -> item instanceof GunItem).forEach(output::accept))
+					.displayItems((parameters, output) -> BuiltInRegistries.ITEM.stream()
+							.filter(item -> item instanceof GunItem || item instanceof AttachmentItem).forEach(output::accept))
 					.build());
 
 	private ModItems() {
@@ -32,5 +38,11 @@ public final class ModItems {
 	private static GunItem gun(String name) {
 		ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, McWeapons.id(name));
 		return Registry.register(BuiltInRegistries.ITEM, key, new GunItem(McWeapons.id(name), new Item.Properties().setId(key).stacksTo(1)));
+	}
+
+	/** Registers an attachment for {@code slot} with what it does ({@code effects}); its model bone is {@code name}. */
+	private static AttachmentItem attachment(String name, AttachmentSlot slot, UnaryOperator<AttachmentItem> effects) {
+		ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, McWeapons.id(name));
+		return Registry.register(BuiltInRegistries.ITEM, key, effects.apply(new AttachmentItem(slot, new Item.Properties().setId(key).stacksTo(16))));
 	}
 }

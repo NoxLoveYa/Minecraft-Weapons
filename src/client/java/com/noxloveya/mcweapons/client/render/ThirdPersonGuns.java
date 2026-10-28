@@ -1,6 +1,7 @@
 package com.noxloveya.mcweapons.client.render;
 
 import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
@@ -31,6 +32,7 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +56,8 @@ public final class ThirdPersonGuns {
 	/** Where each holder's magazine base was last drawn, by entity id, and when. */
 	private static final Map<Integer, Vec3> magBases = new HashMap<>();
 	private static final Map<Integer, Long> magBaseNanos = new HashMap<>();
+	/** Where each holder's {@code attach_<slot>} bones were last drawn, by entity id: the hand follows them while fitting attachments. */
+	private static final Map<Integer, Map<AttachmentSlot, Vec3>> slotBones = new HashMap<>();
 	private static final long FLASH_NANOS = 60_000_000L;
 	/** After a shot the gun stays up this long, so firing from the hip does not show it pointing at the ground. */
 	private static final long RAISED_NANOS = 1_500_000_000L;
@@ -80,6 +84,7 @@ public final class ThirdPersonGuns {
 			raisedUntil.clear();
 			magBases.clear();
 			magBaseNanos.clear();
+			slotBones.clear();
 			return;
 		}
 		Set<Integer> present = new HashSet<>();
@@ -101,6 +106,7 @@ public final class ThirdPersonGuns {
 		raisedUntil.values().removeIf(until -> until < now);
 		magBaseNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
 		magBases.keySet().retainAll(magBaseNanos.keySet());
+		slotBones.keySet().retainAll(magBaseNanos.keySet());
 	}
 
 	private static void othersAnimation(@Nullable ClientLevel level, GunAnimationPayload payload) {
@@ -149,6 +155,10 @@ public final class ThirdPersonGuns {
 			return Pose.RELOAD;
 		}
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		// Fitting an attachment holds the gun up in front like a reload, with the other hand at work.
+		if (main != null && GunItem.ATTACHMENT_ACTIONS.stream().anyMatch(main::isTriggeredAnimation)) {
+			return Pose.RELOAD;
+		}
 		if (main != null && GunItem.INSPECT_ACTIONS.stream().anyMatch(main::isTriggeredAnimation)) {
 			return Pose.INSPECT;
 		}
@@ -182,19 +192,33 @@ public final class ThirdPersonGuns {
 		magBaseNanos.put(holder.getId(), System.nanoTime());
 	}
 
+	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code attach_<slot>} bone is drawn with, relative to the camera. */
+	static void recordSlot(Entity holder, AttachmentSlot slot, Matrix4fc pose) {
+		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
+		slotBones.computeIfAbsent(holder.getId(), id -> new EnumMap<>(AttachmentSlot.class)).put(slot, camera.add(new Vec3(pose.transformPosition(new Vector3f()))));
+	}
+
 	/**
-	 * Where the holder's other hand should be: on the magazine while a reload or the mag check moves it, so it never floats out of the
-	 * gun on its own. Null otherwise, or when the gun has not been drawn lately.
+	 * Where the holder's other hand should be: on the magazine while a reload or the mag check moves it, and on the attachment being
+	 * fitted or taken off, so neither floats on its own. Null otherwise, or when the gun has not been drawn lately.
 	 */
 	public static @Nullable Vec3 supportHandTarget(LivingEntity holder) {
-		Pose pose = pose(holder);
-		boolean magInHand = pose == Pose.RELOAD;
-		if (pose == Pose.INSPECT && holder.getMainHandItem().getItem() instanceof GunItem gun) {
-			var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
-			magInHand = main != null && main.isTriggeredAnimation("inspect_mag_check");
-		}
 		Long drawn = magBaseNanos.get(holder.getId());
-		return magInHand && drawn != null && System.nanoTime() - drawn < 200_000_000L ? magBases.get(holder.getId()) : null;
+		if (drawn == null || System.nanoTime() - drawn > 200_000_000L || !(holder.getMainHandItem().getItem() instanceof GunItem gun)) {
+			return null;
+		}
+		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		if (main != null) {
+			for (AttachmentSlot slot : AttachmentSlot.values()) {
+				if (main.isTriggeredAnimation(slot.attachAction()) || main.isTriggeredAnimation(slot.detachAction())) {
+					Map<AttachmentSlot, Vec3> bones = slotBones.get(holder.getId());
+					return bones == null ? null : bones.get(slot);
+				}
+			}
+		}
+		Pose pose = pose(holder);
+		boolean magInHand = pose == Pose.RELOAD || pose == Pose.INSPECT && main != null && main.isTriggeredAnimation("inspect_mag_check");
+		return magInHand ? magBases.get(holder.getId()) : null;
 	}
 
 	/**
