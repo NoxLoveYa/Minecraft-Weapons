@@ -7,6 +7,7 @@ import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ServerHandlers;
 import com.noxloveya.mcweapons.registry.ModComponents;
+import com.geckolib.animation.AnimationController;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
@@ -55,6 +56,8 @@ public final class ThirdPersonGuns {
 	private static final Vector3fc MAG_BASE = new Vector3f(0, -0.82F / 16, 1.35F / 16);
 	/** Where each holder's magazine base was last drawn, by entity id, and when. */
 	private static final Map<Integer, Vec3> magBases = new HashMap<>();
+	/** Where each holder's gun has its {@code support_hand} locator (a long gun's handguard, or the clip it is loading), when it has one. */
+	private static final Map<Integer, Vec3> supportHands = new HashMap<>();
 	private static final Map<Integer, Long> magBaseNanos = new HashMap<>();
 	// Where the other hand holds each attachment while fitting it, as in the first-person animations: blocks from a bone's pivot (model x is
 	// Blockbench's mirrored). The silencer's is in the gun's frame, so the hand does not circle it while it is screwed on.
@@ -97,6 +100,7 @@ public final class ThirdPersonGuns {
 			raisedUntil.clear();
 			magBases.clear();
 			magBaseNanos.clear();
+			supportHands.clear();
 			attachmentHolds.clear();
 			gunPoses.clear();
 			return;
@@ -120,6 +124,7 @@ public final class ThirdPersonGuns {
 		raisedUntil.values().removeIf(until -> until < now);
 		magBaseNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
 		magBases.keySet().retainAll(magBaseNanos.keySet());
+		supportHands.keySet().retainAll(magBaseNanos.keySet());
 		attachmentHolds.keySet().retainAll(magBaseNanos.keySet());
 		gunPoses.keySet().retainAll(magBaseNanos.keySet());
 	}
@@ -171,16 +176,21 @@ public final class ThirdPersonGuns {
 		}
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 		// Fitting an attachment holds the gun up in front like a reload, with the other hand at work.
-		if (main != null && GunItem.ATTACHMENT_ACTIONS.stream().anyMatch(main::isTriggeredAnimation)) {
+		if (GunItem.ATTACHMENT_ACTIONS.stream().anyMatch(action -> playing(main, action))) {
 			return Pose.RELOAD;
 		}
-		if (main != null && GunItem.INSPECT_ACTIONS.stream().anyMatch(main::isTriggeredAnimation)) {
+		if (GunItem.INSPECT_ACTIONS.stream().anyMatch(action -> playing(main, action))) {
 			return Pose.INSPECT;
 		}
 		AttributeInstance speed = holder.getAttribute(Attributes.MOVEMENT_SPEED);
 		boolean aiming = self != null ? GunInput.aiming() : speed != null && speed.hasModifier(ServerHandlers.ADS_SPEED);
 		Long raised = raisedUntil.get(holder.getId());
 		return aiming || raised != null && System.nanoTime() < raised ? Pose.AIM : Pose.HIP;
+	}
+
+	/** {@code action} is playing: GeckoLib keeps a finished triggered animation as the current one until the next is triggered. */
+	private static boolean playing(@Nullable AnimationController<?> main, String action) {
+		return main != null && !main.hasAnimationFinished() && main.isTriggeredAnimation(action);
 	}
 
 	/**
@@ -210,6 +220,11 @@ public final class ThirdPersonGuns {
 		holds.put(AttachmentSlot.MAGAZINE.detachAction(), camera.add(new Vec3(pose.transformPosition(new Vector3f(MAG_HOLD)))));
 	}
 
+	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code support_hand} locator is drawn with, relative to the camera. */
+	static void recordSupport(Entity holder, Matrix4fc pose) {
+		supportHands.put(holder.getId(), Minecraft.getInstance().gameRenderer.mainCamera().position().add(new Vec3(pose.transformPosition(new Vector3f()))));
+	}
+
 	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code gun} bone is drawn with, relative to the camera. */
 	static void recordGun(Entity holder, Matrix4fc pose) {
 		gunPoses.computeIfAbsent(holder.getId(), id -> new Matrix4f()).set(pose);
@@ -235,8 +250,9 @@ public final class ThirdPersonGuns {
 	}
 
 	/**
-	 * Where the holder's other hand should be: on the magazine while a reload or the mag check moves it, and on the attachment being
-	 * fitted or taken off, so neither floats on its own. Null otherwise, or when the gun has not been drawn lately.
+	 * Where the holder's other hand should be: on a long gun's {@code support_hand} locator whenever the gun is up (its animations move
+	 * the locator to whatever that hand works on); otherwise on the magazine while a reload or the mag check moves it, and on the
+	 * attachment being fitted or taken off, so neither floats on its own. Null otherwise, or when the gun has not been drawn lately.
 	 */
 	public static @Nullable Vec3 supportHandTarget(LivingEntity holder) {
 		Long drawn = magBaseNanos.get(holder.getId());
@@ -246,14 +262,18 @@ public final class ThirdPersonGuns {
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 		if (main != null) {
 			for (String action : GunItem.ATTACHMENT_ACTIONS) {
-				if (main.isTriggeredAnimation(action)) {
+				if (playing(main, action)) {
 					Map<String, Vec3> holds = attachmentHolds.get(holder.getId());
 					return holds == null ? null : holds.get(action);
 				}
 			}
 		}
 		Pose pose = pose(holder);
-		boolean magInHand = pose == Pose.RELOAD || pose == Pose.INSPECT && main != null && main.isTriggeredAnimation("inspect_mag_check");
+		Vec3 support = supportHands.get(holder.getId());
+		if (support != null && pose != Pose.HIP) {
+			return support;
+		}
+		boolean magInHand = pose == Pose.RELOAD || pose == Pose.INSPECT && playing(main, "inspect_mag_check");
 		return magInHand ? magBases.get(holder.getId()) : null;
 	}
 

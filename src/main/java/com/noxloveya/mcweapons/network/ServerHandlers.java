@@ -164,10 +164,9 @@ public final class ServerHandlers {
 		if (state.reloading() || ammo >= definition.reloadTarget(ammo)) {
 			return;
 		}
-		int ticks = ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks();
 		// GunItem.inventoryTick adds the rounds once this tick is reached, or cancels if the gun leaves the main hand.
-		gun.set(ModComponents.GUN_STATE, new GunState(player.level().getGameTime() + ticks, state.lastShotTick()));
-		showOthers(player, ammo == 0 ? "reload_empty" : "reload");
+		gun.set(ModComponents.GUN_STATE, new GunState(player.level().getGameTime() + definition.reloadDuration(ammo), state.lastShotTick()));
+		showOthers(player, definition.reloadAction(ammo));
 	}
 
 	/** Steps the held gun to its next fire mode (or safe), and shows everyone else the switch. Not during a reload, like the client. */

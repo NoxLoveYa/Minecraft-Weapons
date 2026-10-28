@@ -18,8 +18,8 @@ import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; a fitted laser's emitter, for its beam; the gun, magazine and attachment slots in someone's hand, for
- * their other hand to hold during a reload or while fitting an attachment.
+ * for casings to leave from; a fitted laser's emitter, for its beam; the gun, magazine, attachment slots and a long gun's support hand
+ * locator in someone's hand, for their other hand to hold.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
 	public BonePoseLayer(GunRenderer renderer) {
@@ -51,6 +51,8 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 					consumer.accept(bone, (info, gunBone, renderTasks) -> ThirdPersonGuns.recordGun(holder, info.poseStack().last().pose())));
 			renderPassInfo.model().getBone("magazine").ifPresent(bone ->
 					consumer.accept(bone, (info, magBone, renderTasks) -> ThirdPersonGuns.recordMag(holder, info.poseStack().last().pose())));
+			renderPassInfo.model().getBone("support_hand").ifPresent(bone ->
+					consumer.accept(bone, (info, supportBone, renderTasks) -> ThirdPersonGuns.recordSupport(holder, info.poseStack().last().pose())));
 			for (AttachmentSlot slot : AttachmentSlot.values()) {
 				renderPassInfo.model().getBone("attach_" + slot.getSerializedName()).ifPresent(bone ->
 						consumer.accept(bone, (info, slotBone, renderTasks) -> ThirdPersonGuns.recordSlot(holder, slot, info.poseStack().last().pose())));

@@ -92,6 +92,39 @@ class GunDefinitionTest {
 	}
 
 	@Test
+	void mosinIsABoltActionLoadedARoundAtATime() throws Exception {
+		GunDefinition mosin;
+		try (Reader reader = new InputStreamReader(getClass().getResourceAsStream("/data/mcweapons/guns/mosin_nagant.json"), StandardCharsets.UTF_8)) {
+			mosin = GunDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader)).getOrThrow();
+		}
+		// 85% of a 20-health player on the body, and a headshot always kills.
+		assertEquals(17, mosin.damage());
+		assertTrue(mosin.damage() * mosin.headshotMultiplier() >= 20);
+		assertTrue(mosin.boltAction());
+		assertEquals(List.of("bolt", "safe"), mosin.selectableModes());
+		// The fire animation works the bolt in 1.05 s, inside one shot interval (DESIGN_RULES 3.6).
+		assertTrue(mosin.shotInterval() / 20 > 1.05);
+		// Five in the rifle, the chambered one among them: a reload always tops it up to five.
+		assertEquals(5, mosin.reloadTarget(0));
+		assertEquals(5, mosin.reloadTarget(3));
+		assertEquals(55, mosin.reloadDuration(0));
+		assertEquals("reload_empty", mosin.reloadAction(0));
+		assertEquals(10 + 2 * 12 + 10, mosin.reloadDuration(3));
+		assertEquals("reload_rounds_2", mosin.reloadAction(3));
+		assertEquals(10 + 4 * 12 + 10, mosin.reloadDuration(1));
+		// Rounds go in 60% through each round's clip.
+		RoundReload rounds = mosin.roundReload();
+		assertEquals(0, rounds.loaded(2, 10 + 7));
+		assertEquals(1, rounds.loaded(2, 10 + 8));
+		assertEquals(2, rounds.loaded(2, 10 + 12 + 8));
+		assertEquals(2, rounds.loaded(2, 100));
+		// round_reload round-trips, and a gun without it writes none.
+		assertEquals(mosin, GunDefinition.CODEC.parse(JsonOps.INSTANCE, GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, mosin).getOrThrow()).getOrThrow());
+		assertFalse(GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, mosin.withRoundReload(null)).getOrThrow().getAsJsonObject().has("round_reload"));
+		assertEquals("reload", mosin.withRoundReload(null).reloadAction(3));
+	}
+
+	@Test
 	void fireModesCycleThroughSafe() {
 		GunDefinition glock = new GunDefinition(List.of("semi"), 600, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
 		assertEquals(List.of("semi", "safe"), glock.selectableModes());

@@ -21,6 +21,13 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `glock17/attach_twist.ogg` | [screwing and unscrewing brass](https://pixabay.com/sound-effects/film-special-effects-screwing-and-unscrewing-brass-31579/) | freesound_community |
 | `glock17/attach_click_1.ogg`, `attach_click_2.ogg` | [Metallic attach, release](https://pixabay.com/sound-effects/film-special-effects-metallic-attach-release-35932/) | freesound_community |
 | `glock17/optic_click_1.ogg`, `optic_click_2.ogg` | [Attaching camera lens](https://pixabay.com/sound-effects/film-special-effects-attaching-camera-lens-42748/) | freesound_community |
+| `mosin_nagant/fire.ogg` | [Sniper Fire](https://pixabay.com/sound-effects/film-special-effects-sniper-fire-105896/) (first shot; a Dragunov, same 7.62x54R round) | freesound_community |
+| `mosin_nagant/bolt_up.ogg`, `bolt_back.ogg`, `bolt_forward.ogg`, `bolt_down.ogg` | [Mosin Nagant Bolt Action Cycle](https://pixabay.com/sound-effects/film-special-effects-mosin-nagant-bolt-action-cycle-71670/) (one cycle cut in four) | freesound_community |
+| `mosin_nagant/clip_in.ogg`, `rounds_push.ogg`, `clip_out.ogg`, `round_in.ogg` | [Enfield Loaded With 2 Charger Clips Total 10 Rounds](https://pixabay.com/sound-effects/film-special-effects-enfield-loaded-with-2-charger-clips-total-10-rounds-28099/) | freesound_community |
+| `mosin_nagant/draw.ogg`, `handling_1.ogg`, `handling_2.ogg` | [GUNMech_M1 GARAND HANDLING_MP](https://pixabay.com/sound-effects/film-special-effects-gunmech-m1-garand-handling-mp-29510/) | freesound_community |
+| `mosin_nagant/select.ogg` | [Remington 700 Safety](https://pixabay.com/sound-effects/film-special-effects-remington-700-safety-48897/) | freesound_community |
+| `mosin_nagant/dry.ogg` | [Gun Dry Firing (1)](https://pixabay.com/sound-effects/film-special-effects-gun-dry-firing-1-96426/) | freesound_community |
+| `mosin_nagant/casing_1.ogg`, `casing_2.ogg` | [080962_Shell Hitting Ground](https://pixabay.com/sound-effects/film-special-effects-080962-shell-hitting-ground-39855/), [080963_Shell Hitting ground](https://pixabay.com/sound-effects/film-special-effects-080963-shell-hitting-ground-39857/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 

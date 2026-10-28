@@ -35,7 +35,8 @@ public record GunDefinition(
 		GunFeel feel,
 		List<Identifier> attachments,
 		BulletStats bullet,
-		MovementSpread movementSpread) {
+		MovementSpread movementSpread,
+		@Nullable RoundReload roundReload) {
 
 	/** Damage multiplier for hits in the head zone (see Hitscan) when the json leaves it out. */
 	public static final float DEFAULT_HEADSHOT_MULTIPLIER = 2;
@@ -70,61 +71,68 @@ public record GunDefinition(
 			// Attachment item ids that fit this gun; each goes in the slot its item names.
 			Identifier.CODEC.listOf().optionalFieldOf("attachments").forGetter(definition -> Optional.of(definition.attachments())),
 			BulletStats.CODEC.optionalFieldOf("bullet").forGetter(definition -> Optional.of(definition.bullet())),
-			MovementSpread.CODEC.optionalFieldOf("movement_spread").forGetter(definition -> Optional.of(definition.movementSpread()))
-	).apply(i, (stats, headshot, feel, attachments, bullet, movementSpread) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER))
+			MovementSpread.CODEC.optionalFieldOf("movement_spread").forGetter(definition -> Optional.of(definition.movementSpread())),
+			// Only guns loaded a round at a time have it, so it is written only when set.
+			RoundReload.CODEC.optionalFieldOf("round_reload").forGetter(definition -> Optional.ofNullable(definition.roundReload()))
+	).apply(i, (stats, headshot, feel, attachments, bullet, movementSpread, roundReload) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER))
 			.withFeel(feel.orElse(GunFeel.DEFAULT)).withAttachments(attachments.orElse(List.of())).withBullet(bullet.orElse(BulletStats.DEFAULT))
-			.withMovementSpread(movementSpread.orElse(MovementSpread.DEFAULT))));
+			.withMovementSpread(movementSpread.orElse(MovementSpread.DEFAULT)).withRoundReload(roundReload.orElse(null))));
 
-	/** The stats alone, with the default headshot multiplier, feel, bullet and movement spread, and no attachments. */
+	/** The stats alone, with the default headshot multiplier, feel, bullet and movement spread, no attachments and a magazine reload. */
 	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
 			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
 		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
-				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of(), BulletStats.DEFAULT, MovementSpread.DEFAULT);
+				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of(), BulletStats.DEFAULT, MovementSpread.DEFAULT, null);
 	}
 
 	public GunDefinition withFeel(GunFeel feel) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withHeadshotMultiplier(float headshotMultiplier) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withMagSize(int magSize) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withAttachments(List<Identifier> attachments) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments), bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments), bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withRecoil(float recoilPitchDeg, float recoilYawDeg) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withSpreadHip(float spreadHipDeg) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withAdsTicks(int adsTicks) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withBullet(BulletStats bullet) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	public GunDefinition withMovementSpread(MovementSpread movementSpread) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
+	}
+
+	public GunDefinition withRoundReload(@Nullable RoundReload roundReload) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
 	/** How far a shot may stray, in degrees: the hip or aimed spread, times the multiplier for the shooter's stance. */
@@ -134,6 +142,15 @@ public record GunDefinition(
 
 	/** The fire mode that blocks the trigger. Every gun has it after its own modes, whatever its definition lists. */
 	public static final String SAFE = "safe";
+	/**
+	 * A bolt action fires like semi, and its fire animation works the bolt, which throws the casing out (an {@code eject_casing}
+	 * keyframe) rather than the shot. The bolt closes on an empty chamber, so nothing locks back.
+	 */
+	public static final String BOLT = "bolt";
+
+	public boolean boltAction() {
+		return fireModes.contains(BOLT);
+	}
 
 	/** What the fire mode key steps through: the gun's own modes, then safe. */
 	public List<String> selectableModes() {
@@ -187,6 +204,27 @@ public record GunDefinition(
 	/** Rounds after a reload. Also the "mag is full" limit: a reload is pointless once {@code ammo >= reloadTarget(ammo)}. */
 	public int reloadTarget(int ammo) {
 		return ammo > 0 && chamber ? magSize + 1 : magSize;
+	}
+
+	/** Ticks a reload from {@code ammo} rounds takes. */
+	public int reloadDuration(int ammo) {
+		if (ammo == 0) {
+			return reloadEmptyTicks;
+		}
+		return roundReload != null ? roundReload.ticks(reloadTarget(ammo) - ammo) : reloadTicks;
+	}
+
+	/** The animation a reload from {@code ammo} rounds plays: the empty or tactical reload, or {@link #roundReloadAction} for the rounds missing. */
+	public String reloadAction(int ammo) {
+		if (ammo == 0) {
+			return "reload_empty";
+		}
+		return roundReload != null ? roundReloadAction(reloadTarget(ammo) - ammo) : "reload";
+	}
+
+	/** A round-at-a-time reload of {@code rounds}: {@code reload_start}, {@code reload_round} that many times, then {@code reload_end}. */
+	public static String roundReloadAction(int rounds) {
+		return "reload_rounds_" + rounds;
 	}
 
 	/** {@code ammo} cut down to what this gun holds, after a smaller magazine goes in: a full mag, and the chambered round. */

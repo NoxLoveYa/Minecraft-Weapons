@@ -122,9 +122,9 @@ public final class GunInput {
 		return stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading() || player.level().getGameTime() < predictedReloadUntil;
 	}
 
-	/** An empty gun that is not reloading has its slide locked back. */
+	/** An empty gun that is not reloading has its slide locked back. A bolt action's bolt closes on the empty chamber instead. */
 	public static boolean slideLocked(LocalPlayer player, ItemStack stack, GunDefinition definition) {
-		return !reloading(player, stack) && (GunItem.ammo(stack, definition) == 0 || player.level().getGameTime() < predictedEmptyUntil);
+		return !definition.boltAction() && !reloading(player, stack) && (GunItem.ammo(stack, definition) == 0 || player.level().getGameTime() < predictedEmptyUntil);
 	}
 
 	/** The held gun's fire mode, by our own switch until the server's arrives. */
@@ -312,8 +312,10 @@ public final class GunInput {
 		player.playSound(gun.sound(!fires ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
 		if (fires) {
 			play(player, gun, "fire");
-			// Before the recoil kick moves the view.
-			Casings.eject(player, gun);
+			// Before the recoil kick moves the view. A bolt action's fire animation throws it out as the bolt comes back.
+			if (!definition.boltAction()) {
+				Casings.eject(player, gun);
+			}
 			ThirdPersonGuns.flash(player.getId());
 			Vec3 direction = Ballistics.direction(xRot, yRot, seed, definition.spread(aiming, stance));
 			// Rounded like the server's bullet (see Bullets.fire), so this tracer and the bullet follow one path.
@@ -332,18 +334,22 @@ public final class GunInput {
 		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot, stance));
 	}
 
-	/** Same checks as the server, so the animation only starts for a reload the server will accept. */
+	/**
+	 * Same checks as the server, so the animation only starts for a reload the server will accept. Not until the last shot is done
+	 * either, which on a bolt action means its bolt worked.
+	 */
 	private static void reload(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
-		if (definition == null || busy(player, stack)) {
+		long now = player.level().getGameTime();
+		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
 		int ammo = GunItem.ammo(stack, definition);
 		if (ammo >= definition.reloadTarget(ammo)) {
 			return;
 		}
-		predictedReloadUntil = player.level().getGameTime() + (ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks());
+		predictedReloadUntil = now + definition.reloadDuration(ammo);
 		predictedEmptyUntil = 0;
-		play(player, gun, ammo == 0 ? "reload_empty" : "reload");
+		play(player, gun, definition.reloadAction(ammo));
 		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
 	}
 

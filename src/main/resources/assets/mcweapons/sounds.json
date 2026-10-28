@@ -115,5 +115,103 @@
     "sounds": [
       { "name": "mcweapons:glock17/slide_release", "volume": 0.65 }
     ]
+  },
+  "mosin_nagant.fire": {
+    "subtitle": "subtitles.mcweapons.gun.fire",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/fire", "volume": 1.0 }
+    ]
+  },
+  "mosin_nagant.dry": {
+    "subtitle": "subtitles.mcweapons.gun.dry",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/dry", "volume": 0.6 }
+    ]
+  },
+  "mosin_nagant.bolt_up": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/bolt_up", "volume": 0.55 }
+    ]
+  },
+  "mosin_nagant.bolt_back": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/bolt_back", "volume": 0.6 }
+    ]
+  },
+  "mosin_nagant.bolt_forward": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/bolt_forward", "volume": 0.6 }
+    ]
+  },
+  "mosin_nagant.bolt_down": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/bolt_down", "volume": 0.55 }
+    ]
+  },
+  "mosin_nagant.clip_in": {
+    "subtitle": "subtitles.mcweapons.gun.clip",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/clip_in", "volume": 0.6 }
+    ]
+  },
+  "mosin_nagant.rounds_push": {
+    "subtitle": "subtitles.mcweapons.gun.clip",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/rounds_push", "volume": 0.55 }
+    ]
+  },
+  "mosin_nagant.clip_out": {
+    "subtitle": "subtitles.mcweapons.gun.clip",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/clip_out", "volume": 0.5 }
+    ]
+  },
+  "mosin_nagant.round_in": {
+    "subtitle": "subtitles.mcweapons.gun.round_in",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/round_in", "volume": 0.55 }
+    ]
+  },
+  "mosin_nagant.draw": {
+    "subtitle": "subtitles.mcweapons.gun.draw",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/draw", "volume": 0.5 }
+    ]
+  },
+  "mosin_nagant.handling": {
+    "subtitle": "subtitles.mcweapons.gun.handling",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/handling_1", "volume": 0.4 },
+      { "name": "mcweapons:mosin_nagant/handling_2", "volume": 0.4 }
+    ]
+  },
+  "mosin_nagant.select": {
+    "subtitle": "subtitles.mcweapons.gun.select",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/select", "volume": 0.45 }
+    ]
+  },
+  "mosin_nagant.aim_in": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_in", "volume": 0.25 }
+    ]
+  },
+  "mosin_nagant.aim_out": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
+    ]
+  },
+  "mosin_nagant.casing": {
+    "subtitle": "subtitles.mcweapons.gun.casing",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/casing_1", "volume": 0.4 },
+      { "name": "mcweapons:mosin_nagant/casing_2", "volume": 0.4 }
+    ]
   }
 }

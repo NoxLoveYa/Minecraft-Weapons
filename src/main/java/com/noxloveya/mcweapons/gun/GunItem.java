@@ -7,6 +7,7 @@ import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
 import com.geckolib.animation.object.PlayState;
 import com.geckolib.constant.dataticket.DataTicket;
+import com.geckolib.cache.animation.keyframeevent.CustomInstructionKeyframeData;
 import com.geckolib.cache.animation.keyframeevent.SoundKeyframeData;
 import com.geckolib.util.GeckoLibUtil;
 import com.noxloveya.mcweapons.registry.ModComponents;
@@ -35,6 +36,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /** Every gun is an instance of this class. Its stats live in the definition it points to. */
@@ -45,8 +47,12 @@ public class GunItem extends Item implements GeoItem {
 	/** Fitting and removing attachments, {@code attach_<slot>} and {@code detach_<slot>}: each takes this long. */
 	public static final List<String> ATTACHMENT_ACTIONS = Arrays.stream(AttachmentSlot.values()).flatMap(slot -> Stream.of(slot.attachAction(), slot.detachAction())).toList();
 	public static final int ATTACHMENT_TICKS = 26;
-	public static final List<String> TRIGGERED_ACTIONS = Stream.concat(Stream.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
-			"inspect_mag_check", "fire_mode"), ATTACHMENT_ACTIONS.stream()).toList();
+	/** Most rounds a round-at-a-time reload has an animation for (see {@link GunDefinition#roundReloadAction}). */
+	// shortcut: a gun loaded a round at a time with a bigger magazine shows only this many rounds going in; raise it with such a gun.
+	public static final int MAX_ROUND_RELOAD = 8;
+	public static final List<String> TRIGGERED_ACTIONS = Stream.of(Stream.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
+			"inspect_mag_check", "fire_mode"), ATTACHMENT_ACTIONS.stream(), IntStream.rangeClosed(1, MAX_ROUND_RELOAD).mapToObj(GunDefinition::roundReloadAction))
+			.flatMap(actions -> actions).toList();
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
 	/** Set by the renderer while the gun tuner shows the gun, so the arms hold it up sideways. */
@@ -56,6 +62,7 @@ public class GunItem extends Item implements GeoItem {
 	// The render provider is a GeckoLib GeoRenderProvider, typed as Object since its class pulls in client-only types.
 	public static Function<GunItem, @Nullable Object> renderProviderFactory = gun -> null;
 	public static AnimationController.KeyframeEventHandler<GunItem, SoundKeyframeData> soundKeyframes = event -> {};
+	public static AnimationController.KeyframeEventHandler<GunItem, CustomInstructionKeyframeData> instructionKeyframes = event -> {};
 
 	private final Identifier definitionId;
 	private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
@@ -83,7 +90,13 @@ public class GunItem extends Item implements GeoItem {
 		for (String action : TRIGGERED_ACTIONS) {
 			main.triggerableAnim(action, RawAnimation.begin().thenPlay(animationName(action)));
 		}
+		// A round-at-a-time reload is three clips, the middle one once per round; a gun without them never plays these.
+		for (int rounds = 1; rounds <= MAX_ROUND_RELOAD; rounds++) {
+			main.triggerableAnim(GunDefinition.roundReloadAction(rounds), RawAnimation.begin().thenPlay(animationName("reload_start"))
+					.thenPlayXTimes(animationName("reload_round"), rounds).thenPlay(animationName("reload_end")));
+		}
 		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
+		main.setCustomInstructionKeyframeHandler(event -> instructionKeyframes.handle(event));
 		// Registered after main so they win on their bones, whatever main is playing: the slide, barrel and slide stop while the gun is
 		// empty, and the arms holding the gun up while the tuner shows it (blended in over a few ticks, like the gun turning).
 		controllers.add(main, holdWhile("slide_lock", SLIDE_LOCKED, "slide_locked", 0), showcase());
@@ -190,7 +203,8 @@ public class GunItem extends Item implements GeoItem {
 			return;
 		}
 		lines.accept(Component.translatable("gui.mcweapons.ammo", ammo(stack, definition), definition.magSize()).withStyle(ChatFormatting.GRAY));
-		lines.accept(Component.literal("9x19mm").withStyle(ChatFormatting.GRAY)); // shortcut: caliber is hardcoded, phase 3 moves it into the definition
+		// shortcut: the caliber is a lang entry per gun ("<item>.caliber"), phase 3 moves it into the definition with the ammo items.
+		lines.accept(Component.translatable(getDescriptionId() + ".caliber").withStyle(ChatFormatting.GRAY));
 		for (AttachmentSlot slot : AttachmentSlot.values()) {
 			AttachmentItem attachment = Attachments.in(stack, slot);
 			if (attachment != null) {

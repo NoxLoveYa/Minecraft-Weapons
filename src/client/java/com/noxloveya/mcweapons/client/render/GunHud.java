@@ -52,8 +52,8 @@ public final class GunHud {
 		Font font = Minecraft.getInstance().font;
 		ItemStack stack = player.getMainHandItem();
 		int ammo = GunItem.ammo(stack, definition);
-		// The count is what is in the mag; a chambered round (any round at all, on a gun with a chamber) is the bullet icon beside it.
-		boolean chambered = definition.chamber() && ammo > 0;
+		// The count is what is in the mag; a chambered round (there is one whenever the gun has any) is the bullet icon beside it.
+		boolean chambered = ammo > 0;
 		int inMag = ammo - (chambered ? 1 : 0);
 		int color = ammo == 0 ? RED : inMag <= definition.magSize() / 4 ? AMBER : WHITE;
 		String name = stack.getHoverName().getString().toUpperCase(Locale.ROOT);
@@ -103,7 +103,7 @@ public final class GunHud {
 
 		graphics.fill(right - width, bottom - 1, right, bottom, 0x30FFFFFF);
 		if (GunInput.reloading(player, stack)) {
-			int reloadTicks = ammo == 0 ? definition.reloadEmptyTicks() : definition.reloadTicks();
+			int reloadTicks = definition.reloadDuration(ammo);
 			float now = player.level().getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);
 			float progress = Mth.clamp(1 - (GunInput.reloadEnd(stack) - now) / Math.max(1, reloadTicks), 0, 1);
 			graphics.fill(right - width, bottom - 1, right - width + Math.round(width * progress), bottom, AMBER);

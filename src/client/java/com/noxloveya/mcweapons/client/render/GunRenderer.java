@@ -24,6 +24,7 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.gun.Reticle;
+import com.noxloveya.mcweapons.gun.RoundReload;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -39,6 +40,7 @@ import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,6 +56,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
 	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
+	/** The gun is reloading: its {@code prop_} bones (a stripper clip, a round in the other hand) are drawn only then. */
+	public static final DataTicket<Boolean> RELOADING = DataTicket.create("mcweapons_reloading", Boolean.class);
 	/** Furthest a magazine or attachment strays from its place on a gun in someone's hand, in model pixels (see keepInReach). */
 	private static final float THIRD_PERSON_REACH = 6;
 	/** Attachment item ids to draw: the ones fitted, and one on its way on or off in an attach or detach animation. */
@@ -69,8 +73,12 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
 	private static final float THIRD_PERSON_SCALE = 0.75F;
+	/** A long gun is shrunk further in a hand, to at most this many blocks long: a rifle about as long as a person is tall looks wrong. */
+	private static final float THIRD_PERSON_MAX_LENGTH = 1.25F;
 
 	private final Identifier modelId;
+	private float thirdPersonScale = -1;
+	private @Nullable List<String> propBones;
 
 	public GunRenderer(GunItem gun) {
 		super(new DefaultedItemGeoModel<>(gun.definitionId()));
@@ -153,8 +161,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		renderState.addGeckolibData(RETICLE, renderData != null ? renderData.itemStack().getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT) : Reticle.DEFAULT);
 		renderState.addGeckolibData(THIRD_PERSON_AIM, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
-		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData) : 1);
+		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData, partialTick) : 1);
 		renderState.addGeckolibData(CHAMBERED, renderData != null && chambered(renderData));
+		renderState.addGeckolibData(RELOADING, renderData != null && reloading(renderData));
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
 	}
 
@@ -241,7 +250,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	private static boolean slideLocked(RenderData renderData) {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
-		if (definition == null) {
+		if (definition == null || definition.boltAction()) {
 			return false;
 		}
 		LocalPlayer player = Minecraft.getInstance().player;
@@ -251,28 +260,81 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
 	}
 
-	/** Same rule as the HUD's chamber icon. A locked-back slide means the last round has gone, even before the server says so. */
+	/**
+	 * Any round at all sits in the chamber (a locked-back slide means the last one has gone, even before the server says so). Not
+	 * during a reload: an open bolt has taken it out, and a slide that locked back has none.
+	 */
 	private static boolean chambered(RenderData renderData) {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
-		return definition != null && definition.chamber() && GunItem.ammo(stack, definition) > 0 && !slideLocked(renderData);
+		return definition != null && GunItem.ammo(stack, definition) > 0 && !slideLocked(renderData) && !reloading(renderData);
 	}
 
-	/** Rounds in the mag over its size. The chambered round is not in the mag, and a reload brings a full one. */
-	private static float magFill(RenderData renderData) {
+	private static boolean reloading(RenderData renderData) {
+		ItemStack stack = renderData.itemStack();
+		LocalPlayer player = Minecraft.getInstance().player;
+		return player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
+				? GunInput.reloading(player, stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
+	}
+
+	/**
+	 * Rounds in the mag over its size; the chambered round is not in it. A magazine reload brings a full one (its animation hides the
+	 * rounds until they go in), and a round-at-a-time reload adds them as the thumb pushes each one down.
+	 */
+	private static float magFill(RenderData renderData, float partialTick) {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
 		if (definition == null) {
 			return 1;
 		}
-		LocalPlayer player = Minecraft.getInstance().player;
-		boolean reloading = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
-				? GunInput.reloading(player, stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
-		if (reloading) {
-			return 1;
+		int ammo = GunItem.ammo(stack, definition);
+		int inMag = Math.max(0, ammo - 1);
+		if (reloading(renderData)) {
+			RoundReload rounds = definition.roundReload();
+			Level level = Minecraft.getInstance().level;
+			if (rounds == null || ammo == 0 || level == null) {
+				return 1;
+			}
+			LocalPlayer player = Minecraft.getInstance().player;
+			long end = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
+					? GunInput.reloadEnd(stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloadingUntilTick();
+			int missing = definition.reloadTarget(ammo) - ammo;
+			float elapsed = definition.reloadDuration(ammo) - (end - level.getGameTime() - partialTick);
+			// The bolt is open, so the chambered round is out and back in the mag's count.
+			inMag = ammo + rounds.loaded(missing, elapsed);
 		}
-		int inMag = Math.max(0, GunItem.ammo(stack, definition) - (definition.chamber() ? 1 : 0));
 		return Math.min(1, inMag / (float)definition.magSize());
+	}
+
+	/** Names of the model's {@code prop_} bones, found once. */
+	private List<String> propBones() {
+		if (this.propBones == null) {
+			List<String> names = new ArrayList<>();
+			for (GeoBone bone : getGeoModel().getBakedModel(this.modelId).topLevelBones()) {
+				collectProps(bone, names);
+			}
+			this.propBones = List.copyOf(names);
+		}
+		return this.propBones;
+	}
+
+	private static void collectProps(GeoBone bone, List<String> names) {
+		if (bone.name().startsWith("prop_")) {
+			names.add(bone.name());
+		}
+		for (GeoBone child : bone.children()) {
+			collectProps(child, names);
+		}
+	}
+
+	/** How much smaller the gun is in a hand than in first person: {@link #THIRD_PERSON_SCALE}, or less for a long gun. */
+	private float thirdPersonScale() {
+		if (this.thirdPersonScale < 0) {
+			float[] bounds = gunBounds();
+			float length = bounds[5] - bounds[2];
+			this.thirdPersonScale = length > 0 ? Math.min(THIRD_PERSON_SCALE, THIRD_PERSON_MAX_LENGTH / length) : THIRD_PERSON_SCALE;
+		}
+		return this.thirdPersonScale;
 	}
 
 	@Override
@@ -283,7 +345,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		super.adjustRenderPose(renderPassInfo);
 		PoseStack poseStack = renderPassInfo.poseStack();
 		Vector3f grip = restPivot("gun");
-		poseStack.scale(THIRD_PERSON_SCALE, THIRD_PERSON_SCALE, THIRD_PERSON_SCALE);
+		float scale = thirdPersonScale();
+		poseStack.scale(scale, scale, scale);
 		// The hand's -Z runs along the arm, out of the fist, which is the way the model's barrel points: the gun lies along the arm in every
 		// pose, down at the side and out ahead when the arm is raised.
 		if (Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(THIRD_PERSON_AIM))) {
@@ -323,6 +386,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		if (Boolean.FALSE.equals(renderPassInfo.renderState().getGeckolibData(CHAMBERED))) {
 			snapshots.get("chamber_round").ifPresent(snapshot -> snapshot.skipRender(true));
+		}
+		if (!Boolean.TRUE.equals(renderPassInfo.renderState().getGeckolibData(RELOADING))) {
+			for (String prop : propBones()) {
+				snapshots.get(prop).ifPresent(snapshot -> snapshot.skipRender(true));
+			}
 		}
 		// Each attachment is a bone named after its item; only the ones to show are drawn.
 		Set<Identifier> shown = renderPassInfo.renderState().getGeckolibData(ATTACHMENTS);

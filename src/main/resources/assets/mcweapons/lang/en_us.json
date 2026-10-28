@@ -1,5 +1,8 @@
 {
   "item.mcweapons.glock17": "Glock 17",
+  "item.mcweapons.glock17.caliber": "9x19mm",
+  "item.mcweapons.mosin_nagant": "Mosin-Nagant",
+  "item.mcweapons.mosin_nagant.caliber": "7.62x54mmR",
   "item.mcweapons.silencer": "Silencer",
   "item.mcweapons.red_dot": "Red Dot Sight",
   "item.mcweapons.extended_mag": "Extended Magazine (33)",
@@ -134,6 +137,9 @@
   "subtitles.mcweapons.gun.mag_out": "Magazine drops",
   "subtitles.mcweapons.gun.mag_in": "Magazine seats",
   "subtitles.mcweapons.gun.slide": "Slide racks",
+  "subtitles.mcweapons.gun.bolt": "Bolt worked",
+  "subtitles.mcweapons.gun.clip": "Stripper clip loaded",
+  "subtitles.mcweapons.gun.round_in": "Round loaded",
   "subtitles.mcweapons.gun.draw": "Gun drawn",
   "subtitles.mcweapons.gun.handling": "Gun handled",
   "subtitles.mcweapons.gun.aim": "Gun raised",

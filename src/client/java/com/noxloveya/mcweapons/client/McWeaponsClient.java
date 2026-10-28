@@ -2,6 +2,7 @@ package com.noxloveya.mcweapons.client;
 
 import com.geckolib.animatable.client.GeoRenderProvider;
 import com.geckolib.animation.state.KeyFrameEvent;
+import com.geckolib.cache.animation.keyframeevent.CustomInstructionKeyframeData;
 import com.geckolib.cache.animation.keyframeevent.SoundKeyframeData;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.renderer.GeoItemRenderer;
@@ -16,6 +17,7 @@ import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
 import com.noxloveya.mcweapons.gun.Attachments;
+import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.BulletImpactPayload;
@@ -60,6 +62,7 @@ public class McWeaponsClient implements ClientModInitializer {
 			}
 		};
 		GunItem.soundKeyframes = McWeaponsClient::playKeyframeSound;
+		GunItem.instructionKeyframes = McWeaponsClient::runKeyframeInstruction;
 		GunInput.register();
 		Tracers.register();
 		Lasers.register();
@@ -102,6 +105,16 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 	}
 
+	/** Instruction keyframes in the gun animations: {@code eject_casing}, where a bolt action's bolt throws the spent casing out. */
+	private static void runKeyframeInstruction(KeyFrameEvent<GunItem, CustomInstructionKeyframeData> event) {
+		ClientLevel level = Minecraft.getInstance().level;
+		Long instanceId = event.renderState().getGeckolibData(DataTickets.ANIMATABLE_INSTANCE_ID);
+		Entity holder = level == null || instanceId == null ? null : GunRenderer.holder(level, instanceId);
+		if (holder != null && event.keyframeData().getInstructions().contains("eject_casing")) {
+			Casings.eject(holder, event.animatable());
+		}
+	}
+
 	/**
 	 * Someone else's shot (ours were drawn when we fired): their third-person gun fires, with flash, smoke and a casing, and the tracer
 	 * starts on the bullet's path from their muzzle.
@@ -119,7 +132,10 @@ public class McWeaponsClient implements ClientModInitializer {
 		if (shooter instanceof LivingEntity living && living.getMainHandItem().getItem() instanceof GunItem gun) {
 			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
 			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
-			Casings.eject(shooter, gun);
+			GunDefinition definition = GunItem.definition(living.getMainHandItem());
+			if (definition == null || !definition.boltAction()) {
+				Casings.eject(shooter, gun);
+			}
 			if (!Attachments.silenced(living.getMainHandItem())) {
 				MuzzleLight.flash(bullet.shooterId(), muzzle);
 			}

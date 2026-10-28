@@ -1,0 +1,48 @@
+{
+  "item": "mcweapons:mosin_nagant",
+  "fire_modes": [
+    "bolt"
+  ],
+  "rpm": 55,
+  "damage": 17.0,
+  "range": 256.0,
+  "mag_size": 5,
+  "chamber": false,
+  "spread_hip_deg": 2.5,
+  "spread_ads_deg": 0.02,
+  "movement_spread": {
+    "walk": 1.5,
+    "sprint": 2.5,
+    "crouch": 0.7
+  },
+  "recoil_pitch_deg": 4.0,
+  "recoil_yaw_deg": 0.8,
+  "draw_ticks": 18,
+  "reload_ticks": 32,
+  "reload_empty_ticks": 55,
+  "round_reload": {
+    "start_ticks": 10,
+    "round_ticks": 12,
+    "end_ticks": 10
+  },
+  "ads_ticks": 6,
+  "ads_fov_multiplier": 0.75,
+  "move_speed_ads_multiplier": 0.75,
+  "headshot_multiplier": 2.0,
+  "bullet": {
+    "speed": 700.0,
+    "gravity": 9.81
+  },
+  "attachments": [],
+  "feel": {
+    "sway_gain": 0.04,
+    "sway_max_deg": 1.2,
+    "sway_follow": 0.3,
+    "bob_scale": 0.25,
+    "breath_scale": 1.6,
+    "recoil_push_back": 0.12,
+    "recoil_spring_stiffness": 0.22,
+    "recoil_spring_damping": 0.5,
+    "recoil_max_kicks": 1.5
+  }
+}
