@@ -65,6 +65,8 @@ public final class GunInput {
 	public static final KeyMapping FIRE_MODE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.fire_mode", InputConstants.KEY_B, CATEGORY));
 	/** Opens the attachment menu for the held gun. */
 	public static final KeyMapping ATTACHMENTS = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.attachments", InputConstants.KEY_G, CATEGORY));
+	/** Raises or lowers the sights with a press, beside holding use. Unbound by default; bound to use's button it replaces the hold. */
+	public static final KeyMapping AIM_TOGGLE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.aim_toggle", InputConstants.UNKNOWN.getValue(), CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
@@ -76,6 +78,8 @@ public final class GunInput {
 	private static boolean aiming;
 	/** The aim key is held with a gun in hand. It ends a sprint at once; the sights come up once the running pose is down. */
 	private static boolean aimHeld;
+	/** The toggle aim key turned aiming on. Off again when the gun leaves the hand or a screen opens, as a held key is let go then. */
+	private static boolean aimToggled;
 	/** Game time until which the last shot keeps the holder from sprinting. */
 	private static long noSprintUntil;
 	/** Client game time, in fractional ticks, when the next shot is due (see GunDefinition.nextShotDue). */
@@ -240,7 +244,15 @@ public final class GunInput {
 		}
 		putAway(player, holding);
 
-		aimHeld = holding && minecraft.options.keyUse.isDown();
+		if (freshPress(AIM_TOGGLE)) {
+			aimToggled = !aimToggled;
+		}
+		if (!holding || minecraft.gui.screen() != null) {
+			aimToggled = false;
+		}
+		// With the toggle on use's own button, holding it must not aim too, or toggling off would only end on release.
+		boolean useHeld = minecraft.options.keyUse.isDown() && !AIM_TOGGLE.same(minecraft.options.keyUse);
+		aimHeld = holding && (useHeld || aimToggled);
 		// Out of a sprint the running pose comes down first, so the sights rise a little later.
 		boolean aim = aimHeld && !Viewmodel.running();
 		if (aim != aiming && player != null) {
@@ -279,6 +291,7 @@ public final class GunInput {
 		if (slot != drawnSlot || gun != drawnItem) {
 			drawnSlot = slot;
 			drawnItem = gun;
+			aimToggled = false;
 			predictedReloadUntil = 0;
 			reloadHeldTicks = -1;
 			predictedMode = null;
