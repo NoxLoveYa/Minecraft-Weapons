@@ -2711,6 +2711,16 @@
 						}
 					}
 				},
+				"prop_round": {
+					"scale": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"2.75": {
+							"vector": [0, 0, 0]
+						}
+					}
+				},
 				"arm_right": {
 					"rotation": {
 						"0.0": {
@@ -3495,6 +3505,16 @@
 						}
 					}
 				},
+				"prop_clip": {
+					"scale": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"0.5": {
+							"vector": [0, 0, 0]
+						}
+					}
+				},
 				"arm_right": {
 					"rotation": {
 						"0.0": {
@@ -3652,6 +3672,16 @@
 		"animation.mosin_nagant.reload_round": {
 			"animation_length": 0.6,
 			"bones": {
+				"prop_clip": {
+					"scale": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"0.6": {
+							"vector": [0, 0, 0]
+						}
+					}
+				},
 				"gun": {
 					"rotation": {
 						"0.0": {
@@ -3973,6 +4003,16 @@
 					}
 				},
 				"prop_round": {
+					"scale": {
+						"0.0": {
+							"vector": [0, 0, 0]
+						},
+						"0.5": {
+							"vector": [0, 0, 0]
+						}
+					}
+				},
+				"prop_clip": {
 					"scale": {
 						"0.0": {
 							"vector": [0, 0, 0]

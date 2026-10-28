@@ -21,7 +21,10 @@ import net.minecraft.client.renderer.state.level.PlayerRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
@@ -232,16 +235,46 @@ public final class Viewmodel {
 		return (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
 	}
 
+	/**
+	 * Where the first-person barrel's line meets the first block or body within {@code range}, or the point that far along it: the line
+	 * the gun is drawn along (with the sway, bob, breathing and recoil kick, not its animations or the running pose), carried into the world
+	 * at the world FOV so it covers the drawn barrel on screen (aiming, the sight line). Shots and a laser's dot go there. The view is {@code eye}, {@code xRot}
+	 * and {@code yRot}; null when the gun has not been drawn lately.
+	 */
+	public static @Nullable Vec3 barrelTarget(LocalPlayer player, Vec3 eye, float xRot, float yRot, Camera camera, float partialTick, double range) {
+		ItemStack stack = player.getMainHandItem();
+		if (System.nanoTime() - barrelNanos > 200_000_000L || !(stack.getItem() instanceof GunItem gun)
+				|| !(GeoRenderProvider.of(gun).getGeoItemRenderer() instanceof GunRenderer renderer)) {
+			return null;
+		}
+		float aim = ads(partialTick);
+		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
+		Vector3f muzzle = renderer.restPivot(renderer.muzzleBone(stack)).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
+		Vector3f along = new Vector3f(0, 0, -1).rotateX(barrelPitch * Mth.DEG_TO_RAD).rotateY(barrelYaw * Mth.DEG_TO_RAD);
+		// From where the line crosses the eye's plane: the viewmodel is not to scale (a rifle's muzzle is drawn blocks out), and nothing
+		// nearer than that may be skipped. Aiming, the sights take over and it comes in to the eye: shots go to the reticle, not a little
+		// under it where the bore is (which a scope would magnify).
+		Vector3f start = new Vector3f(muzzle).fma(-muzzle.z / along.z, along).mul(1 - aim);
+		Vec3 forward = Vec3.directionFromRotation(xRot, yRot);
+		Vec3 up = Vec3.directionFromRotation(xRot - 90, yRot);
+		float scale = fovScale(camera);
+		Vec3 from = eye.add(toWorld(start, scale, up.cross(forward), up, forward));
+		Vec3 direction = toWorld(along, scale, up.cross(forward), up, forward).normalize();
+		// Up against a wall, that start beside the eye can be inside it.
+		if (player.level().clip(new ClipContext(eye, from, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty())).getType() != HitResult.Type.MISS) {
+			from = eye;
+		}
+		return Lasers.firstHitOr(player.level(), player, from, direction, range);
+	}
+
 	/** A view-space offset (right, up, back) as a world offset from the camera, at the world FOV. */
 	private static Vec3 viewToWorld(Camera camera, Vector3fc offset) {
-		float scale = fovScale(camera);
-		Vector3fc left = camera.leftVector();
-		Vector3fc up = camera.upVector();
-		Vector3fc forward = camera.forwardVector();
-		float x = -offset.x() * scale;
-		float y = offset.y() * scale;
-		float z = -offset.z();
-		return new Vec3(left.x() * x + up.x() * y + forward.x() * z, left.y() * x + up.y() * y + forward.y() * z, left.z() * x + up.z() * y + forward.z() * z);
+		return toWorld(offset, fovScale(camera), new Vec3(camera.leftVector()), new Vec3(camera.upVector()), new Vec3(camera.forwardVector()));
+	}
+
+	/** A view-space offset (right, up, back), scaled sideways by {@code scale}, along the view's world axes. */
+	private static Vec3 toWorld(Vector3fc offset, float scale, Vec3 left, Vec3 up, Vec3 forward) {
+		return left.scale(-offset.x() * scale).add(up.scale(offset.y() * scale)).add(forward.scale(-offset.z()));
 	}
 
 	/** Called by {@link BonePoseLayer} with the pose the {@code ejection_port} bone is drawn with this frame. */

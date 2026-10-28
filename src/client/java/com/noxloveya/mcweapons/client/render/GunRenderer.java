@@ -56,7 +56,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
 	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
-	/** The gun is reloading: its {@code prop_} bones (a stripper clip, a round in the other hand) are drawn only then. */
+	/** A reload animation is playing: the gun's {@code prop_} bones (a stripper clip, a round in the other hand) are drawn only then. */
 	public static final DataTicket<Boolean> RELOADING = DataTicket.create("mcweapons_reloading", Boolean.class);
 	/** Furthest a magazine or attachment strays from its place on a gun in someone's hand, in model pixels (see keepInReach). */
 	private static final float THIRD_PERSON_REACH = 6;
@@ -163,7 +163,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData, partialTick) : 1);
 		renderState.addGeckolibData(CHAMBERED, renderData != null && chambered(renderData));
-		renderState.addGeckolibData(RELOADING, renderData != null && reloading(renderData));
+		renderState.addGeckolibData(RELOADING, holder != null && reloadPlaying(gun, holder));
 		renderState.addGeckolibData(GunItem.SHOWCASE, renderData != null && renderData.renderPerspective().firstPerson() && Viewmodel.showcasing());
 	}
 
@@ -268,6 +268,27 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
 		return definition != null && GunItem.ammo(stack, definition) > 0 && !slideLocked(renderData) && !reloading(renderData);
+	}
+
+	/**
+	 * A reload animation is playing in {@code holder}'s hands. Not the reload's timer: the animation keeps its own clock, and once it ends
+	 * the gun is back at rest, where the props would show standing in the gun until the timer runs out.
+	 */
+	private static boolean reloadPlaying(GunItem gun, LivingEntity holder) {
+		var main = gun.getAnimatableInstanceCache().getManagerForId(instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		// A finished triggered animation stays the controller's current one until the next is triggered, hence the finished check.
+		if (main == null || main.hasAnimationFinished()) {
+			return false;
+		}
+		if (main.isTriggeredAnimation("reload") || main.isTriggeredAnimation("reload_empty")) {
+			return true;
+		}
+		for (int rounds = 1; rounds <= GunItem.MAX_ROUND_RELOAD; rounds++) {
+			if (main.isTriggeredAnimation(GunDefinition.roundReloadAction(rounds))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static boolean reloading(RenderData renderData) {

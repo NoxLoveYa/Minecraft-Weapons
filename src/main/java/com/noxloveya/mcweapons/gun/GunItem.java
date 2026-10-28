@@ -5,6 +5,7 @@ import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
+import com.geckolib.animation.object.LoopType;
 import com.geckolib.animation.object.PlayState;
 import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.cache.animation.keyframeevent.CustomInstructionKeyframeData;
@@ -88,7 +89,10 @@ public class GunItem extends Item implements GeoItem {
 		// No transition ticks: every animation starts and ends at the rest pose, and a blend would delay the fire snap.
 		AnimationController<GunItem> main = new AnimationController<>(MAIN_CONTROLLER, 0, test -> test.setAndContinue(idle));
 		for (String action : TRIGGERED_ACTIONS) {
-			main.triggerableAnim(action, RawAnimation.begin().thenPlay(animationName(action)));
+			// The put-away holds the gun down out of view: the next item comes up on a game tick, which can land a little after the
+			// animation's own clock ends it, and the gun must not snap back into the hand for that moment.
+			main.triggerableAnim(action, "put_away".equals(action) ? RawAnimation.begin().then(animationName(action), LoopType.HOLD_ON_LAST_FRAME)
+					: RawAnimation.begin().thenPlay(animationName(action)));
 		}
 		// A round-at-a-time reload is three clips, the middle one once per round; a gun without them never plays these.
 		for (int rounds = 1; rounds <= MAX_ROUND_RELOAD; rounds++) {

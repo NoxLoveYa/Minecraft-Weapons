@@ -1,6 +1,5 @@
 package com.noxloveya.mcweapons.client.render;
 
-import com.geckolib.animatable.client.GeoRenderProvider;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
@@ -17,7 +16,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -25,6 +23,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -52,8 +51,6 @@ public final class Lasers {
 	/** Holders further away than this from the camera are not drawn, beam or dot. */
 	private static final double DRAW_DISTANCE = 96;
 	private static final long STALE_NANOS = 200_000_000L;
-	/** At rest a laser points at the sight line this many blocks out; from there it settles on whatever the holder aims at (see {@link #emitter}). */
-	private static final float ZERO = 10;
 	/** Within this angle (degrees) of what the holder aims at, the first-person beam lands on it; it lets go fully by {@link #LOCK_FADE_DEG}. */
 	private static final double LOCK_DEG = 10;
 	private static final double LOCK_FADE_DEG = 18;
@@ -100,21 +97,8 @@ public final class Lasers {
 		HELD.put(holder.getId(), new Held(new Matrix4f(pose), Minecraft.getInstance().gameRenderer.mainCamera().position(), System.nanoTime()));
 	}
 
-	/**
-	 * Which way the beam leaves the emitter, in the emitter bone's frame (the gun's at rest): toward the point {@link #ZERO} blocks out
-	 * along the sight line (the fitted optic's reticle, or the iron sights). Straight ahead when the model cannot say.
-	 */
-	private static Vector3f zeroed(ItemStack stack) {
-		if (GeoRenderProvider.of(stack).getGeoItemRenderer() instanceof GunRenderer renderer) {
-			for (AttachmentSlot slot : AttachmentSlot.values()) {
-				AttachmentItem attachment = Attachments.in(stack, slot);
-				if (attachment != null && attachment.isLaser()) {
-					Vector3f emitter = renderer.restPivot(BuiltInRegistries.ITEM.getKey(attachment).getPath() + "_emitter");
-					Vector3f zero = renderer.restPivot(renderer.aimBone(stack)).add(0, 0, -ZERO);
-					return zero.sub(emitter).normalize();
-				}
-			}
-		}
+	/** Which way the beam leaves the emitter, in the emitter bone's frame (the gun's at rest): along the bore. */
+	private static Vector3f alongBore() {
 		return new Vector3f(0, 0, -1);
 	}
 
@@ -137,40 +121,42 @@ public final class Lasers {
 
 	/**
 	 * Where {@code holder}'s laser leaves from and points. It leaves from the emitter as last drawn, or about there along the look when
-	 * that has not been drawn lately. It points along the gun, except that it lands on whatever the holder aims at: in first person while
-	 * the gun points within a few degrees of it (so sway and recoil still move it, and reloads and inspects swing it away), in third
-	 * person while they aim, since the arms there only roughly line the gun up. Straight along the bore, the dot would sit beside a narrow
-	 * target the crosshair is on, or behind the gun when aiming close up.
+	 * that has not been drawn lately. It points along the bore, landing on what the gun aims at: in first person where the barrel's line
+	 * meets something, which is where our shots go (see {@link Viewmodel#barrelTarget}), as long as the drawn gun points within a few
+	 * degrees of it (reloads and inspects swing it away); in third person what they look at while they aim, since the arms there only
+	 * roughly line the gun up. Null for our own first-person gun while it is not drawn (the gun before it is still being put away).
 	 */
-	private static Emitter emitter(Minecraft minecraft, ClientLevel level, Camera camera, LivingEntity holder, float partialTick) {
-		Vector3f zeroed = zeroed(holder.getMainHandItem());
-		// Our own shots go along the barrel, not the view (see Viewmodel.barrelXRot), so our dot lands where the bullet will.
-		Vec3 look = holder == minecraft.player ? Vec3.directionFromRotation(holder.getViewXRot(partialTick) + Viewmodel.barrelXRot(camera),
-				holder.getViewYRot(partialTick) + Viewmodel.barrelYRot(camera)) : holder.getViewVector(partialTick);
-		Vec3 aimed = firstHitOr(level, holder, holder.getEyePosition(partialTick), look);
+	private static @Nullable Emitter emitter(Minecraft minecraft, ClientLevel level, Camera camera, LivingEntity holder, float partialTick) {
+		Vec3 eye = holder.getEyePosition(partialTick);
+		Vec3 aimed = holder == minecraft.player
+				? Viewmodel.barrelTarget(minecraft.player, eye, holder.getViewXRot(partialTick), holder.getViewYRot(partialTick), camera, partialTick, RANGE) : null;
+		if (aimed == null) {
+			aimed = firstHitOr(level, holder, eye, holder.getViewVector(partialTick), RANGE);
+		}
 		if (holder == minecraft.player && minecraft.options.getCameraType().isFirstPerson()) {
-			Emitter drawn = Viewmodel.laserEmitter(camera, zeroed);
+			Emitter drawn = Viewmodel.laserEmitter(camera, alongBore());
 			if (drawn != null) {
 				Vec3 toAim = aimed.subtract(drawn.pos()).normalize();
 				double off = Math.toDegrees(Math.acos(Mth.clamp(drawn.forward().dot(toAim), -1, 1)));
 				double lock = Mth.clamp((LOCK_FADE_DEG - off) / (LOCK_FADE_DEG - LOCK_DEG), 0, 1);
 				return new Emitter(drawn.pos(), drawn.forward().scale(1 - lock).add(toAim.scale(lock)).normalize());
 			}
+			return null;
 		} else {
 			Held held = HELD.get(holder.getId());
 			if (held != null && System.nanoTime() - held.nanos < STALE_NANOS) {
 				Vec3 pos = held.camera.add(new Vec3(held.pose.transformPosition(new Vector3f())));
 				return new Emitter(pos, ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM ? aimed.subtract(pos).normalize()
-						: new Vec3(held.pose.transformDirection(zeroed)).normalize());
+						: new Vec3(held.pose.transformDirection(alongBore())).normalize());
 			}
 		}
 		Vec3 pos = ThirdPersonGuns.heldPoint(holder, 0.9).add(0, -0.08, 0);
 		return new Emitter(pos, aimed.subtract(pos).normalize());
 	}
 
-	/** The first block or body (not {@code holder}) along {@code direction} from {@code from} within {@link #RANGE}, or null. */
-	private static @Nullable Hit firstHit(ClientLevel level, LivingEntity holder, Vec3 from, Vec3 direction) {
-		Vec3 end = from.add(direction.scale(RANGE));
+	/** The first block or body (not {@code holder}) along {@code direction} from {@code from} within {@code range}, or null. */
+	private static @Nullable Hit firstHit(Level level, LivingEntity holder, Vec3 from, Vec3 direction, double range) {
+		Vec3 end = from.add(direction.scale(range));
 		BlockHitResult block = level.clip(new ClipContext(from, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
 		Vec3 to = block.getType() != HitResult.Type.MISS ? block.getLocation() : end;
 		EntityHitResult entity = ProjectileUtil.getEntityHitResult(holder, from, to, new AABB(from, to).inflate(1.0),
@@ -178,15 +164,16 @@ public final class Lasers {
 		return entity != null ? new Hit(entity.getLocation(), true) : block.getType() != HitResult.Type.MISS ? new Hit(to, false) : null;
 	}
 
-	private static Vec3 firstHitOr(ClientLevel level, LivingEntity holder, Vec3 from, Vec3 direction) {
-		Hit hit = firstHit(level, holder, from, direction);
-		return hit != null ? hit.at : from.add(direction.scale(RANGE));
+	/** Where the first block or body (not {@code holder}) is along {@code direction} from {@code from}, or the point {@code range} along. */
+	static Vec3 firstHitOr(Level level, LivingEntity holder, Vec3 from, Vec3 direction, double range) {
+		Hit hit = firstHit(level, holder, from, direction, range);
+		return hit != null ? hit.at : from.add(direction.scale(range));
 	}
 
 	private static Beam cast(ClientLevel level, LivingEntity holder, Emitter emitter, boolean lens) {
 		int color = holder.getMainHandItem().getOrDefault(ModComponents.LASER_COLOR, Reticle.COLORS.getFirst());
 		Vec3 from = emitter.pos();
-		Hit hit = firstHit(level, holder, from, emitter.forward());
+		Hit hit = firstHit(level, holder, from, emitter.forward(), RANGE);
 		Vec3 to = hit != null ? hit.at : from.add(emitter.forward().scale(RANGE));
 		return new Beam(from, to, hit != null, hit != null && hit.body, lens, color);
 	}
@@ -210,7 +197,10 @@ public final class Lasers {
 			if (ownFirstPerson && Viewmodel.showcasing()) {
 				continue;
 			}
-			beams.add(cast(level, player, emitter(minecraft, level, camera, player, partialTick), !ownFirstPerson));
+			Emitter emitter = emitter(minecraft, level, camera, player, partialTick);
+			if (emitter != null) {
+				beams.add(cast(level, player, emitter, !ownFirstPerson));
+			}
 		}
 		if (beams.isEmpty()) {
 			return;

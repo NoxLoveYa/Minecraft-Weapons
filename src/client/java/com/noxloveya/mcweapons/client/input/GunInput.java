@@ -389,12 +389,18 @@ public final class GunInput {
 		noSprintUntil = now + SHOT_NO_SPRINT_TICKS;
 		int ammo = GunItem.ammo(stack, definition);
 		boolean fires = !safe && ammo > 0;
-		// The shot leaves the eye along the barrel (the aim, tipped by sway, bob, breathing and earlier kicks), from before its own recoil
-		// kick; the server fires the same bullet from these.
+		// The shot leaves the eye for where the barrel's line meets something (the barrel tipped by sway, bob, breathing and earlier kicks,
+		// from before its own recoil kick), which is where a laser's dot is; the server fires the same bullet from these.
 		Vec3 origin = player.getEyePosition();
 		Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
 		float xRot = player.getXRot() + Viewmodel.barrelXRot(camera);
 		float yRot = player.getYRot() + Viewmodel.barrelYRot(camera);
+		Vec3 target = Viewmodel.barrelTarget(player, origin, player.getXRot(), player.getYRot(), camera, 1, definition.range());
+		if (target != null && target.distanceToSqr(origin) > 1.0E-4) {
+			Vec3 toTarget = target.subtract(origin);
+			xRot = (float)Math.toDegrees(-Math.atan2(toTarget.y, toTarget.horizontalDistance()));
+			yRot = player.getYRot() + Mth.wrapDegrees((float)Math.toDegrees(Math.atan2(-toTarget.x, toTarget.z)) - player.getYRot());
+		}
 		long seed = player.getRandom().nextLong();
 		MovementSpread.Stance stance = stance(player);
 		int shotId = ++lastShotId;
