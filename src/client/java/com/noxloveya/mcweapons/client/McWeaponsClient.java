@@ -108,7 +108,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		// Someone else's shot: play the fire animation on their third-person gun and puff smoke at its muzzle.
 		if (shooter instanceof LivingEntity living && shooter != minecraft.player && living.getMainHandItem().getItem() instanceof GunItem gun) {
 			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
-			Vec3 muzzle = ThirdPersonGuns.heldPoint(shooter, 0.7);
+			Vec3 muzzle = ThirdPersonGuns.heldPoint(shooter, 0.97);
 			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
 			// Our own casings are thrown with the predicted shot instead (GunInput).
 			Casings.eject(shooter, gun);
@@ -118,7 +118,7 @@ public class McWeaponsClient implements ClientModInitializer {
 			Vec3 from = shooter == minecraft.player && minecraft.options.getCameraType().isFirstPerson()
 					&& GeoRenderProvider.of(minecraft.player.getMainHandItem()).getGeoItemRenderer() instanceof GunRenderer renderer
 					? Viewmodel.bonePosition(renderer, "muzzle", minecraft.gameRenderer.mainCamera(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false))
-					: ThirdPersonGuns.heldPoint(shooter, 0.7);
+					: ThirdPersonGuns.heldPoint(shooter, 0.97);
 			Tracers.spawn(from, fx.hitPos());
 		}
 		if (fx.hitType() == HitResult.Type.MISS) {

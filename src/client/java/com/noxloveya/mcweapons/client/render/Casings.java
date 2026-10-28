@@ -132,7 +132,7 @@ public final class Casings {
 			Vec3 look = shooter.getLookAngle();
 			Vec3 right = look.cross(new Vec3(0, 1, 0));
 			right = right.lengthSqr() < 1.0E-6 ? new Vec3(1, 0, 0) : right.normalize();
-			port = new Port(ThirdPersonGuns.heldPoint(shooter, 0.4), right, right.cross(look).normalize(), look);
+			port = new Port(ThirdPersonGuns.heldPoint(shooter, 0.68), right, right.cross(look).normalize(), look);
 			firstPerson = false;
 		}
 		RandomSource random = minecraft.level.getRandom();

@@ -7,7 +7,8 @@
 		"AvatarRendererMixin",
 		"CameraMixin",
 		"FirstPersonHandsAndItemsRendererMixin",
-		"GameRendererMixin"
+		"GameRendererMixin",
+		"PlayerModelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

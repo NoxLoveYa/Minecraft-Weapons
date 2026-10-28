@@ -8,12 +8,16 @@ import com.noxloveya.mcweapons.network.ServerHandlers;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -34,8 +38,16 @@ import java.util.Set;
  * are seen here when they switch to a gun.
  */
 public final class ThirdPersonGuns {
+	/** Aiming, both arms reach forward following the head: the gun arm turned in by this (radians), the other further, so the hands meet at the gun. */
+	public static final float AIM_GUN_ARM_IN = 0.36F;
+	private static final float AIM_SUPPORT_ARM_IN = 0.7F;
+	/** Set on an avatar's render state while it aims a gun, for {@link #poseAimHold}. */
+	public static final RenderStateDataKey<Boolean> AIM_HOLD = RenderStateDataKey.create(() -> "mcweapons:aim_hold");
 	private static final long FLASH_NANOS = 60_000_000L;
+	/** After a shot the gun stays up this long, so firing from the hip does not show it pointing at the ground. */
+	private static final long RAISED_NANOS = 1_500_000_000L;
 	private static final Map<Integer, Long> flashUntil = new HashMap<>();
+	private static final Map<Integer, Long> raisedUntil = new HashMap<>();
 	/** What each other player held last tick, to see them switch to a gun. */
 	private static final Map<Integer, Item> heldItems = new HashMap<>();
 
@@ -54,6 +66,7 @@ public final class ThirdPersonGuns {
 		if (minecraft.level == null) {
 			heldItems.clear();
 			flashUntil.clear();
+			raisedUntil.clear();
 			return;
 		}
 		Set<Integer> present = new HashSet<>();
@@ -72,6 +85,7 @@ public final class ThirdPersonGuns {
 		heldItems.keySet().retainAll(present);
 		long now = System.nanoTime();
 		flashUntil.values().removeIf(until -> until < now);
+		raisedUntil.values().removeIf(until -> until < now);
 	}
 
 	private static void othersAnimation(@Nullable ClientLevel level, GunAnimationPayload payload) {
@@ -86,16 +100,21 @@ public final class ThirdPersonGuns {
 		gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, action);
 	}
 
-	/** Rough position of a point on a gun held in someone's right hand, seen from outside: {@code forward} blocks out from the eye (0.7 is the muzzle). */
+	/**
+	 * Rough position of a point on a gun held up in the two-handed aim (which a shot always brings it to), seen from outside:
+	 * {@code forward} blocks out from the eye along the look, 0.97 for the muzzle and 0.68 for the ejection port.
+	 */
 	public static Vec3 heldPoint(Entity holder, double forward) {
 		Vec3 look = holder.getLookAngle();
 		Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
-		return holder.getEyePosition().add(look.scale(forward)).add(right.scale(0.35)).add(0, -0.45, 0);
+		return holder.getEyePosition().add(look.scale(forward)).add(right.scale(0.14)).add(0, -0.11, 0);
 	}
 
-	/** Someone fired: flash at the muzzle of their gun as drawn in third person. */
+	/** Someone fired: flash at the muzzle of their gun as drawn in third person, and hold the gun up for a moment. */
 	public static void flash(int shooterId) {
-		flashUntil.put(shooterId, System.nanoTime() + FLASH_NANOS);
+		long now = System.nanoTime();
+		flashUntil.put(shooterId, now + FLASH_NANOS);
+		raisedUntil.put(shooterId, now + RAISED_NANOS);
 	}
 
 	public static boolean flashing(Entity holder) {
@@ -120,12 +139,30 @@ public final class ThirdPersonGuns {
 		}
 		AttributeInstance speed = holder.getAttribute(Attributes.MOVEMENT_SPEED);
 		boolean aiming = self != null ? GunInput.aiming() : speed != null && speed.hasModifier(ServerHandlers.ADS_SPEED);
-		return aiming ? Pose.AIM : Pose.HIP;
+		Long raised = raisedUntil.get(holder.getId());
+		return aiming || raised != null && System.nanoTime() < raised ? Pose.AIM : Pose.HIP;
 	}
 
 	/**
-	 * Vanilla arm pose for a gun in the main hand, or null to keep vanilla's: both arms straight out to aim, the support hand at the gun
-	 * while reloading, and the gun brought up in front of the face to inspect.
+	 * The two-handed aim, after vanilla has posed the model: the gun arm points ahead turned in a little, the support arm turned in more
+	 * so its hand cups the gun hand, both following where the head looks. {@link GunRenderer} turns the gun back by the gun arm's turn.
+	 */
+	public static void poseAimHold(HumanoidModel<?> model, HumanoidArm mainArm) {
+		ModelPart gunArm = mainArm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
+		ModelPart supportArm = mainArm == HumanoidArm.RIGHT ? model.leftArm : model.rightArm;
+		// Positive yaw turns the left arm in, negative the right one.
+		float in = mainArm == HumanoidArm.RIGHT ? 1 : -1;
+		gunArm.xRot = -Mth.HALF_PI + model.head.xRot;
+		gunArm.yRot = model.head.yRot - in * AIM_GUN_ARM_IN;
+		gunArm.zRot = 0;
+		supportArm.xRot = -Mth.HALF_PI + model.head.xRot;
+		supportArm.yRot = model.head.yRot + in * AIM_SUPPORT_ARM_IN;
+		supportArm.zRot = 0;
+	}
+
+	/**
+	 * Vanilla arm pose for a gun in the main hand, or null to keep vanilla's: both arms out to aim (then made a two-handed hold by
+	 * {@link #poseAimHold}), the support hand at the gun while reloading, and the gun brought up in front of the face to inspect.
 	 */
 	public static HumanoidModel.@Nullable ArmPose armPose(LivingEntity holder, ItemStack stack, InteractionHand hand) {
 		if (hand != InteractionHand.MAIN_HAND || !(stack.getItem() instanceof GunItem)) {
