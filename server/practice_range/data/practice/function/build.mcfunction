@@ -33,6 +33,11 @@ fill -1 -60 -5 1 -60 -5 spruce_slab[type=top]
 summon item_display 0.5 -58.97 -4.5 {Tags:["pr"],item:{id:"mcweapons:glock17",count:1},item_display:"fixed",transformation:{left_rotation:[-0.7071f,0f,0f,0.7071f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[0.8f,0.8f,0.8f]}}
 summon interaction 0.5 -60 -4.5 {Tags:["pr","pr_gun_table"],width:3f,height:1.2f,response:1b}
 summon text_display 0.5 -58.75 -4.5 {Tags:["pr"],billboard:"center",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[0.5f,0.5f,0.5f]},text:{text:"Glock 17\n",color:"gold",extra:[{text:"right-click the table to take one",color:"white"}]}}
+# And a longer one to its right for the Mosin (advancement practice:take_mosin); its icon is turned to lie along the table.
+fill 4 -60 -5 7 -60 -5 spruce_slab[type=top]
+summon item_display 6.0 -58.97 -4.5 {Tags:["pr"],item:{id:"mcweapons:mosin_nagant",count:1},item_display:"fixed",transformation:{left_rotation:[-0.7071f,0f,0f,0.7071f],right_rotation:[0f,0f,-0.3827f,0.9239f],translation:[0f,0f,0f],scale:[1.4f,1.4f,1.4f]}}
+summon interaction 6.0 -60 -4.5 {Tags:["pr","pr_mosin_table"],width:3.6f,height:1.2f,response:1b}
+summon text_display 6.0 -58.75 -4.5 {Tags:["pr"],billboard:"center",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[0.5f,0.5f,0.5f]},text:{text:"Mosin-Nagant\n",color:"gold",extra:[{text:"right-click the table to take one",color:"white"}]}}
 
 # Static targets, two rows (12 and 30 blocks out): green dies in one shot, yellow takes 4 body / 2 head, red 12 body / 6 head (Glock).
 summon marker -23.5 -60 12.5 {Tags:["pr","pr_slot","pr_1shot"]}
