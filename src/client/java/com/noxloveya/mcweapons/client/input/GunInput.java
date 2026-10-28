@@ -60,7 +60,14 @@ public final class GunInput {
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
+	/** A shot keeps the gun up this long (0.5 s) before a held sprint key runs again. */
+	private static final int SHOT_NO_SPRINT_TICKS = 10;
+
 	private static boolean aiming;
+	/** The aim key is held with a gun in hand. It ends a sprint at once; the sights come up once the running pose is down. */
+	private static boolean aimHeld;
+	/** Game time until which the last shot keeps the holder from sprinting. */
+	private static long noSprintUntil;
 	/** Client game time, in fractional ticks, when the next shot is due (see GunDefinition.nextShotDue). */
 	private static double nextShotDue;
 	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
@@ -93,6 +100,11 @@ public final class GunInput {
 
 	public static boolean aiming() {
 		return aiming;
+	}
+
+	/** Aiming or a recent shot: no sprinting, as the gun cannot be up and in the running pose at once (see LocalPlayerMixin). */
+	public static boolean blocksSprint(LocalPlayer player) {
+		return aimHeld || player.level().getGameTime() < noSprintUntil;
 	}
 
 	/** True while the held gun is reloading, by the server's state or by our own prediction. */
@@ -149,7 +161,9 @@ public final class GunInput {
 		LocalPlayer player = minecraft.player;
 		boolean holding = player != null && GunItem.holdsGun(player);
 
-		boolean aim = holding && minecraft.options.keyUse.isDown();
+		aimHeld = holding && minecraft.options.keyUse.isDown();
+		// Out of a sprint the running pose comes down first, so the sights rise a little later.
+		boolean aim = aimHeld && !Viewmodel.running();
 		if (aim != aiming && player != null) {
 			ClientPlayNetworking.send(new AimPayload(aim));
 			if (holding) {
@@ -172,6 +186,7 @@ public final class GunInput {
 			drawnSlot = -1;
 			drawnItem = null;
 			predictedReloadUntil = 0;
+			noSprintUntil = 0;
 			Viewmodel.reset();
 			return;
 		}
@@ -192,7 +207,7 @@ public final class GunInput {
 			play(player, gun, "draw");
 		}
 		if (definition != null) {
-			Viewmodel.tick(player, definition, aim, minecraft.gui.screen() instanceof GunTunerScreen);
+			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen);
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.
@@ -254,6 +269,7 @@ public final class GunInput {
 			GunHud.safeBlocked();
 		}
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
+		noSprintUntil = now + SHOT_NO_SPRINT_TICKS;
 		int ammo = GunItem.ammo(stack, definition);
 		boolean fires = !safe && ammo > 0;
 		// The shot leaves the eye along the aim from before its own recoil kick; the server fires the same bullet from these.

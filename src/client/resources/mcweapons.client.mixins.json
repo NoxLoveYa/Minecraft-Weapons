@@ -8,6 +8,7 @@
 		"CameraMixin",
 		"FirstPersonHandsAndItemsRendererMixin",
 		"GameRendererMixin",
+		"LocalPlayerMixin",
 		"PlayerModelMixin"
 	],
 	"injectors": {
