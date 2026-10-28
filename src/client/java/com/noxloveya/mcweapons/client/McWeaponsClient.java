@@ -12,14 +12,13 @@ import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
-import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
-import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.network.BulletImpactPayload;
+import com.noxloveya.mcweapons.network.BulletPayload;
 import com.noxloveya.mcweapons.network.GunDefinitionsPayload;
 import com.noxloveya.mcweapons.network.HitMarkerPayload;
-import com.noxloveya.mcweapons.network.ShotFxPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -37,9 +36,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -85,7 +82,8 @@ public class McWeaponsClient implements ClientModInitializer {
 			});
 		}
 		ClientPlayNetworking.registerGlobalReceiver(GunDefinitionsPayload.TYPE, (payload, context) -> GunDefinitions.set(payload.definitions()));
-		ClientPlayNetworking.registerGlobalReceiver(ShotFxPayload.TYPE, (payload, context) -> shotFx(context.client().level, payload));
+		ClientPlayNetworking.registerGlobalReceiver(BulletPayload.TYPE, (payload, context) -> bulletFired(context.client().level, payload));
+		ClientPlayNetworking.registerGlobalReceiver(BulletImpactPayload.TYPE, (payload, context) -> bulletImpact(context.client().level, payload));
 		ClientPlayNetworking.registerGlobalReceiver(HitMarkerPayload.TYPE, (payload, context) -> GunHud.hitmarker(payload.headshot(), payload.kill()));
 	}
 
@@ -100,45 +98,43 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 	}
 
-	/** How far ahead of the eye a held gun's muzzle is (see ThirdPersonGuns.heldPoint): further with a silencer on it. */
-	private static double heldMuzzle(ItemStack gun) {
-		return Attachments.silenced(gun) ? 1.37 : 0.97;
-	}
-	private static void shotFx(@Nullable ClientLevel level, ShotFxPayload fx) {
+	/**
+	 * Someone else's shot (ours were drawn when we fired): their third-person gun fires, with flash, smoke and a casing, and the tracer
+	 * starts on the bullet's path from their muzzle.
+	 */
+	private static void bulletFired(@Nullable ClientLevel level, BulletPayload bullet) {
 		if (level == null) {
 			return;
 		}
-		Minecraft minecraft = Minecraft.getInstance();
-		Entity shooter = level.getEntity(fx.shooterId());
-		ThirdPersonGuns.flash(fx.shooterId());
-		// Someone else's shot: play the fire animation on their third-person gun and puff smoke at its muzzle.
-		if (shooter instanceof LivingEntity living && shooter != minecraft.player && living.getMainHandItem().getItem() instanceof GunItem gun) {
-			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
-			Vec3 muzzle = ThirdPersonGuns.heldPoint(shooter, heldMuzzle(living.getMainHandItem()));
-			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
-			// Our own casings are thrown with the predicted shot instead (GunInput).
-			Casings.eject(shooter, gun);
-		}
-		if (shooter != null) {
-			// Our own shot in first person starts where the viewmodel's muzzle is drawn; everyone else's from their hand.
-			Vec3 from = shooter == minecraft.player && minecraft.options.getCameraType().isFirstPerson()
-					&& GeoRenderProvider.of(minecraft.player.getMainHandItem()).getGeoItemRenderer() instanceof GunRenderer renderer
-					? Viewmodel.bonePosition(renderer, renderer.muzzleBone(minecraft.player.getMainHandItem()), minecraft.gameRenderer.mainCamera(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false))
-					: ThirdPersonGuns.heldPoint(shooter, shooter instanceof LivingEntity holder ? heldMuzzle(holder.getMainHandItem()) : 0.97);
-			Tracers.spawn(from, fx.hitPos());
-		}
-		if (fx.hitType() == HitResult.Type.MISS) {
+		Entity shooter = level.getEntity(bullet.shooterId());
+		if (shooter == Minecraft.getInstance().player) {
 			return;
 		}
-		Vec3 pos = fx.hitPos();
+		ThirdPersonGuns.flash(bullet.shooterId());
+		Vec3 muzzle = shooter != null ? Tracers.muzzle(shooter) : bullet.origin();
+		if (shooter instanceof LivingEntity living && living.getMainHandItem().getItem() instanceof GunItem gun) {
+			gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(shooter)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, "fire");
+			level.addParticle(ParticleTypes.SMOKE, muzzle.x, muzzle.y, muzzle.z, 0.0, 0.02, 0.0);
+			Casings.eject(shooter, gun);
+		}
+		Tracers.fire(bullet.shooterId(), bullet.shotId(), bullet.origin(), bullet.velocity(), bullet.gravity(), bullet.range(), muzzle, false);
+	}
+
+	/** Where a bullet stopped, by the server: its tracer ends there, and the impact puffs (with chips of the block it hit). */
+	private static void bulletImpact(@Nullable ClientLevel level, BulletImpactPayload impact) {
+		if (level == null) {
+			return;
+		}
+		Tracers.impact(impact.shooterId(), impact.shotId(), impact.pos());
+		Vec3 pos = impact.pos();
 		RandomSource random = level.getRandom();
-		ParticleOptions puff = fx.hitType() == HitResult.Type.ENTITY ? ParticleTypes.CRIT : ParticleTypes.SMOKE;
+		ParticleOptions puff = impact.entity() ? ParticleTypes.CRIT : ParticleTypes.SMOKE;
 		for (int i = 0; i < 4; i++) {
 			level.addParticle(puff, pos.x, pos.y, pos.z, 0.0, 0.02, 0.0);
 		}
-		if (fx.hitType() == HitResult.Type.BLOCK && shooter != null) {
+		if (!impact.entity()) {
 			// The hit point sits on the block face, so step a hair along the shot to find the block that was hit.
-			Vec3 direction = pos.subtract(shooter.getEyePosition()).normalize();
+			Vec3 direction = impact.direction();
 			BlockState block = level.getBlockState(BlockPos.containing(pos.add(direction.scale(0.01))));
 			if (!block.isAir()) {
 				for (int i = 0; i < 6; i++) {

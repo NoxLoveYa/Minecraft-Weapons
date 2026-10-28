@@ -33,7 +33,8 @@ public record GunDefinition(
 		float moveSpeedAdsMultiplier,
 		float headshotMultiplier,
 		GunFeel feel,
-		List<Identifier> attachments) {
+		List<Identifier> attachments,
+		BulletStats bullet) {
 
 	/** Damage multiplier for hits in the head zone (see Hitscan) when the json leaves it out. */
 	public static final float DEFAULT_HEADSHOT_MULTIPLIER = 2;
@@ -66,35 +67,41 @@ public record GunDefinition(
 			Codec.floatRange(1, 10).optionalFieldOf("headshot_multiplier").forGetter(definition -> Optional.of(definition.headshotMultiplier())),
 			GunFeel.CODEC.optionalFieldOf("feel").forGetter(definition -> Optional.of(definition.feel())),
 			// Attachment item ids that fit this gun; each goes in the slot its item names.
-			Identifier.CODEC.listOf().optionalFieldOf("attachments").forGetter(definition -> Optional.of(definition.attachments()))
-	).apply(i, (stats, headshot, feel, attachments) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER)).withFeel(feel.orElse(GunFeel.DEFAULT))
-			.withAttachments(attachments.orElse(List.of()))));
+			Identifier.CODEC.listOf().optionalFieldOf("attachments").forGetter(definition -> Optional.of(definition.attachments())),
+			BulletStats.CODEC.optionalFieldOf("bullet").forGetter(definition -> Optional.of(definition.bullet()))
+	).apply(i, (stats, headshot, feel, attachments, bullet) -> stats.withHeadshotMultiplier(headshot.orElse(DEFAULT_HEADSHOT_MULTIPLIER)).withFeel(feel.orElse(GunFeel.DEFAULT))
+			.withAttachments(attachments.orElse(List.of())).withBullet(bullet.orElse(BulletStats.DEFAULT))));
 
-	/** The stats alone, with the default headshot multiplier and feel, and no attachments. */
+	/** The stats alone, with the default headshot multiplier, feel and bullet, and no attachments. */
 	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
 			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
 		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
-				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of());
+				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of(), BulletStats.DEFAULT);
 	}
 
 	public GunDefinition withFeel(GunFeel feel) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet);
 	}
 
 	public GunDefinition withHeadshotMultiplier(float headshotMultiplier) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet);
 	}
 
 	public GunDefinition withMagSize(int magSize) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet);
 	}
 
 	public GunDefinition withAttachments(List<Identifier> attachments) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
-				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments));
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments), bullet);
+	}
+
+	public GunDefinition withBullet(BulletStats bullet) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet);
 	}
 
 	/** The fire mode that blocks the trigger. Every gun has it after its own modes, whatever its definition lists. */

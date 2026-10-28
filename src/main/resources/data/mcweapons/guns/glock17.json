@@ -19,6 +19,10 @@
   "ads_fov_multiplier": 0.8,
   "move_speed_ads_multiplier": 1.0,
   "headshot_multiplier": 2.0,
+  "bullet": {
+    "speed": 375.0,
+    "gravity": 9.81
+  },
   "attachments": [
     "mcweapons:silencer",
     "mcweapons:red_dot",

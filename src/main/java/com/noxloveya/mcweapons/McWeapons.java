@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons;
 
+import com.noxloveya.mcweapons.combat.Bullets;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.ServerHandlers;
@@ -23,6 +24,7 @@ public class McWeapons implements ModInitializer {
 		ResourceLoader.get(PackType.SERVER_DATA).registerReloadListener(GunDefinitions.ID, new GunDefinitions());
 		GunItem.registerEvents();
 		ServerHandlers.register();
+		Bullets.register();
 	}
 
 	public static Identifier id(String path) {

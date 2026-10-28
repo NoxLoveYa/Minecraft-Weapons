@@ -4,9 +4,12 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
+import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.client.screen.AttachmentScreen;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
+import com.noxloveya.mcweapons.combat.Ballistics;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
@@ -30,6 +33,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
@@ -72,6 +76,8 @@ public final class GunInput {
 	/** The fire mode we switched to, used until the server's fire_mode arrives. */
 	private static @Nullable String predictedMode;
 	private static long predictedModeUntil;
+	/** Names our shots, so the server's impact for one can end its tracer. */
+	private static int lastShotId;
 	/** End of the attach or detach animation we started; the gun does nothing else until then. */
 	private static long attachingUntil;
 	/** What we asked to fit into each slot, shown in the hand during the attach animation until the server's attachments arrive. */
@@ -249,18 +255,29 @@ public final class GunInput {
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		int ammo = GunItem.ammo(stack, definition);
 		boolean fires = !safe && ammo > 0;
+		// The shot leaves the eye along the aim from before its own recoil kick; the server fires the same bullet from these.
+		Vec3 origin = player.getEyePosition();
+		float xRot = player.getXRot();
+		float yRot = player.getYRot();
+		long seed = player.getRandom().nextLong();
+		int shotId = ++lastShotId;
 		player.playSound(gun.sound(!fires ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
 		if (fires) {
 			play(player, gun, "fire");
 			// Before the recoil kick moves the view.
 			Casings.eject(player, gun);
+			ThirdPersonGuns.flash(player.getId());
+			Vec3 direction = Ballistics.direction(xRot, yRot, seed, aiming ? definition.spreadAdsDeg() : definition.spreadHipDeg());
+			// Rounded like the server's bullet (see Bullets.fire), so this tracer and the bullet follow one path.
+			Vec3 velocity = new Vec3(direction.scale(definition.bullet().speedPerTick()).toVector3f());
+			Tracers.fire(player.getId(), shotId, origin, velocity, (float)definition.bullet().gravityPerTick(), (float)definition.range(), Tracers.muzzle(player), true);
 			Viewmodel.onShot(player, definition);
 			if (ammo == 1) {
 				// Covers the round trip until the server says the gun is empty.
 				predictedEmptyUntil = now + 10;
 			}
 		}
-		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, player.getRandom().nextLong()));
+		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot));
 	}
 
 	/** Same checks as the server, so the animation only starts for a reload the server will accept. */

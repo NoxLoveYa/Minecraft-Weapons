@@ -3,7 +3,8 @@ package com.noxloveya.mcweapons.network;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import com.noxloveya.mcweapons.McWeapons;
-import com.noxloveya.mcweapons.combat.Hitscan;
+import com.noxloveya.mcweapons.combat.Ballistics;
+import com.noxloveya.mcweapons.combat.Bullets;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
@@ -31,6 +32,7 @@ import net.minecraft.server.permissions.Permissions;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.InclusiveRange;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -38,7 +40,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,6 +52,8 @@ public final class ServerHandlers {
 	public static final Identifier ADS_SPEED = McWeapons.id("ads_speed");
 	/** World datapack the gun tuner saves into. It is picked up by /reload and on the next world load. */
 	private static final String TUNING_PACK = "mcweapons_tuning";
+	/** Furthest a shot's reported eye may be from the server's, in blocks: a sprint or a jump between ticks, not a teleport. */
+	private static final double MAX_SHOT_ORIGIN_OFFSET = 3;
 
 	private ServerHandlers() {
 	}
@@ -63,7 +67,8 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(FireModePayload.TYPE, FireModePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(AttachPayload.TYPE, AttachPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
-		PayloadTypeRegistry.clientboundPlay().register(ShotFxPayload.TYPE, ShotFxPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunDefinitionsPayload.TYPE, GunDefinitionsPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(HitMarkerPayload.TYPE, HitMarkerPayload.CODEC);
 
@@ -118,17 +123,17 @@ public final class ServerHandlers {
 			return;
 		}
 		gun.set(ModComponents.AMMO, ammo - 1);
-		Hitscan.Shot shot = Hitscan.fire(player, gun, definition, payload.seed(), isAiming(player));
-		HitResult hit = shot.hit();
-		if (shot.hurt()) {
-			ServerPlayNetworking.send(player, new HitMarkerPayload(shot.headshot(), shot.killed()));
-		}
+		// The client's eye and aim when it fired: the server's copies trail it by a tick or so, and its aim here would already include the
+		// recoil of this very shot. An eye too far from the server's (a teleport, a lagging client or a forged packet) is not trusted.
+		Vec3 eye = player.getEyePosition();
+		Vec3 origin = payload.origin().distanceToSqr(eye) <= MAX_SHOT_ORIGIN_OFFSET * MAX_SHOT_ORIGIN_OFFSET ? payload.origin() : eye;
+		float xRot = Float.isFinite(payload.xRot()) ? Mth.clamp(payload.xRot(), -90, 90) : player.getXRot();
+		float yRot = Float.isFinite(payload.yRot()) ? payload.yRot() : player.getYRot();
+		Vec3 direction = Ballistics.direction(xRot, yRot, payload.seed(), isAiming(player) ? definition.spreadAdsDeg() : definition.spreadHipDeg());
+		Bullets.fire(player, payload.shotId(), origin, direction, definition, gun, payload.clientTick());
 		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks, and silenced ones about 16.
 		boolean silenced = Attachments.silenced(gun);
 		playSound(player, item.sound(silenced ? "fire_silenced" : "fire"), silenced ? 1.0F : 3.0F);
-		ShotFxPayload fx = new ShotFxPayload(player.getId(), hit.getLocation(), hit.getType());
-		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, fx));
-		ServerPlayNetworking.send(player, fx);
 	}
 
 	private static void reload(ServerPlayer player, int slot) {
