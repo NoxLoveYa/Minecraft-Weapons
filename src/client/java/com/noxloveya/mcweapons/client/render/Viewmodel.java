@@ -40,6 +40,9 @@ public final class Viewmodel {
 	private static final Matrix4f inverseBase = new Matrix4f();
 	private static final Matrix4f gunPose = new Matrix4f();
 	private static long gunPoseNanos;
+	/** The ejection port's drawn pose in view space, for casings to leave from (see {@link #ejectionPort}). */
+	private static final Matrix4f portPose = new Matrix4f();
+	private static long portPoseNanos;
 	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
@@ -138,15 +141,44 @@ public final class Viewmodel {
 		float aim = ads(partialTick);
 		Vector3f anchor = renderer.restPivot("ads_anchor");
 		Vector3f muzzle = renderer.restPivot(bone).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
-		// The hand is drawn with a fixed FOV, so scale the sideways offset until the point lands on the same pixel at the world FOV.
-		float scale = (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
+		return camera.position().add(viewToWorld(camera, muzzle));
+	}
+
+	/**
+	 * The hand is drawn with a fixed FOV, so a view-space offset is scaled sideways by this to land on the same pixel at the world FOV.
+	 * Going the other way, from the world into the hand's view space, divides by it.
+	 */
+	public static float fovScale(Camera camera) {
+		return (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
+	}
+
+	/** A view-space offset (right, up, back) as a world offset from the camera, at the world FOV. */
+	private static Vec3 viewToWorld(Camera camera, Vector3fc offset) {
+		float scale = fovScale(camera);
 		Vector3fc left = camera.leftVector();
 		Vector3fc up = camera.upVector();
 		Vector3fc forward = camera.forwardVector();
-		float x = -muzzle.x * scale;
-		float y = muzzle.y * scale;
-		float z = -muzzle.z;
-		return camera.position().add(left.x() * x + up.x() * y + forward.x() * z, left.y() * x + up.y() * y + forward.y() * z, left.z() * x + up.z() * y + forward.z() * z);
+		float x = -offset.x() * scale;
+		float y = offset.y() * scale;
+		float z = -offset.z();
+		return new Vec3(left.x() * x + up.x() * y + forward.x() * z, left.y() * x + up.y() * y + forward.y() * z, left.z() * x + up.z() * y + forward.z() * z);
+	}
+
+	/** Called by {@link EjectionPortLayer} with the pose the {@code ejection_port} bone is drawn with this frame. */
+	static void recordPortPose(Matrix4fc bonePose) {
+		portPose.set(inverseBase).mul(bonePose);
+		portPoseNanos = System.nanoTime();
+	}
+
+	/** Where the ejection port of the first-person gun was last drawn, in the world, or null when it has not been drawn lately. */
+	public static Casings.@Nullable Port ejectionPort(Camera camera) {
+		if (System.nanoTime() - portPoseNanos > 200_000_000L) {
+			return null;
+		}
+		Vec3 right = viewToWorld(camera, portPose.transformDirection(new Vector3f(1, 0, 0))).normalize();
+		Vec3 up = viewToWorld(camera, portPose.transformDirection(new Vector3f(0, 1, 0))).normalize();
+		Vec3 forward = viewToWorld(camera, portPose.transformDirection(new Vector3f(0, 0, -1))).normalize();
+		return new Casings.Port(camera.position().add(viewToWorld(camera, portPose.transformPosition(new Vector3f()))), right, up, forward);
 	}
 
 	public static boolean muzzleFlash() {
@@ -203,6 +235,8 @@ public final class Viewmodel {
 		poseStack.pushPose();
 		// Everything below is in view space relative to this; the tuner reads the gun's pose against it.
 		inverseBase.set(poseStack.last().pose()).invert();
+		// Our casings while still at the gun, drawn with it so the slide hides them until they clear the port.
+		Casings.submitInHand(poseStack, renderTasks, partialTick);
 
 		// 1. ADS: slide the model so ads_anchor lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view.

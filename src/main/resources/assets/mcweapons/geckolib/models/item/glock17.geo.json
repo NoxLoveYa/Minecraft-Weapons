@@ -1043,6 +1043,11 @@
 					]
 				},
 				{
+					"name": "ejection_port",
+					"parent": "gun",
+					"pivot": [-6, -3.15, -11.6]
+				},
+				{
 					"name": "arm_right",
 					"parent": "root",
 					"pivot": [-7.50045, -11.43135, -1.73736],
