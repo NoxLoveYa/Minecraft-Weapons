@@ -1,0 +1,55 @@
+# A push to main with [production] in a commit message builds the mod and publishes it as a GitHub release, with the jar to install.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# One release at a time, in push order.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: contains(join(github.event.commits.*.message, ' '), '[production]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: Build and test
+        run: ./gradlew build --console=plain
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prop() { grep "^$1=" gradle.properties | cut -d= -f2; }
+          version=$(prop mod_version)
+          # mod_version stays put between releases, so the run number keeps each tag new.
+          tag="v${version}-r${{ github.run_number }}"
+
+          # Everything attached to the release: add a line per file (a resource pack, a server datapack...).
+          assets=(
+            "build/libs/mcweapons-${version}.jar"
+          )
+
+          cat > notes.md <<EOF
+          **Install:** put \`mcweapons-${version}.jar\` in the \`mods\` folder, on the client and on the server, of a Fabric instance for Minecraft $(prop minecraft_version) (Java 25), with:
+          - Fabric Loader $(prop loader_version) or newer
+          - Fabric API $(prop fabric_api_version) or newer
+          - GeckoLib $(prop geckolib_version) or newer (Fabric, $(prop minecraft_version))
+
+          Optional: LambDynamicLights, for muzzle flashes that light up the surroundings.
+          EOF
+
+          gh release create "$tag" "${assets[@]}" --target "$GITHUB_SHA" --title "Minecraft Weapons $tag" --notes-file notes.md --generate-notes
