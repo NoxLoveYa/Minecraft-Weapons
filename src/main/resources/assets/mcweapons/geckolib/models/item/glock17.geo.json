@@ -986,6 +986,46 @@
 					]
 				},
 				{
+					"name": "attach_magazine",
+					"parent": "magazine",
+					"pivot": [-6, -10.85, -11.4]
+				},
+				{
+					"name": "extended_mag",
+					"parent": "attach_magazine",
+					"pivot": [-6, -10.85, -11.4],
+					"cubes": [
+						{
+							"origin": [-6.58, -15.85, -12.9],
+							"size": [1.16, 5.05, 2.7],
+							"pivot": [-6, -4.95, -11.4],
+							"rotation": [18, 0, 0],
+							"uv": {
+								"north": {"uv": [110, 64], "uv_size": [4, 21]},
+								"east": {"uv": [90, 64], "uv_size": [10, 21]},
+								"south": {"uv": [114, 64], "uv_size": [4, 21]},
+								"west": {"uv": [100, 64], "uv_size": [10, 21]},
+								"up": {"uv": [112, 10], "uv_size": [-4, -10]},
+								"down": {"uv": [116, 10], "uv_size": [-4, -10]}
+							}
+						},
+						{
+							"origin": [-6.8, -16.3, -13.1],
+							"size": [1.6, 0.45, 3.2],
+							"pivot": [-6, -4.95, -11.4],
+							"rotation": [18, 0, 0],
+							"uv": {
+								"north": {"uv": [80, 55], "uv_size": [8, 2]},
+								"east": {"uv": [77, 52], "uv_size": [14, 2]},
+								"south": {"uv": [88, 55], "uv_size": [8, 2]},
+								"west": {"uv": [91, 52], "uv_size": [14, 2]},
+								"up": {"uv": [78, 14], "uv_size": [-8, -14]},
+								"down": {"uv": [86, 14], "uv_size": [-8, -14]}
+							}
+						}
+					]
+				},
+				{
 					"name": "muzzle",
 					"parent": "gun",
 					"pivot": [-6, -3.45, -20.05]

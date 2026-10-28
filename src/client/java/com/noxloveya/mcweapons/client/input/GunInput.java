@@ -11,6 +11,7 @@ import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
+import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.client.render.GunHud;
@@ -206,7 +207,8 @@ public final class GunInput {
 			inspect(player, gun, nextInspect(player, slideLocked(player, stack, definition)));
 		}
 		if (freshPress(TUNER) && definition != null && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
-			minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), definition, stack.getHoverName()));
+			// The plain definition, not the one with attachments applied: the tuner edits the gun's own values.
+			minecraft.gui.setScreen(new GunTunerScreen(gun.definitionId(), GunDefinitions.get(gun.definitionId()), stack.getHoverName()));
 		}
 		if (freshPress(ATTACHMENTS) && definition != null && !definition.attachments().isEmpty()) {
 			minecraft.gui.setScreen(new AttachmentScreen());

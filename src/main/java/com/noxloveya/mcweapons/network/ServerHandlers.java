@@ -184,7 +184,15 @@ public final class ServerHandlers {
 		if (wanted != null && !creative && !takeOne(player, wanted)) {
 			return;
 		}
+		int ammo = GunItem.ammo(gun, definition);
 		Attachments.set(gun, part, wanted);
+		// The rounds stay in the gun across a magazine swap, up to what the new one holds. Always written, because a fresh gun's
+		// ammo defaults to its mag size, which a bigger magazine would otherwise fill for free.
+		// shortcut: rounds a smaller mag cannot take are lost, phase 3 (ammo items) should give them back.
+		GunDefinition fitted = GunItem.definition(gun);
+		if (fitted != null) {
+			gun.set(ModComponents.AMMO, fitted.clampAmmo(ammo));
+		}
 		if (current != null && !creative) {
 			player.getInventory().placeItemBackInInventory(new ItemStack(current), Prediction.SERVER_ONLY);
 		}

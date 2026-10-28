@@ -87,6 +87,11 @@ public record GunDefinition(
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
 	}
 
+	public GunDefinition withMagSize(int magSize) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments);
+	}
+
 	public GunDefinition withAttachments(List<Identifier> attachments) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, List.copyOf(attachments));
@@ -147,5 +152,10 @@ public record GunDefinition(
 	/** Rounds after a reload. Also the "mag is full" limit: a reload is pointless once {@code ammo >= reloadTarget(ammo)}. */
 	public int reloadTarget(int ammo) {
 		return ammo > 0 && chamber ? magSize + 1 : magSize;
+	}
+
+	/** {@code ammo} cut down to what this gun holds, after a smaller magazine goes in: a full mag, and the chambered round. */
+	public int clampAmmo(int ammo) {
+		return Math.min(ammo, reloadTarget(ammo));
 	}
 }

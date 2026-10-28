@@ -42,6 +42,13 @@ class GunDefinitionTest {
 		assertEquals(18, glock.reloadTarget(17), "a fresh gun (17, chamber empty) may still chamber a round");
 		assertEquals(18, glock.reloadTarget(18));
 
+		// A 33-round magazine reloads to 34, and swapping back to the gun's own keeps a full mag and the chambered round.
+		GunDefinition extended = glock.withMagSize(33);
+		assertEquals(34, extended.reloadTarget(1));
+		assertEquals(18, glock.clampAmmo(34));
+		assertEquals(10, glock.clampAmmo(10));
+		assertEquals(0, glock.clampAmmo(0));
+
 		// Feel is optional in the json but always written back, so the tuner and its saved files show every value.
 		JsonObject json = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
 		assertTrue(json.has("feel"));

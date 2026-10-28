@@ -21,6 +21,7 @@ public final class ModItems {
 	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences());
 	// Its effect is on the model: the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone).
 	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, UnaryOperator.identity());
+	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
 			FabricCreativeModeTab.builder()

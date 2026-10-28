@@ -16,6 +16,7 @@ public class AttachmentItem extends Item {
 
 	private final AttachmentSlot slot;
 	private boolean silences;
+	private int capacity;
 
 	public AttachmentItem(AttachmentSlot slot, Properties properties) {
 		super(properties);
@@ -40,5 +41,16 @@ public class AttachmentItem extends Item {
 
 	public boolean isSilencer() {
 		return silences;
+	}
+
+	/** A magazine holding {@code rounds}, in place of the gun's own {@code mag_size}. */
+	public AttachmentItem capacity(int rounds) {
+		this.capacity = rounds;
+		return this;
+	}
+
+	/** Rounds this magazine holds, or 0 when it is not a magazine. */
+	public int capacity() {
+		return capacity;
 	}
 }

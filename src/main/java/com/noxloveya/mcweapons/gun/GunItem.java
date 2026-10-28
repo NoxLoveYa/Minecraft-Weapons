@@ -134,8 +134,10 @@ public class GunItem extends Item implements GeoItem {
 		return this.renderProvider;
 	}
 
+	/** The stack's gun definition with its attachments applied (the tuner edits the plain one, {@link GunDefinitions#get}). */
 	public static @Nullable GunDefinition definition(ItemStack stack) {
-		return stack.getItem() instanceof GunItem gun ? GunDefinitions.get(gun.definitionId) : null;
+		GunDefinition definition = stack.getItem() instanceof GunItem gun ? GunDefinitions.get(gun.definitionId) : null;
+		return definition == null ? null : Attachments.apply(stack, definition);
 	}
 
 	public static String fireMode(ItemStack stack, GunDefinition definition) {
@@ -171,7 +173,7 @@ public class GunItem extends Item implements GeoItem {
 		if (!state.reloading() || !(entity instanceof Player player)) {
 			return;
 		}
-		GunDefinition definition = GunDefinitions.get(definitionId);
+		GunDefinition definition = definition(stack);
 		if (definition == null || player.getMainHandItem() != stack) {
 			stack.set(ModComponents.GUN_STATE, new GunState(0, state.lastShotTick()));
 		} else if (level.getGameTime() >= state.reloadingUntilTick()) {
@@ -183,7 +185,7 @@ public class GunItem extends Item implements GeoItem {
 
 	@Override
 	public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> lines, TooltipFlag flag) {
-		GunDefinition definition = GunDefinitions.get(definitionId);
+		GunDefinition definition = definition(stack);
 		if (definition == null) {
 			return;
 		}
