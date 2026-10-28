@@ -104,14 +104,17 @@ class GunDefinitionTest {
 		assertEquals(List.of("bolt", "safe"), mosin.selectableModes());
 		// The fire animation works the bolt in 1.05 s, inside one shot interval (DESIGN_RULES 3.6).
 		assertTrue(mosin.shotInterval() / 20 > 1.05);
-		// Five in the rifle, the chambered one among them: a reload always tops it up to five.
+		// Five in the magazine and one in the chamber: an empty rifle takes a clip of five (the bolt chambers one of them), and
+		// topping it up adds the sixth.
 		assertEquals(5, mosin.reloadTarget(0));
-		assertEquals(5, mosin.reloadTarget(3));
+		assertEquals(6, mosin.reloadTarget(3));
+		assertEquals(6, mosin.reloadTarget(5));
 		assertEquals(55, mosin.reloadDuration(0));
 		assertEquals("reload_empty", mosin.reloadAction(0));
-		assertEquals(10 + 2 * 12 + 10, mosin.reloadDuration(3));
-		assertEquals("reload_rounds_2", mosin.reloadAction(3));
-		assertEquals(10 + 4 * 12 + 10, mosin.reloadDuration(1));
+		assertEquals(10 + 3 * 12 + 10, mosin.reloadDuration(3));
+		assertEquals("reload_rounds_3", mosin.reloadAction(3));
+		assertEquals(10 + 5 * 12 + 10, mosin.reloadDuration(1));
+		assertTrue(6 - 1 <= GunItem.MAX_ROUND_RELOAD, "every top-up has its animation");
 		// Rounds go in 60% through each round's clip.
 		RoundReload rounds = mosin.roundReload();
 		assertEquals(0, rounds.loaded(2, 10 + 7));

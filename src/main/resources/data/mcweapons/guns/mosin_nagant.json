@@ -7,7 +7,7 @@
   "damage": 17.0,
   "range": 256.0,
   "mag_size": 5,
-  "chamber": false,
+  "chamber": true,
   "spread_hip_deg": 2.5,
   "spread_ads_deg": 0.02,
   "movement_spread": {
