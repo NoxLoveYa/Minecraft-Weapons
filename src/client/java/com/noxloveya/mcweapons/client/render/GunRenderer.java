@@ -87,6 +87,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		withRenderLayer(new ArmSkinLayer(this, "arm_left"));
 		withRenderLayer(new MuzzleFlashLayer(this));
 		withRenderLayer(new ReticleLayer(this));
+		withRenderLayer(new ScopeLensLayer(this));
 		withRenderLayer(new ShowcasePoseLayer(this));
 		withRenderLayer(new BonePoseLayer(this));
 	}
@@ -110,6 +111,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public Vector3f restPivot(String boneName) {
 		BakedGeoModel model = getGeoModel().getBakedModel(this.modelId);
 		return model.getBone(boneName).map(bone -> new Vector3f(bone.pivotX(), bone.pivotY(), bone.pivotZ()).div(16)).orElseGet(Vector3f::new);
+	}
+
+	/** A scope's lens radius in blocks: from its eyepiece ({@code <scope>_reticle}) to the rim ({@code <scope>_lens}). */
+	public float lensRadius(Identifier scope) {
+		return restPivot(scope.getPath() + "_lens").distance(restPivot(scope.getPath() + "_reticle"));
 	}
 
 	/** Rest-pose box around the gun (the {@code gun} bone and everything under it) in model space, in blocks: min xyz, then max xyz. */

@@ -7,9 +7,11 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.PerBoneRender;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.GeoRenderLayer;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
@@ -18,12 +20,15 @@ import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; a fitted laser's emitter, for its beam; the gun, magazine, attachment slots and a long gun's support hand
+ * for casings to leave from; a fitted laser's emitter, for its beam; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
  * locator in someone's hand, for their other hand to hold.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
+	private final GunRenderer gunRenderer;
+
 	public BonePoseLayer(GunRenderer renderer) {
 		super(renderer);
+		this.gunRenderer = renderer;
 	}
 
 	@Override
@@ -38,6 +43,11 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
 				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
 						consumer.accept(bone, (info, emitterBone, renderTasks) -> Viewmodel.recordEmitterPose(info.poseStack().last().pose())));
+				if (BuiltInRegistries.ITEM.getValue(id) instanceof AttachmentItem attachment && attachment.isScope()) {
+					float radius = this.gunRenderer.lensRadius(id);
+					renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone ->
+							consumer.accept(bone, (info, lensBone, renderTasks) -> Viewmodel.recordLensPose(info.poseStack().last().pose(), radius)));
+				}
 			}
 			return;
 		}

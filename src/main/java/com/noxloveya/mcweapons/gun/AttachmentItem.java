@@ -96,7 +96,10 @@ public class AttachmentItem extends Item {
 		return laser;
 	}
 
-	/** Aiming through it magnifies {@code magnification} times: the view narrows to 1 / magnification, in place of the gun's {@code ads_fov_multiplier}. */
+	/**
+	 * Aiming through it magnifies {@code magnification} times: the view narrows to 1 / magnification, in place of the gun's
+	 * {@code ads_fov_multiplier}. A {@link #scope} magnifies only what is seen through its lens instead.
+	 */
 	public AttachmentItem zoom(float magnification) {
 		return zoom(magnification, magnification);
 	}
@@ -117,7 +120,10 @@ public class AttachmentItem extends Item {
 		return maxZoom;
 	}
 
-	/** A magnifying scope: fully aimed, the holder looks through it (drawn over the screen from {@code textures/gui/scope/<item>.png}). */
+	/**
+	 * A magnifying scope, looked through like a real one: its lens shows the world at its magnification, with its reticle
+	 * ({@code textures/gui/scope/<item>.png}) etched in, while the view around it is not zoomed (drawn by the client).
+	 */
 	public AttachmentItem scope() {
 		this.scope = true;
 		return this;
@@ -130,7 +136,7 @@ public class AttachmentItem extends Item {
 	/** {@code definition} as this attachment changes it. */
 	public GunDefinition applyTo(GunDefinition definition) {
 		GunDefinition applied = capacity > 0 ? definition.withMagSize(capacity) : definition;
-		if (zoom > 0) {
+		if (zoom > 0 && !scope) {
 			applied = applied.withAdsFovMultiplier(1 / zoom);
 		}
 		if (velocity != 1) {

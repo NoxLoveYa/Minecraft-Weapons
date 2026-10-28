@@ -68,6 +68,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(AttachPayload.TYPE, AttachPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(ReticlePayload.TYPE, ReticlePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(LaserColorPayload.TYPE, LaserColorPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(EyeDistancePayload.TYPE, EyeDistancePayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
@@ -93,6 +94,13 @@ public final class ServerHandlers {
 			ItemStack gun = heldGun(context.player(), payload.slot());
 			if (!gun.isEmpty()) {
 				gun.set(ModComponents.LASER_COLOR, payload.color() & 0xFFFFFF);
+			}
+		});
+		ServerPlayNetworking.registerGlobalReceiver(EyeDistancePayload.TYPE, (payload, context) -> {
+			// Looks only: any held gun takes one for any scope, kept in range (Attachments.setEyeDistance).
+			ItemStack gun = heldGun(context.player(), payload.slot());
+			if (!gun.isEmpty() && BuiltInRegistries.ITEM.getValue(payload.scope()) instanceof AttachmentItem scope && scope.isScope()) {
+				Attachments.setEyeDistance(gun, scope, payload.distance());
 			}
 		});
 

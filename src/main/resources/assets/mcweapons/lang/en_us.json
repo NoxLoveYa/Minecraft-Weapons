@@ -27,6 +27,7 @@
   "gui.mcweapons.reticle.color": "Color",
   "gui.mcweapons.reticle.size": "Size",
   "gui.mcweapons.reticle.shape": "Shape",
+  "gui.mcweapons.reticle.eye_distance": "Eye distance",
   "gui.mcweapons.reticle.laser_color": "Color",
   "gui.mcweapons.reticle.color.red": "Red",
   "gui.mcweapons.reticle.color.green": "Green",

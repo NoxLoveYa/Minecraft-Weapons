@@ -8,6 +8,9 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunFeel;
 import com.noxloveya.mcweapons.gun.GunItem;
@@ -44,8 +47,8 @@ public final class Viewmodel {
 	/** Ticks the running pose takes to come up, and to go back down; aiming out of a sprint waits for it (see GunInput). */
 	private static final int RUN_IN_TICKS = 5;
 	private static final int RUN_OUT_TICKS = 4;
-	/** Ticks the view through a scope takes to fade in or out (see {@link ScopeView}). */
-	private static final int SCOPE_TICKS = 2;
+	/** Ticks a scope takes to come up to the eye, or back off it while the gun is busy or its bolt is worked. */
+	private static final int SCOPE_TICKS = 3;
 	private static final Matrix4f inverseBase = new Matrix4f();
 	private static final Matrix4f gunPose = new Matrix4f();
 	private static long gunPoseNanos;
@@ -55,6 +58,10 @@ public final class Viewmodel {
 	/** A fitted laser's emitter as drawn in view space, for the beam to leave from (see {@link #laserEmitter}). */
 	private static final Matrix4f emitterPose = new Matrix4f();
 	private static long emitterPoseNanos;
+	/** A fitted scope's eyepiece as drawn in view space, and its lens's radius in blocks, for its view (see {@link #lens}). */
+	private static final Matrix4f lensPose = new Matrix4f();
+	private static float lensRadius;
+	private static long lensPoseNanos;
 	/**
 	 * How far the barrel was last drawn tipped off the view, in the hand's view space (degrees, muzzle up and muzzle left), from sway,
 	 * walk bob, breathing and the recoil kick. Shots go this way (see {@link #barrelXRot}). Not the running pose or animations.
@@ -69,8 +76,7 @@ public final class Viewmodel {
 	private static float ads;
 	private static float adsO;
 	private static float adsFovMultiplier = 1;
-	private static float adsFovMultiplierO = 1;
-	/** 0 looking at the gun, 1 looking through its scope. */
+	/** 0 to 1 as a fitted scope comes to the eye: aimed, the gun then sits with its eyepiece its eye distance from the eye (Attachments.eyeDistance). */
 	private static float scope;
 	private static float scopeO;
 	private static float recoilPitch;
@@ -95,11 +101,8 @@ public final class Viewmodel {
 	private Viewmodel() {
 	}
 
-	/**
-	 * {@code fovMultiplier} is the zoom when fully aimed; {@code scopeReady} says a fitted scope can be looked through (the gun is not busy),
-	 * which it then is once aimed.
-	 */
-	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing, float fovMultiplier, boolean scopeReady) {
+	/** {@code scopeReady} says a fitted scope can be looked through (the gun is not busy): aiming then brings it to the eye. */
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing, boolean scopeReady) {
 		runO = run;
 		run = Mth.clamp(run + (running ? 1.0F / RUN_IN_TICKS : -1.0F / RUN_OUT_TICKS), 0, 1);
 		if (showcasing != showcaseOpen) {
@@ -122,11 +125,9 @@ public final class Viewmodel {
 		adsO = ads;
 		float step = 1.0F / Math.max(1, definition.adsTicks());
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
-		adsFovMultiplierO = adsFovMultiplier;
-		// Eased, so a variable scope zooms smoothly to the power the scroll wheel picked.
-		adsFovMultiplier += (fovMultiplier - adsFovMultiplier) * 0.5F;
+		adsFovMultiplier = definition.adsFovMultiplier();
 		scopeO = scope;
-		scope = Mth.clamp(scope + (scopeReady && ads >= 1 ? 1.0F : -1.0F) / SCOPE_TICKS, 0, 1);
+		scope = Mth.clamp(scope + (scopeReady ? 1.0F : -1.0F) / SCOPE_TICKS, 0, 1);
 		recoilPitch = definition.recoilPitchDeg();
 		feel = definition.feel();
 		recoilO = recoil;
@@ -195,36 +196,51 @@ public final class Viewmodel {
 	}
 
 	public static float fovMultiplier(float partialTick) {
-		return Mth.lerp(ads(partialTick), 1, Mth.lerp(partialTick, adsFovMultiplierO, adsFovMultiplier));
+		return Mth.lerp(ads(partialTick), 1, adsFovMultiplier);
 	}
 
-	/** How much slower the mouse turns the view: as much as aiming zooms in, so a scope's picture moves at about the usual speed. */
+	/**
+	 * How much slower the mouse turns the view: as much as aiming zooms in, or a scope at the eye magnifies, so what is aimed at moves
+	 * across the sights at about the usual speed.
+	 */
 	public static float turnScale() {
 		LocalPlayer player = Minecraft.getInstance().player;
-		return player != null && GunItem.holdsGun(player) ? fovMultiplier(1) : 1;
+		if (player == null || !GunItem.holdsGun(player)) {
+			return 1;
+		}
+		AttachmentItem optic = Attachments.in(player.getMainHandItem(), AttachmentSlot.OPTIC);
+		float scoped = optic != null && optic.isScope() ? ads(1) * scopeView(1) : 0;
+		return Mth.lerp(scoped, fovMultiplier(1), scoped > 0 ? 1 / GunInput.zoom(optic) : 1);
 	}
 
-	/** How far into the view through a scope, 0 (the gun) to 1 (only the scope's picture; the gun is not drawn). */
+	/** How far a fitted scope has come to the eye, 0 to 1 (see {@link #scope}). */
 	public static float scopeView(float partialTick) {
-		return Mth.lerp(partialTick, scopeO, scope);
+		float t = Mth.lerp(partialTick, scopeO, scope);
+		return t * t * (3 - 2 * t);
 	}
 
-	/** The barrel's last drawn tip off the view in the hand's view space, in degrees (muzzle up), or 0 when it has not been drawn lately. */
-	static float barrelUp() {
-		return System.nanoTime() - barrelNanos > 200_000_000L ? 0 : barrelPitch;
+	/**
+	 * Where aiming moves the model to (blocks, view space), {@code aim} of the way: so the sight line lands on the view's axis, and pushed a
+	 * little further out; a scope comes in instead, its eyepiece its eye distance from the eye once it is at the eye.
+	 */
+	private static Vector3f adsShift(GunRenderer renderer, ItemStack stack, float aim, float partialTick) {
+		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
+		AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
+		float eye = optic != null && optic.isScope() ? Attachments.eyeDistance(stack, optic) : Attachments.DEFAULT_EYE_DISTANCE;
+		float push = Mth.lerp(scopeAt(stack, partialTick), -ADS_PUSH_FORWARD, -anchor.z - eye);
+		return new Vector3f(-anchor.x, -anchor.y, push).mul(aim);
 	}
 
-	/** Like {@link #barrelUp}, muzzle left. */
-	static float barrelLeft() {
-		return System.nanoTime() - barrelNanos > 200_000_000L ? 0 : barrelYaw;
+	/** {@link #scopeView} for a gun with a scope fitted, 0 for one without. */
+	private static float scopeAt(ItemStack stack, float partialTick) {
+		AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
+		return optic != null && optic.isScope() ? scopeView(partialTick) : 0;
 	}
 
 	/** World position where a first-person gun bone's pivot (the muzzle, the chamber) appears on screen, so effects can start from it. */
 	public static Vec3 bonePosition(GunRenderer renderer, String bone, Camera camera, float partialTick) {
-		float aim = ads(partialTick);
-		Vector3f anchor = renderer.restPivot(renderer.aimBone(Minecraft.getInstance().player.getMainHandItem()));
-		Vector3f muzzle = renderer.restPivot(bone).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
-		return camera.position().add(viewToWorld(camera, muzzle));
+		Vector3f pivot = renderer.restPivot(bone).add(adsShift(renderer, Minecraft.getInstance().player.getMainHandItem(), ads(partialTick), partialTick));
+		return camera.position().add(viewToWorld(camera, pivot));
 	}
 
 	/**
@@ -248,8 +264,7 @@ public final class Viewmodel {
 			return null;
 		}
 		float aim = ads(partialTick);
-		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
-		Vector3f muzzle = renderer.restPivot(renderer.muzzleBone(stack)).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
+		Vector3f muzzle = renderer.restPivot(renderer.muzzleBone(stack)).add(adsShift(renderer, stack, aim, partialTick));
 		Vector3f along = new Vector3f(0, 0, -1).rotateX(barrelPitch * Mth.DEG_TO_RAD).rotateY(barrelYaw * Mth.DEG_TO_RAD);
 		// From where the line crosses the eye's plane: the viewmodel is not to scale (a rifle's muzzle is drawn blocks out), and nothing
 		// nearer than that may be skipped. Aiming, the sights take over and it comes in to the eye: shots go to the reticle, not a little
@@ -366,20 +381,16 @@ public final class Viewmodel {
 		show = show * show * (3 - 2 * show);
 		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
 		float loose = (1 - 0.8F * aim) * (1 - show);
-		// Looking through a scope, only its picture shows (ScopeView); the pose is still worked out, as shots and the scope follow the barrel.
-		boolean drawn = scopeView(partialTick) < 1;
 		poseStack.pushPose();
 		// Everything below is in view space relative to this; the tuner reads the gun's pose against it.
 		inverseBase.set(poseStack.last().pose()).invert();
 		// Our casings while still at the gun, drawn with it so the slide hides them until they clear the port.
-		if (drawn) {
-			Casings.submitInHand(poseStack, renderTasks, partialTick);
-		}
+		Casings.submitInHand(poseStack, renderTasks, partialTick);
 
 		// 1. ADS: slide the model so ads_anchor (or a fitted optic's reticle) lands on the view axis, at the center of the screen,
-		// and a little further out so the slide does not fill the view.
-		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
-		poseStack.translate(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
+		// and a little further out so the slide does not fill the view; a scope comes up to the eye instead.
+		Vector3f shift = adsShift(renderer, stack, aim, partialTick);
+		poseStack.translate(shift.x, shift.y, shift.z);
 
 		// 2. Sway: the model trails the view a little and eases back when it stops (swayYaw/swayPitch), with a soft limit so flicks
 		// lean it a bit further instead of stopping dead.
@@ -437,19 +448,42 @@ public final class Viewmodel {
 			poseStack.rotateAround(Axis.ZP.rotationDegrees(drift * 0.25F * breath), grip.x, grip.y, grip.z);
 		}
 
-		// 4. Recoil: kick the muzzle up and push the gun back, pivoting on the grip.
+		// 4. Recoil: kick the muzzle up and push the gun back, pivoting on the grip. A scope at the eye barely comes back, or it would
+		// hit the eye.
 		float kick = recoil(partialTick);
-		poseStack.translate(grip.x, grip.y, grip.z + kick * feel.recoilPushBack());
+		float pushBack = feel.recoilPushBack() * (1 - 0.85F * aim * scopeAt(stack, partialTick));
+		poseStack.translate(grip.x, grip.y, grip.z + kick * pushBack);
 		poseStack.rotateDegrees(Axis.XP, kick * recoilPitch);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
 		barrelPitch = pitch + kick * recoilPitch;
 		barrelYaw = swayYawDeg;
 		barrelNanos = System.nanoTime();
 
-		if (drawn) {
-			renderer.submit(renderState, poseStack, renderTasks, 0);
-		}
+		renderer.submit(renderState, poseStack, renderTasks, 0);
 		poseStack.popPose();
 		return true;
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose a fitted scope's eyepiece ({@code <item>_reticle}) is drawn with, and its lens's radius. */
+	static void recordLensPose(Matrix4fc bonePose, float radius) {
+		lensPose.set(inverseBase).mul(bonePose);
+		lensRadius = radius;
+		lensPoseNanos = System.nanoTime();
+	}
+
+	/**
+	 * A fitted scope's eyepiece as drawn in the hand's view space this frame (eye at the origin): {@code pose} takes the eyepiece's frame
+	 * (lens in its x-y plane, the scope looking down its -z) to view space; {@code radius} is the lens's, in blocks. Null when not drawn lately.
+	 */
+	public static @Nullable Lens lens() {
+		return System.nanoTime() - lensPoseNanos > 200_000_000L ? null : new Lens(new Matrix4f(lensPose), lensRadius);
+	}
+
+	public record Lens(Matrix4f pose, float radius) {
+	}
+
+	/** {@code direction} (the hand's view space) as the world direction that looks the same on screen, at {@code camera}'s FOV. */
+	public static Vec3 worldDirection(Camera camera, Vector3fc direction) {
+		return viewToWorld(camera, direction).normalize();
 	}
 }

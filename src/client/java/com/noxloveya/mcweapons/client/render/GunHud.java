@@ -2,6 +2,9 @@ package com.noxloveya.mcweapons.client.render;
 
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
+import com.noxloveya.mcweapons.gun.AttachmentSlot;
+import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.DeltaTracker;
@@ -57,6 +60,11 @@ public final class GunHud {
 		int inMag = ammo - (chambered ? 1 : 0);
 		int color = ammo == 0 ? RED : inMag <= definition.magSize() / 4 ? AMBER : WHITE;
 		String name = stack.getHoverName().getString().toUpperCase(Locale.ROOT);
+		AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
+		if (optic != null && optic.maxZoom() > optic.minZoom()) {
+			// A variable scope's power, as the scroll wheel set it.
+			name += "  " + Math.round(GunInput.zoom(optic)) + "X";
+		}
 		String fireMode = GunInput.fireMode(player, stack, definition);
 		String mode = fireMode.toUpperCase(Locale.ROOT);
 		boolean safe = GunDefinition.SAFE.equals(fireMode);

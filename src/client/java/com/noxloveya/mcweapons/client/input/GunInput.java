@@ -23,6 +23,7 @@ import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
 import com.noxloveya.mcweapons.network.AttachPayload;
+import com.noxloveya.mcweapons.network.EyeDistancePayload;
 import com.noxloveya.mcweapons.network.FireModePayload;
 import com.noxloveya.mcweapons.network.LaserColorPayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
@@ -189,6 +190,15 @@ public final class GunInput {
 		}
 	}
 
+	/** Sets how far the eye sits behind {@code scope}'s eyepiece when aimed, on the held gun: here straight away, and on the server. */
+	public static void eyeDistance(LocalPlayer player, AttachmentItem scope, float distance) {
+		ItemStack stack = player.getMainHandItem();
+		if (stack.getItem() instanceof GunItem) {
+			Attachments.setEyeDistance(stack, scope, distance);
+			ClientPlayNetworking.send(new EyeDistancePayload(player.getInventory().getSelectedSlot(), BuiltInRegistries.ITEM.getKey(scope), distance));
+		}
+	}
+
 	/** Colors the held gun's laser sight: here straight away, and on the server, which syncs it to everyone. */
 	public static void laserColor(LocalPlayer player, int color) {
 		ItemStack stack = player.getMainHandItem();
@@ -252,7 +262,9 @@ public final class GunInput {
 		}
 		// With the toggle on use's own button, holding it must not aim too, or toggling off would only end on release.
 		boolean useHeld = minecraft.options.keyUse.isDown() && !AIM_TOGGLE.same(minecraft.options.keyUse);
-		aimHeld = holding && (useHeld || aimToggled);
+		// The attachment menu aims the gun behind it while a fitted optic's settings are open, so changing them can be watched.
+		boolean previewing = AttachmentScreen.previewing(minecraft) && !busy(player, player.getMainHandItem());
+		aimHeld = holding && (useHeld || aimToggled || previewing);
 		// Out of a sprint the running pose comes down first, so the sights rise a little later.
 		boolean aim = aimHeld && !Viewmodel.running();
 		if (aim != aiming && player != null) {
@@ -307,12 +319,10 @@ public final class GunInput {
 		}
 		if (definition != null) {
 			AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
-			// A fixed optic's zoom is in the definition already (see AttachmentItem.applyTo).
-			float fovMultiplier = optic != null && optic.maxZoom() > optic.minZoom() ? 1 / zoom(optic) : definition.adsFovMultiplier();
 			// Off the scope while the gun is busy, and while a bolt is worked between shots, so those can be seen.
 			boolean scopeReady = optic != null && optic.isScope() && !busy(player, stack)
 					&& (!definition.boltAction() || definition.shotDue(nextShotDue, player.level().getGameTime()));
-			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen, fovMultiplier, scopeReady);
+			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen, scopeReady);
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.

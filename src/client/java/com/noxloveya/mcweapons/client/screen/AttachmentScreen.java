@@ -9,6 +9,7 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.registry.ModComponents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -16,6 +17,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
@@ -65,12 +67,13 @@ public class AttachmentScreen extends Screen {
 
 	/**
 	 * A setting of an attachment, shown under its row once its arrow is opened (right click): an optic's reticle color, size and shape,
-	 * or a laser's color. Looks only, so they are stored on the gun and change any time.
+	 * a scope's eye distance, or a laser's color. Looks only, so they are stored on the gun and change any time.
 	 */
 	private enum Option {
-		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3), LASER_COLOR(0xE1DD);
+		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3), EYE_DISTANCE(0xE536), LASER_COLOR(0xE1DD);
 
 		private static final List<Option> RETICLE = List.of(COLOR, SIZE, SHAPE);
+		private static final List<Option> SCOPE = List.of(COLOR, SIZE, SHAPE, EYE_DISTANCE);
 		private static final List<Option> LASER = List.of(LASER_COLOR);
 
 		final int icon;
@@ -80,27 +83,45 @@ public class AttachmentScreen extends Screen {
 		}
 
 		static List<Option> of(@Nullable AttachmentItem attachment) {
-			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.slot() == AttachmentSlot.OPTIC ? RETICLE : List.of();
+			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.isScope() ? SCOPE
+					: attachment.slot() == AttachmentSlot.OPTIC ? RETICLE : List.of();
 		}
 
-		/** Moves this setting of the held gun {@code step} choices on (-1 back). */
-		void step(LocalPlayer player, ItemStack gun, int step) {
+		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). */
+		void step(LocalPlayer player, ItemStack gun, AttachmentItem attachment, int step) {
 			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 			switch (this) {
 				case COLOR -> GunInput.reticle(player, reticle.cycleColor(step));
 				case SIZE -> GunInput.reticle(player, reticle.cycleSize(step));
 				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
+				case EYE_DISTANCE -> {
+					// Further or nearer, stopping at the ends rather than jumping across while it is watched.
+					List<Float> distances = Attachments.EYE_DISTANCES;
+					int at = nearest(distances, Attachments.eyeDistance(gun, attachment));
+					GunInput.eyeDistance(player, attachment, distances.get(Mth.clamp(at + step, 0, distances.size() - 1)));
+				}
 				case LASER_COLOR -> GunInput.laserColor(player, Reticle.nextColor(laserColor(gun), step));
 			}
 		}
 
-		Component value(ItemStack gun) {
+		Component value(ItemStack gun, AttachmentItem attachment) {
 			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 			return switch (this) {
 				case COLOR, LASER_COLOR -> colorName(swatch(gun));
 				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
 				case SHAPE -> Component.translatable("gui.mcweapons.reticle.shape." + reticle.shape().getSerializedName());
+				case EYE_DISTANCE -> Component.literal(Math.round(Attachments.eyeDistance(gun, attachment) / Attachments.DEFAULT_EYE_DISTANCE * 100) + "%");
 			};
+		}
+
+		private static int nearest(List<Float> options, float value) {
+			int best = 0;
+			for (int i = 1; i < options.size(); i++) {
+				if (Math.abs(options.get(i) - value) < Math.abs(options.get(best) - value)) {
+					best = i;
+				}
+			}
+			return best;
 		}
 
 		/** The color this setting shows a swatch of, or -1 for none. */
@@ -210,6 +231,11 @@ public class AttachmentScreen extends Screen {
 		return minecraft.player == null ? ItemStack.EMPTY : minecraft.player.getMainHandItem();
 	}
 
+	/** The menu is open with the fitted optic's settings showing: the gun is aimed behind it, so the changes can be seen. */
+	public static boolean previewing(Minecraft minecraft) {
+		return minecraft.gui.screen() instanceof AttachmentScreen screen && screen.expanded.contains(Attachments.in(screen.held(), AttachmentSlot.OPTIC));
+	}
+
 	private static boolean hasOptions(@Nullable AttachmentItem attachment) {
 		return !Option.of(attachment).isEmpty();
 	}
@@ -257,7 +283,7 @@ public class AttachmentScreen extends Screen {
 				}
 				graphics.text(font, icon(row.option().icon), x0 + 23, row.y() + pad, MUTED, false);
 				graphics.text(font, ui(Component.translatable("gui.mcweapons.reticle." + row.option().name().toLowerCase(Locale.ROOT))), x0 + 36, row.y() + pad, 0xD9FFFFFF, false);
-				Component value = ui(row.option().value(gun));
+				Component value = ui(row.option().value(gun, row.attachment()));
 				int valueX = x1 - 9 - font.width(value);
 				graphics.text(font, value, valueX, row.y() + pad, TEXT, false);
 				int swatch = row.option().swatch(gun);
@@ -337,7 +363,7 @@ public class AttachmentScreen extends Screen {
 			}
 			if (row.option() != null) {
 				// Left steps forward, right steps back.
-				row.option().step(player, gun, right ? -1 : 1);
+				row.option().step(player, gun, row.attachment(), right ? -1 : 1);
 				return true;
 			}
 			if (right && hasOptions(row.attachment())) {

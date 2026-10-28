@@ -52,7 +52,7 @@ public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Render
 			return;
 		}
 		for (Identifier id : shown) {
-			// A scope's reticle is seen only through it (ScopeView); its locator is just the sight line.
+			// A scope's reticle is seen only through its lens (ScopeRenderer); its locator is the eyepiece.
 			if (!(BuiltInRegistries.ITEM.getValue(id) instanceof AttachmentItem attachment && attachment.isScope())) {
 				renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone -> consumer.accept(bone, this::submitReticle));
 			}

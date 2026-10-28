@@ -21,7 +21,7 @@ public final class ModItems {
 	public static final GunItem MOSIN_NAGANT = gun("mosin_nagant");
 	// Gas held back by the baffles: the bullet leaves a little slower and the gun kicks less.
 	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences().velocity(0.93F).recoil(0.85F));
-	// On the model the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone); the magnified ones are looked through (ScopeView).
+	// On the model the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone); the magnified ones are looked through (ScopeRenderer).
 	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, item -> item.zoom(1.25F));
 	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope());
 	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope());
