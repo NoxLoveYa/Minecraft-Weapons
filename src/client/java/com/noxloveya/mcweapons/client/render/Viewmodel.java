@@ -133,11 +133,11 @@ public final class Viewmodel {
 		return Mth.lerp(ads(partialTick), 1, adsFovMultiplier);
 	}
 
-	/** World position where the first-person muzzle appears on screen, so effects can start from it. */
-	public static Vec3 muzzlePosition(GunRenderer renderer, Camera camera, float partialTick) {
+	/** World position where a first-person gun bone's pivot (the muzzle, the chamber) appears on screen, so effects can start from it. */
+	public static Vec3 bonePosition(GunRenderer renderer, String bone, Camera camera, float partialTick) {
 		float aim = ads(partialTick);
 		Vector3f anchor = renderer.restPivot("ads_anchor");
-		Vector3f muzzle = renderer.restPivot("muzzle").add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
+		Vector3f muzzle = renderer.restPivot(bone).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
 		// The hand is drawn with a fixed FOV, so scale the sideways offset until the point lands on the same pixel at the world FOV.
 		float scale = (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
 		Vector3fc left = camera.leftVector();

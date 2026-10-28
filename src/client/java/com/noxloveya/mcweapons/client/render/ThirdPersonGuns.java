@@ -20,6 +20,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -83,6 +84,13 @@ public final class ThirdPersonGuns {
 
 	private static void play(LivingEntity holder, GunItem gun, String action) {
 		gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, action);
+	}
+
+	/** Rough position of a point on a gun held in someone's right hand, seen from outside: {@code forward} blocks out from the eye (0.7 is the muzzle). */
+	public static Vec3 heldPoint(Entity holder, double forward) {
+		Vec3 look = holder.getLookAngle();
+		Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
+		return holder.getEyePosition().add(look.scale(forward)).add(right.scale(0.35)).add(0, -0.45, 0);
 	}
 
 	/** Someone fired: flash at the muzzle of their gun as drawn in third person. */

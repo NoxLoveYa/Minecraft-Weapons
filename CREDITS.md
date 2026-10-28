@@ -16,6 +16,7 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `glock17/handling_1.ogg` to `handling_4.ogg` | [Airsoft Pistol Handling](https://pixabay.com/sound-effects/film-special-effects-airsoft-pistol-handling-106028/) | freesound_community |
 | `glock17/select_1.ogg`, `glock17/select_2.ogg` | [Remington 700 Safety](https://pixabay.com/sound-effects/film-special-effects-remington-700-safety-48897/) | freesound_community |
 | `glock17/aim_in.ogg`, `glock17/aim_out.ogg` | [heavy cloth rustle](https://pixabay.com/sound-effects/film-special-effects-heavy-cloth-rustle-106346/) | freesound_community |
+| `glock17/casing_1.ogg` to `casing_4.ogg` | [Brass bullet shell drop onto concrete, multiple takes](https://pixabay.com/sound-effects/film-special-effects-brass-bullet-shell-drop-onto-concrete-multiple-takes-75000/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 

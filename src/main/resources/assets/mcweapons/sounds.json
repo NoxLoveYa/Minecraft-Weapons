@@ -63,6 +63,15 @@
       { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
     ]
   },
+  "glock17.casing": {
+    "subtitle": "subtitles.mcweapons.gun.casing",
+    "sounds": [
+      { "name": "mcweapons:glock17/casing_1", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_2", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_3", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_4", "volume": 0.35 }
+    ]
+  },
   "hitmarker": {
     "subtitle": "subtitles.mcweapons.hitmarker",
     "sounds": [

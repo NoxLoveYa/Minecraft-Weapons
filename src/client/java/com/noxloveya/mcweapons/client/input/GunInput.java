@@ -2,6 +2,7 @@ package com.noxloveya.mcweapons.client.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.noxloveya.mcweapons.McWeapons;
+import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
@@ -198,6 +199,8 @@ public final class GunInput {
 		player.playSound(gun.sound(ammo > 0 ? "fire" : "dry"), 1.0F, 1.0F);
 		if (ammo > 0) {
 			play(player, gun, "fire");
+			// Before the recoil kick moves the view.
+			Casings.eject(player, gun);
 			Viewmodel.onShot(player, definition);
 			if (ammo == 1) {
 				// Covers the round trip until the server says the gun is empty.

@@ -95,6 +95,7 @@
   "subtitles.mcweapons.gun.draw": "Gun drawn",
   "subtitles.mcweapons.gun.handling": "Gun handled",
   "subtitles.mcweapons.gun.aim": "Gun raised",
+  "subtitles.mcweapons.gun.casing": "Casing clinks",
   "subtitles.mcweapons.hitmarker": "Hit confirmed",
   "subtitles.mcweapons.headshot": "Headshot"
 }
