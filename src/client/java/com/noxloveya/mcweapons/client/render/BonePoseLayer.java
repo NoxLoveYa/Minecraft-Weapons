@@ -13,9 +13,12 @@ import net.minecraft.world.entity.Entity;
 
 import java.util.function.BiConsumer;
 
-/** Draws nothing: notes where the {@code ejection_port} bone is drawn, first person or in someone's hand, so casings leave from there. */
-public class EjectionPortLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
-	public EjectionPortLayer(GunRenderer renderer) {
+/**
+ * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
+ * for casings to leave from; the magazine in someone's hand, for their other hand to hold during a reload.
+ */
+public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
+	public BonePoseLayer(GunRenderer renderer) {
 		super(renderer);
 	}
 
@@ -35,6 +38,8 @@ public class EjectionPortLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.R
 		if (holder != null) {
 			renderPassInfo.model().getBone("ejection_port").ifPresent(bone ->
 					consumer.accept(bone, (info, portBone, renderTasks) -> Casings.recordHeldPort(holder, info.poseStack().last().pose())));
+			renderPassInfo.model().getBone("magazine").ifPresent(bone ->
+					consumer.accept(bone, (info, magBone, renderTasks) -> ThirdPersonGuns.recordMag(holder, info.poseStack().last().pose())));
 		}
 	}
 }

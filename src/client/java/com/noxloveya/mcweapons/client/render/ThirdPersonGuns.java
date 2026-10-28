@@ -15,6 +15,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
@@ -25,6 +26,9 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4fc;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -43,6 +47,13 @@ public final class ThirdPersonGuns {
 	private static final float AIM_SUPPORT_ARM_IN = 0.7F;
 	/** Set on an avatar's render state while it aims a gun, for {@link #poseAimHold}. */
 	public static final RenderStateDataKey<Boolean> AIM_HOLD = RenderStateDataKey.create(() -> "mcweapons:aim_hold");
+	/** Set on an avatar's render state while its other hand holds the magazine: where the magazine is, for {@link #reachSupportArm}. */
+	public static final RenderStateDataKey<Vec3> SUPPORT_HAND = RenderStateDataKey.create(() -> "mcweapons:support_hand");
+	/** The magazine's base in its bone (blocks from the pivot), where a hand takes hold of it. */
+	private static final Vector3fc MAG_BASE = new Vector3f(0, -0.82F / 16, 1.35F / 16);
+	/** Where each holder's magazine base was last drawn, by entity id, and when. */
+	private static final Map<Integer, Vec3> magBases = new HashMap<>();
+	private static final Map<Integer, Long> magBaseNanos = new HashMap<>();
 	private static final long FLASH_NANOS = 60_000_000L;
 	/** After a shot the gun stays up this long, so firing from the hip does not show it pointing at the ground. */
 	private static final long RAISED_NANOS = 1_500_000_000L;
@@ -67,6 +78,8 @@ public final class ThirdPersonGuns {
 			heldItems.clear();
 			flashUntil.clear();
 			raisedUntil.clear();
+			magBases.clear();
+			magBaseNanos.clear();
 			return;
 		}
 		Set<Integer> present = new HashSet<>();
@@ -86,6 +99,8 @@ public final class ThirdPersonGuns {
 		long now = System.nanoTime();
 		flashUntil.values().removeIf(until -> until < now);
 		raisedUntil.values().removeIf(until -> until < now);
+		magBaseNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
+		magBases.keySet().retainAll(magBaseNanos.keySet());
 	}
 
 	private static void othersAnimation(@Nullable ClientLevel level, GunAnimationPayload payload) {
@@ -158,6 +173,52 @@ public final class ThirdPersonGuns {
 		supportArm.xRot = -Mth.HALF_PI + model.head.xRot;
 		supportArm.yRot = model.head.yRot + in * AIM_SUPPORT_ARM_IN;
 		supportArm.zRot = 0;
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose a held gun's magazine is drawn with, relative to the camera. */
+	static void recordMag(Entity holder, Matrix4fc pose) {
+		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
+		magBases.put(holder.getId(), camera.add(new Vec3(pose.transformPosition(new Vector3f(MAG_BASE)))));
+		magBaseNanos.put(holder.getId(), System.nanoTime());
+	}
+
+	/**
+	 * Where the holder's other hand should be: on the magazine while a reload or the mag check moves it, so it never floats out of the
+	 * gun on its own. Null otherwise, or when the gun has not been drawn lately.
+	 */
+	public static @Nullable Vec3 supportHandTarget(LivingEntity holder) {
+		Pose pose = pose(holder);
+		boolean magInHand = pose == Pose.RELOAD;
+		if (pose == Pose.INSPECT && holder.getMainHandItem().getItem() instanceof GunItem gun) {
+			var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+			magInHand = main != null && main.isTriggeredAnimation("inspect_mag_check");
+		}
+		Long drawn = magBaseNanos.get(holder.getId());
+		return magInHand && drawn != null && System.nanoTime() - drawn < 200_000_000L ? magBases.get(holder.getId()) : null;
+	}
+
+	/**
+	 * Points the support arm (the one without the gun) from its shoulder at {@code target}, a world position, after vanilla has posed
+	 * the model. Undoes the renderer's transforms to get the target in model space: feet at the entity (a little lower crouching), turned
+	 * to the body's yaw, flipped, 15/16 scale and lifted 1.501.
+	 */
+	public static void reachSupportArm(HumanoidModel<?> model, AvatarRenderState state, Vec3 target) {
+		ModelPart arm = state.mainArm == HumanoidArm.RIGHT ? model.leftArm : model.rightArm;
+		double feetY = state.y + (state.isCrouching ? state.scale * -2.0 / 16 : 0);
+		Vec3 rel = target.subtract(state.x, feetY, state.z).scale(1 / state.scale);
+		double yaw = Math.toRadians(180 - state.bodyRot);
+		double cos = Math.cos(yaw);
+		double sin = Math.sin(yaw);
+		double x = -(rel.x * cos - rel.z * sin);
+		double y = -rel.y;
+		double z = rel.x * sin + rel.z * cos;
+		Vector3f toTarget = new Vector3f((float)(x / 0.9375 * 16), (float)((y / 0.9375 + 1.501) * 16), (float)(z / 0.9375 * 16))
+				.sub(arm.x, arm.y, arm.z).normalize();
+		// The arm hangs along +Y (model space points down); this pitch and yaw turn that onto the target, with no roll.
+		arm.xRot = (float)-Math.acos(Mth.clamp(toTarget.y, -1, 1));
+		float pitchSin = Mth.sin(arm.xRot);
+		arm.yRot = Math.abs(pitchSin) < 1.0E-4F ? 0 : (float)Math.atan2(toTarget.x / pitchSin, toTarget.z / pitchSin);
+		arm.zRot = 0;
 	}
 
 	/**

@@ -164,7 +164,7 @@ public final class Viewmodel {
 		return new Vec3(left.x() * x + up.x() * y + forward.x() * z, left.y() * x + up.y() * y + forward.y() * z, left.z() * x + up.z() * y + forward.z() * z);
 	}
 
-	/** Called by {@link EjectionPortLayer} with the pose the {@code ejection_port} bone is drawn with this frame. */
+	/** Called by {@link BonePoseLayer} with the pose the {@code ejection_port} bone is drawn with this frame. */
 	static void recordPortPose(Matrix4fc bonePose) {
 		portPose.set(inverseBase).mul(bonePose);
 		portPoseNanos = System.nanoTime();

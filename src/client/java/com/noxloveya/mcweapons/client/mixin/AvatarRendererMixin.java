@@ -25,9 +25,11 @@ public class AvatarRendererMixin {
 		}
 	}
 
-	// Vanilla's arm poses cannot hold a pistol in both hands, so aiming is flagged here and posed after vanilla (PlayerModelMixin).
+	// Vanilla's arm poses cannot hold a pistol in both hands or follow a magazine, so these are flagged here and posed after vanilla
+	// (PlayerModelMixin).
 	@Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("TAIL"))
-	private void mcweapons$aimHold(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
+	private void mcweapons$gunArms(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
 		state.setData(ThirdPersonGuns.AIM_HOLD, ThirdPersonGuns.pose(avatar) == ThirdPersonGuns.Pose.AIM);
+		state.setData(ThirdPersonGuns.SUPPORT_HAND, ThirdPersonGuns.supportHandTarget(avatar));
 	}
 }

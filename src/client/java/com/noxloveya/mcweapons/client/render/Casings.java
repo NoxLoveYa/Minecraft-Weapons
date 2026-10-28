@@ -147,7 +147,7 @@ public final class Casings {
 		ACTIVE.add(new Casing(port.pos(), velocity, rotation, 0.5F + random.nextFloat() * 0.4F, (random.nextFloat() - 0.5F) * 0.6F, gun.sound("casing"), firstPerson));
 	}
 
-	/** Called by {@link EjectionPortLayer} with the pose a third-person gun's ejection port is drawn with, relative to the camera. */
+	/** Called by {@link BonePoseLayer} with the pose a third-person gun's ejection port is drawn with, relative to the camera. */
 	static void recordHeldPort(Entity holder, Matrix4fc pose) {
 		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
 		HELD_PORTS.put(holder.getId(), new Port(camera.add(new Vec3(pose.transformPosition(new Vector3f()))), direction(pose, 1, 0, 0), direction(pose, 0, 1, 0),
