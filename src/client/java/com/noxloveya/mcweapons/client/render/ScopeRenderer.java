@@ -59,8 +59,6 @@ public final class ScopeRenderer {
 	public static final Identifier LENS_TEXTURE = McWeapons.id("dynamic/scope_lens");
 	/** How quickly the exit pupil closes as the eye moves off its set distance, per block of the hand's view space. */
 	private static final float PUPIL_FALLOFF = 1.2F;
-	/** The lit reticle's half-size at size 1, as a share of the lens's radius. */
-	private static final float LIT_SIZE = 0.3F;
 	private static final RenderPipeline LENS_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
 			.withLocation(McWeapons.id("pipeline/scope_lens"))
 			.withVertexShader("core/screenquad")
@@ -172,7 +170,8 @@ public final class ScopeRenderer {
 		AbstractTexture lit = textures.getTexture(McWeapons.id("textures/effect/reticle_" + reticle.shape().getSerializedName() + ".png"));
 		try (GpuBufferSlice.MappedView view = lensInfo.currentBuffer().map(false, true)) {
 			Std140Builder.intoBuffer(view.data())
-					.putVec4((reticle.color() >> 16 & 0xFF) / 255.0F, (reticle.color() >> 8 & 0xFF) / 255.0F, (reticle.color() & 0xFF) / 255.0F, LIT_SIZE * reticle.size())
+					.putVec4((reticle.color() >> 16 & 0xFF) / 255.0F, (reticle.color() >> 8 & 0xFF) / 255.0F, (reticle.color() & 0xFF) / 255.0F,
+							ReticleLayer.SCREEN_RADIUS * reticle.size() / radius)
 					.putVec2(onScreen.x, onScreen.y)
 					.putVec2(offsetX, offsetY)
 					.putFloat(radius)

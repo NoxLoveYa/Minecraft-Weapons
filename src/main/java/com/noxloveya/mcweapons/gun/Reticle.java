@@ -16,9 +16,10 @@ import java.util.List;
  * values are just kept in range, whoever sends them.
  */
 public record Reticle(int color, float size, Shape shape) {
-	/** The colors and sizes the attachment menu steps through. */
+	/** The colors the attachment menu steps through, and the range of its size slider. */
 	public static final List<Integer> COLORS = List.of(0xFF3223, 0x3CFF50, 0x30E0FF, 0xFFE030, 0xFF40E0, 0xFFFFFF);
-	public static final List<Float> SIZES = List.of(0.25F, 0.5F, 0.75F, 1.0F, 1.25F);
+	public static final float MIN_SIZE = 0.25F;
+	public static final float MAX_SIZE = 1.25F;
 	public static final float DEFAULT_SIZE = 0.5F;
 	public static final Reticle DEFAULT = new Reticle(COLORS.getFirst(), DEFAULT_SIZE, Shape.DOT);
 
@@ -36,7 +37,7 @@ public record Reticle(int color, float size, Shape shape) {
 
 	public Reticle {
 		color &= 0xFFFFFF;
-		size = Float.isFinite(size) ? Mth.clamp(size, SIZES.getFirst(), SIZES.getLast()) : DEFAULT_SIZE;
+		size = Float.isFinite(size) ? Mth.clamp(size, MIN_SIZE, MAX_SIZE) : DEFAULT_SIZE;
 	}
 
 	/** The next color in {@link #COLORS} ({@code step} -1 for the previous one); a color not in the list goes to the first. */
@@ -49,8 +50,8 @@ public record Reticle(int color, float size, Shape shape) {
 		return cycle(COLORS, color, step);
 	}
 
-	public Reticle cycleSize(int step) {
-		return new Reticle(color, cycle(SIZES, size, step), shape);
+	public Reticle withSize(float size) {
+		return new Reticle(color, size, shape);
 	}
 
 	public Reticle cycleShape(int step) {

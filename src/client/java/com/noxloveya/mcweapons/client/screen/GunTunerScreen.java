@@ -95,8 +95,8 @@ public class GunTunerScreen extends Screen {
 	static final int DIVIDER = 0x14FFFFFF;
 	static final int ROW_HOVER = 0x0FFFFFFF;
 	private static final int ROW_FOCUS = 0x1FFFFFFF;
-	private static final int TRACK = 0x26FFFFFF;
-	private static final int FILL = 0xB3FFFFFF;
+	static final int TRACK = 0x26FFFFFF;
+	static final int FILL = 0xB3FFFFFF;
 	static final int TEXT = 0xFFF4F5F7;
 	static final int LABEL = 0xB3FFFFFF;
 	static final int MUTED = 0x73FFFFFF;

@@ -31,11 +31,13 @@ import java.util.Set;
 
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.DIVIDER;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.EDGE;
+import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.FILL;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.MARGIN;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.MUTED;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.PANEL;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.ROW_HOVER;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.TEXT;
+import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.TRACK;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.icon;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.medium;
 import static com.noxloveya.mcweapons.client.screen.GunTunerScreen.rounded;
@@ -62,6 +64,9 @@ public class AttachmentScreen extends Screen {
 	private static final int HEADER = 16;
 	private static final int ROW = 15;
 	private static final int SECTION_GAP = 6;
+	/** The reticle size slider's track, from under the option's name to the end of its value. */
+	private static final int SLIDER_X0 = MARGIN + 36;
+	private static final int SLIDER_X1 = MARGIN + WIDTH - 9;
 	/** Lang key suffixes of {@link Reticle#COLORS}, in the same order. */
 	private static final List<String> COLOR_NAMES = List.of("red", "green", "cyan", "yellow", "magenta", "white");
 
@@ -87,12 +92,11 @@ public class AttachmentScreen extends Screen {
 					: attachment.slot() == AttachmentSlot.OPTIC ? RETICLE : List.of();
 		}
 
-		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). */
+		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). The size is a slider instead. */
 		void step(LocalPlayer player, ItemStack gun, AttachmentItem attachment, int step) {
 			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 			switch (this) {
 				case COLOR -> GunInput.reticle(player, reticle.cycleColor(step));
-				case SIZE -> GunInput.reticle(player, reticle.cycleSize(step));
 				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
 				case EYE_DISTANCE -> {
 					// Further or nearer, stopping at the ends rather than jumping across while it is watched.
@@ -162,6 +166,8 @@ public class AttachmentScreen extends Screen {
 	private int pad = 4;
 	/** The key opened this screen; it only closes it again once that press has been let go. */
 	private boolean keyReleased;
+	/** The reticle size slider is held down. */
+	private boolean draggingSize;
 
 	public AttachmentScreen() {
 		super(Component.translatable("gui.mcweapons.attachments"));
@@ -290,6 +296,18 @@ public class AttachmentScreen extends Screen {
 				if (swatch >= 0) {
 					graphics.fill(valueX - 10, row.y() + pad, valueX - 3, row.y() + pad + 7, 0xFF000000 | swatch);
 				}
+				if (row.option() == Option.SIZE) {
+					// A hairline track along the bottom filled up to the size, like the tuner's sliders.
+					float size = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT).size();
+					int trackY = row.y() + rowHeight - 2;
+					int at = SLIDER_X0 + Math.round((size - Reticle.MIN_SIZE) / (Reticle.MAX_SIZE - Reticle.MIN_SIZE) * (SLIDER_X1 - SLIDER_X0));
+					boolean active = draggingSize || hovered(row, mouseX, mouseY);
+					graphics.fill(SLIDER_X0, trackY, SLIDER_X1, trackY + 1, TRACK);
+					graphics.fill(SLIDER_X0, trackY, at, trackY + 1, active ? TEXT : FILL);
+					if (active) {
+						graphics.fill(at - 1, trackY - 1, at + 2, trackY + 2, TEXT);
+					}
+				}
 				continue;
 			}
 			AttachmentItem fitted = Attachments.in(gun, row.slot());
@@ -361,6 +379,11 @@ public class AttachmentScreen extends Screen {
 			if (player == null || !hovered(row, event.x(), event.y())) {
 				continue;
 			}
+			if (row.option() == Option.SIZE) {
+				draggingSize = true;
+				slideSize(player, gun, event.x());
+				return true;
+			}
 			if (row.option() != null) {
 				// Left steps forward, right steps back.
 				row.option().step(player, gun, row.attachment(), right ? -1 : 1);
@@ -379,6 +402,31 @@ public class AttachmentScreen extends Screen {
 			}
 		}
 		return super.mouseClicked(event, doubleClick);
+	}
+
+	@Override
+	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+		if (draggingSize && minecraft.player != null) {
+			slideSize(minecraft.player, held(), event.x());
+			return true;
+		}
+		return super.mouseDragged(event, dx, dy);
+	}
+
+	@Override
+	public boolean mouseReleased(MouseButtonEvent event) {
+		draggingSize = false;
+		return super.mouseReleased(event);
+	}
+
+	/** Sets the reticle's size from where the mouse is along the slider, in 5% steps; sent only when the step changes. */
+	private static void slideSize(LocalPlayer player, ItemStack gun, double mouseX) {
+		Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+		float along = Mth.clamp((float)(mouseX - SLIDER_X0) / (SLIDER_X1 - SLIDER_X0), 0, 1);
+		float size = Math.round(Mth.lerp(along, Reticle.MIN_SIZE, Reticle.MAX_SIZE) * 20) / 20F;
+		if (size != reticle.size()) {
+			GunInput.reticle(player, reticle.withSize(size));
+		}
 	}
 
 	@Override
