@@ -8,6 +8,7 @@
 - Moving targets: four lanes, strafing 20 blocks at 2, 4 or 5 m/s.
 - A killed target drops and stands back up 3 seconds later.
 - Bullet drop lane: boards at 10, 25, 40, 60 and 100 m. Stand on a green spot and aim at the black block at eye height.
+- A 1v1 arena through the lobby's east door (inside x 40 to 60, z -18 to 10), with a red and a blue spawn pad at its two ends and cover that looks the same from either one. Stepping in puts you in survival and makes the arena your respawn point. After a death you come back on the pad furthest from the other player in the arena (either pad if you are alone). Leaving puts you back in creative with the world spawn as respawn. Building it turns on gamerules `keep_inventory` and `pvp`.
 
 ## Install or rebuild
 
@@ -15,12 +16,12 @@
 2. Load the area, build, and unload it again:
 
    ```
-   forceload add -29 -9 33 105
+   forceload add -29 -20 62 105
    function practice:build
-   forceload remove -29 -9 33 105
+   forceload remove -29 -20 62 105
    ```
 
-   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again.
+   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again. To rebuild only the arena, use `forceload add 33 -20 62 12` and `function practice:arena_build`.
 
 The server also runs with `gamemode=creative`, `force-gamemode=true` and gamerule `mob_drops false`; the datapack does not set those.
 
