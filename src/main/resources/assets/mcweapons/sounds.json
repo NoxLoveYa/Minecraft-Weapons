@@ -323,6 +323,26 @@
       { "name": "mcweapons:glock17/casing_4", "volume": 0.35 }
     ]
   },
+  "m4a1.attach_twist": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_twist", "volume": 0.5 }
+    ]
+  },
+  "m4a1.attach_click": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_click_1", "volume": 0.6 },
+      { "name": "mcweapons:glock17/attach_click_2", "volume": 0.6 }
+    ]
+  },
+  "m4a1.optic_click": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/optic_click_1", "volume": 0.6 },
+      { "name": "mcweapons:glock17/optic_click_2", "volume": 0.6 }
+    ]
+  },
   "breath.hold": {
     "subtitle": "subtitles.mcweapons.breath.hold",
     "sounds": [

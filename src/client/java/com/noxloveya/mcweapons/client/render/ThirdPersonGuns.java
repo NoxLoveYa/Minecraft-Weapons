@@ -267,6 +267,9 @@ public final class ThirdPersonGuns {
 			hold = pose.transformPosition(new Vector3f(OPTIC_HOLD));
 		} else if (slot == AttachmentSlot.UNDERBARREL) {
 			hold = pose.transformPosition(new Vector3f(UNDERBARREL_HOLD));
+		} else if (slot != AttachmentSlot.MAGAZINE) {
+			// A rail's slot (a grip, a light): the hand on the slot's mount.
+			hold = pose.transformPosition(new Vector3f());
 		} else {
 			return;
 		}

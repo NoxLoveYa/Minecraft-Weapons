@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; the muzzle in first person, for shots; a fitted laser's emitter, for its beam; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
+ * for casings to leave from; the muzzle in first person, for shots; a fitted laser's emitter, for its beam; a flashlight's lens in someone's hand, for its glow; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
  * locator in someone's hand, for their other hand to hold.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
@@ -79,6 +79,8 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
 				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
 						consumer.accept(bone, (info, emitterBone, renderTasks) -> Lasers.recordHeld(holder, info.poseStack().last().pose())));
+				renderPassInfo.model().getBone(id.getPath() + "_lamp").ifPresent(bone ->
+						consumer.accept(bone, (info, lampBone, renderTasks) -> Lasers.recordLamp(holder, info.poseStack().last().pose())));
 			}
 		}
 	}

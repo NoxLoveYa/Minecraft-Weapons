@@ -43,6 +43,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +69,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	/** Attachment item ids to draw: the ones fitted, and one on its way on or off in an attach or detach animation. */
 	@SuppressWarnings("unchecked")
 	public static final DataTicket<Set<Identifier>> ATTACHMENTS = (DataTicket<Set<Identifier>>)(DataTicket<?>)DataTicket.create("mcweapons_attachments", Set.class);
+	/** Slots whose attach or detach animation is playing: their {@code bare_} and {@code fitted_} bones follow its keys (see adjustModelBonesForRender). */
+	@SuppressWarnings("unchecked")
+	public static final DataTicket<Set<AttachmentSlot>> SLOTS_ANIMATING = (DataTicket<Set<AttachmentSlot>>)(DataTicket<?>)DataTicket.create("mcweapons_slots_animating", Set.class);
 	/** How a fitted optic draws its reticle (see {@link ReticleLayer}). */
 	public static final DataTicket<Reticle> RETICLE = DataTicket.create("mcweapons_reticle", Reticle.class);
 	/** What each holder last had fitted per slot, so a detach animation can still show the attachment the server already took off. */
@@ -202,7 +206,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		boolean silenced = renderData != null && Attachments.silenced(renderData.itemStack());
 		renderState.addGeckolibData(MUZZLE_FLASH, !silenced && (firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder)));
 		renderState.addGeckolibData(ATTACHMENTS, renderData != null ? shownAttachments(gun, renderData.itemStack(), holder) : Set.of());
-		renderState.addGeckolibData(RETICLE, renderData != null ? renderData.itemStack().getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT) : Reticle.DEFAULT);
+		renderState.addGeckolibData(SLOTS_ANIMATING, slotsAnimating(gun, holder));
+		renderState.addGeckolibData(RETICLE, renderData != null ? Attachments.reticle(renderData.itemStack()) : Reticle.DEFAULT);
 		renderState.addGeckolibData(THIRD_PERSON_AIM, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
 		String fireMode = renderData != null ? fireMode(renderData) : null;
@@ -248,6 +253,20 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 		}
 		return shown;
+	}
+
+	private static Set<AttachmentSlot> slotsAnimating(GunItem gun, @Nullable LivingEntity holder) {
+		var main = holder == null ? null : gun.getAnimatableInstanceCache().getManagerForId(instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		if (main == null || main.hasAnimationFinished()) {
+			return Set.of();
+		}
+		Set<AttachmentSlot> slots = EnumSet.noneOf(AttachmentSlot.class);
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			if (main.isTriggeredAnimation(slot.attachAction()) || main.isTriggeredAnimation(slot.detachAction())) {
+				slots.add(slot);
+			}
+		}
+		return slots;
 	}
 
 	/** The attachment for {@code slot} when the gun's definition lists exactly one, else null (which one is coming cannot be known yet). */
@@ -539,9 +558,24 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 		// Each attachment is a bone named after its item; only the ones to show are drawn.
 		Set<Identifier> shown = renderPassInfo.renderState().getGeckolibData(ATTACHMENTS);
+		Set<AttachmentSlot> filled = EnumSet.noneOf(AttachmentSlot.class);
 		for (AttachmentItem attachment : AttachmentItem.all()) {
 			Identifier id = BuiltInRegistries.ITEM.getKey(attachment);
-			snapshots.get(id.getPath()).ifPresent(snapshot -> snapshot.skipRender(shown == null || !shown.contains(id)));
+			boolean show = shown != null && shown.contains(id);
+			snapshots.get(id.getPath()).ifPresent(snapshot -> snapshot.skipRender(!show));
+			if (show) {
+				filled.add(attachment.slot());
+			}
+		}
+		// The gun's own part in a slot (bare_<slot>: a flash hider, the raised rear sight) gives way to what is fitted there, and
+		// fitted_<slot> (the sight folded) shows instead; while the slot's attach or detach animation plays, its keys decide.
+		Set<AttachmentSlot> animating = renderPassInfo.renderState().getGeckolibData(SLOTS_ANIMATING);
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			if (animating == null || !animating.contains(slot)) {
+				boolean fitted = filled.contains(slot);
+				snapshots.get("bare_" + slot.getSerializedName()).ifPresent(snapshot -> snapshot.skipRender(fitted));
+				snapshots.get("fitted_" + slot.getSerializedName()).ifPresent(snapshot -> snapshot.skipRender(!fitted));
+			}
 		}
 	}
 }

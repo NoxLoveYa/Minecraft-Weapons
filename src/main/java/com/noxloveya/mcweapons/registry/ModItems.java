@@ -4,6 +4,7 @@ import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.gun.Reticle;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,6 +33,17 @@ public final class ModItems {
 	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));
 	// On the dust cover rail: the dot shows where a hip shot goes, so hip fire tightens, and the sights come up faster.
 	public static final AttachmentItem LASER = attachment("laser", AttachmentSlot.UNDERBARREL, item -> item.laser().spreadHip(0.6F).aimTime(0.67F));
+	// Rifle attachments (the M4A1). A brake throws the gas sideways: less kick, and no quieter.
+	public static final AttachmentItem MUZZLE_BRAKE = attachment("muzzle_brake", AttachmentSlot.MUZZLE, item -> item.recoil(0.75F));
+	public static final AttachmentItem EXTENDED_MAG_45 = attachment("extended_mag_45", AttachmentSlot.MAGAZINE, item -> item.capacity(45));
+	// A vertical grip holds the muzzle down; an angled one brings the gun up faster.
+	public static final AttachmentItem VERTICAL_GRIP = attachment("vertical_grip", AttachmentSlot.GRIP, item -> item.recoil(0.8F).spreadHip(0.9F));
+	public static final AttachmentItem ANGLED_GRIP = attachment("angled_grip", AttachmentSlot.GRIP, item -> item.recoil(0.9F).aimTime(0.8F));
+	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F));
+	public static final AttachmentItem REFLEX_SIGHT = attachment("reflex_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F));
+	public static final AttachmentItem HOLOGRAPHIC_SIGHT = attachment("holographic_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE));
+	public static final AttachmentItem PRISM_SCOPE = attachment("prism_scope", AttachmentSlot.OPTIC, item -> item.zoom(2.5F).scope());
+	public static final AttachmentItem FLASHLIGHT = attachment("flashlight", AttachmentSlot.LIGHT, AttachmentItem::flashlight);
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
 			FabricCreativeModeTab.builder()

@@ -56,7 +56,7 @@ public class AttachmentScreen extends Screen {
 	private static final int ICON_NONE = 0xE402;
 	private static final int ICON_KEYS = 0xE24A;
 	private static final Map<AttachmentSlot, Integer> SLOT_ICONS = Map.of(AttachmentSlot.MUZZLE, 0xE626, AttachmentSlot.OPTIC, 0xE29E,
-			AttachmentSlot.UNDERBARREL, 0xE0D3, AttachmentSlot.MAGAZINE, 0xE58A);
+			AttachmentSlot.UNDERBARREL, 0xE1DB, AttachmentSlot.MAGAZINE, 0xE58A, AttachmentSlot.GRIP, 0xE1E6, AttachmentSlot.LIGHT, 0xE0D3);
 	private static final int ICON_COLLAPSED = 0xE06F;
 	private static final int ICON_EXPANDED = 0xE06D;
 	// Room for an optic's name with its zoom ("Variable Scope (6-10x)"), its options arrow and the note on the right.
@@ -94,7 +94,7 @@ public class AttachmentScreen extends Screen {
 
 		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). The size is a slider instead. */
 		void step(LocalPlayer player, ItemStack gun, AttachmentItem attachment, int step) {
-			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+			Reticle reticle = Attachments.reticle(gun);
 			switch (this) {
 				case COLOR -> GunInput.reticle(player, reticle.cycleColor(step));
 				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
@@ -109,7 +109,7 @@ public class AttachmentScreen extends Screen {
 		}
 
 		Component value(ItemStack gun, AttachmentItem attachment) {
-			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+			Reticle reticle = Attachments.reticle(gun);
 			return switch (this) {
 				case COLOR, LASER_COLOR -> colorName(swatch(gun));
 				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
@@ -131,7 +131,7 @@ public class AttachmentScreen extends Screen {
 		/** The color this setting shows a swatch of, or -1 for none. */
 		int swatch(ItemStack gun) {
 			return switch (this) {
-				case COLOR -> gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT).color();
+				case COLOR -> Attachments.reticle(gun).color();
 				case LASER_COLOR -> laserColor(gun);
 				default -> -1;
 			};
@@ -298,7 +298,7 @@ public class AttachmentScreen extends Screen {
 				}
 				if (row.option() == Option.SIZE) {
 					// A hairline track along the bottom filled up to the size, like the tuner's sliders.
-					float size = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT).size();
+					float size = Attachments.reticle(gun).size();
 					int trackY = row.y() + rowHeight - 2;
 					int at = SLIDER_X0 + Math.round((size - Reticle.MIN_SIZE) / (Reticle.MAX_SIZE - Reticle.MIN_SIZE) * (SLIDER_X1 - SLIDER_X0));
 					boolean active = draggingSize || hovered(row, mouseX, mouseY);
@@ -421,7 +421,7 @@ public class AttachmentScreen extends Screen {
 
 	/** Sets the reticle's size from where the mouse is along the slider, in 5% steps; sent only when the step changes. */
 	private static void slideSize(LocalPlayer player, ItemStack gun, double mouseX) {
-		Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+		Reticle reticle = Attachments.reticle(gun);
 		float along = Mth.clamp((float)(mouseX - SLIDER_X0) / (SLIDER_X1 - SLIDER_X0), 0, 1);
 		float size = Math.round(Mth.lerp(along, Reticle.MIN_SIZE, Reticle.MAX_SIZE) * 20) / 20F;
 		if (size != reticle.size()) {

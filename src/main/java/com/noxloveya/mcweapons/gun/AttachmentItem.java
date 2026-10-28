@@ -22,6 +22,8 @@ public class AttachmentItem extends Item {
 	private float spreadHip = 1;
 	private float aimTime = 1;
 	private boolean laser;
+	private boolean flashlight;
+	private Reticle.Shape reticle = Reticle.DEFAULT.shape();
 	private float zoom;
 	private float maxZoom;
 	private boolean scope;
@@ -95,6 +97,26 @@ public class AttachmentItem extends Item {
 
 	public boolean isLaser() {
 		return laser;
+	}
+
+	/** Lights where the gun points while fitted, from its {@code <item>_lamp} bone (drawn by the client, looks only). */
+	public AttachmentItem flashlight() {
+		this.flashlight = true;
+		return this;
+	}
+
+	public boolean isFlashlight() {
+		return flashlight;
+	}
+
+	/** The reticle shape an optic shows until the holder picks another (a holographic sight's ring). */
+	public AttachmentItem reticle(Reticle.Shape shape) {
+		this.reticle = shape;
+		return this;
+	}
+
+	public Reticle.Shape defaultReticle() {
+		return reticle;
 	}
 
 	/**

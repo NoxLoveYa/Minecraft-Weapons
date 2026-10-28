@@ -163,7 +163,7 @@ public final class ScopeRenderer {
 		float offsetX = eye.dot(pose.transformDirection(new Vector3f(1, 0, 0)).normalize()) / drawn.radius();
 		float offsetY = eye.dot(pose.transformDirection(new Vector3f(0, 1, 0)).normalize()) / drawn.radius();
 		float pupil = Mth.clamp(1 - Math.abs(center.dot(axis) - Attachments.eyeDistance(stack, optic)) * PUPIL_FALLOFF, 0.12F, 1);
-		Reticle reticle = stack.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+		Reticle reticle = Attachments.reticle(stack);
 
 		TextureManager textures = minecraft.getTextureManager();
 		AbstractTexture etched = textures.getTexture(BuiltInRegistries.ITEM.getKey(optic).withPath(path -> "textures/gui/scope/" + path + ".png"));

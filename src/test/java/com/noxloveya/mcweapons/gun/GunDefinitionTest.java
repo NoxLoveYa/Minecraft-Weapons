@@ -149,7 +149,7 @@ class GunDefinitionTest {
 		}
 		assertEquals(List.of("semi", GunDefinition.BURST, "auto", "safe"), m4.selectableModes());
 		assertEquals(31, m4.reloadTarget(1));
-		assertTrue(m4.attachments().isEmpty());
+		assertTrue(m4.attachments().containsAll(List.of(McWeapons.id("acog"), McWeapons.id("extended_mag_45"), McWeapons.id("flashlight"))));
 		// 800 RPM fires 1.5 ticks apart on average, so some gaps are a single tick, and with a tick of network jitter two shots can
 		// arrive in one server tick (fired at 0, 2, 3, 5, 6, arriving at 0, 2, 4, 4, 6): the server must take them all.
 		long last = -1000;

@@ -16,6 +16,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -40,11 +42,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Laser sights: a thin beam, in the color set on the gun, from each fitted laser's emitter, where the gun is drawn (first person, or in someone's hand), along the
  * gun to the first block or body it meets, with a glowing dot there. Every client draws everyone's from what it already has (attachments,
  * the gun's drawn pose, where players look). Looks only.
+ * <p>
+ * Flashlights too: a soft spot where the gun points and, on someone else's gun, its lit lens. They are drawn in the lasers' pass because a
+ * second pass of the same kind in a frame is not drawn.
  */
 public final class Lasers {
 	private static final double RANGE = 48;
@@ -63,6 +69,12 @@ public final class Lasers {
 	private static final double ON_BODY_STRETCH = 1.5;
 	/** How each holder's laser emitter was last drawn in third person, relative to the camera, by entity id. */
 	private static final Map<Integer, Held> HELD = new HashMap<>();
+	/** The same for a flashlight's lens. */
+	private static final Map<Integer, Held> HELD_LAMPS = new HashMap<>();
+	/** A flashlight lights what the gun points at this far away at most; its spot widens with distance (about 10 degrees each side). */
+	private static final double LIGHT_RANGE = 32;
+	private static final double SPOT_SPREAD = 0.17;
+	private static final int LAMP_COLOR = 0xFFF2DA;
 
 	public record Emitter(Vec3 pos, Vec3 forward) {
 	}
@@ -73,8 +85,12 @@ public final class Lasers {
 	private record Beam(Vec3 from, Vec3 to, boolean hit, boolean onBody, boolean lens, int color) {
 	}
 
-	/** Where a ray stopped, and whether on a body rather than a block. */
-	private record Hit(Vec3 at, boolean body) {
+	/** Where a ray stopped, and whether on a body rather than a block; the block face it stopped on, if any. */
+	private record Hit(Vec3 at, boolean body, @Nullable Direction face) {
+	}
+
+	/** A flashlight's spot: where its beam lands, seen from {@code from}; {@code dark} 0 to 1, how little light is there already. */
+	private record Spot(Hit hit, Vec3 from, float dark) {
 	}
 
 	/** A glow at {@code at} (from the camera): the dot where a beam lands, or a lens seen from outside. */
@@ -89,6 +105,7 @@ public final class Lasers {
 		ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
 			long now = System.nanoTime();
 			HELD.values().removeIf(held -> minecraft.level == null || now - held.nanos > 1_000_000_000L);
+			HELD_LAMPS.values().removeIf(held -> minecraft.level == null || now - held.nanos > 1_000_000_000L);
 		});
 	}
 
@@ -102,15 +119,23 @@ public final class Lasers {
 		return new Vector3f(0, 0, -1);
 	}
 
-	/** A laser is fitted to the gun in {@code holder}'s hand, and it is not being fitted or taken off (it is switched on once it is on the rail). */
-	private static boolean shining(LivingEntity holder) {
+	/** Called by {@link BonePoseLayer} with the pose a held gun's flashlight lens ({@code <item>_lamp}) is drawn with, relative to the camera. */
+	static void recordLamp(Entity holder, Matrix4fc pose) {
+		HELD_LAMPS.put(holder.getId(), new Held(new Matrix4f(pose), Minecraft.getInstance().gameRenderer.mainCamera().position(), System.nanoTime()));
+	}
+
+	/**
+	 * An attachment that {@code kind} picks (a laser, a flashlight) is fitted to the gun in {@code holder}'s hand, and it is not being fitted
+	 * or taken off (it is switched on once it is on the rail).
+	 */
+	private static boolean shining(LivingEntity holder, Predicate<AttachmentItem> kind) {
 		ItemStack stack = holder.getMainHandItem();
 		if (!(stack.getItem() instanceof GunItem gun) || holder.isInvisible() || holder.isSpectator()) {
 			return false;
 		}
 		for (AttachmentSlot slot : AttachmentSlot.values()) {
 			AttachmentItem attachment = Attachments.in(stack, slot);
-			if (attachment != null && attachment.isLaser()) {
+			if (attachment != null && kind.test(attachment)) {
 				var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 				// A finished triggered animation stays the controller's current one until the next is triggered, hence the finished check.
 				return main == null || main.hasAnimationFinished() || !main.isTriggeredAnimation(slot.attachAction()) && !main.isTriggeredAnimation(slot.detachAction());
@@ -161,7 +186,50 @@ public final class Lasers {
 		Vec3 to = block.getType() != HitResult.Type.MISS ? block.getLocation() : end;
 		EntityHitResult entity = ProjectileUtil.getEntityHitResult(holder, from, to, new AABB(from, to).inflate(1.0),
 				candidate -> candidate != holder && candidate.isPickable() && !candidate.isSpectator(), from.distanceToSqr(to));
-		return entity != null ? new Hit(entity.getLocation(), true) : block.getType() != HitResult.Type.MISS ? new Hit(to, false) : null;
+		return entity != null ? new Hit(entity.getLocation(), true, null) : block.getType() != HitResult.Type.MISS ? new Hit(to, false, block.getDirection()) : null;
+	}
+
+	/**
+	 * Where {@code holder}'s flashlight lands, within {@link #LIGHT_RANGE}: our own along the barrel's line in first person (it sweeps with
+	 * the gun through a reload), anyone else's along their look. Null when it reaches nothing.
+	 */
+	private static @Nullable Spot lightSpot(Minecraft minecraft, Level level, Camera camera, LivingEntity holder, float partialTick) {
+		Vec3 eye = holder.getEyePosition(partialTick);
+		Vec3 direction = holder.getViewVector(partialTick);
+		if (holder == minecraft.player && minecraft.options.getCameraType().isFirstPerson()) {
+			Vec3 aimed = Viewmodel.barrelTarget(minecraft.player, eye, holder.getViewXRot(partialTick), holder.getViewYRot(partialTick), camera, partialTick, LIGHT_RANGE);
+			if (aimed != null && aimed.distanceToSqr(eye) > 1.0E-4) {
+				direction = aimed.subtract(eye).normalize();
+			}
+		}
+		Hit hit = firstHit(level, holder, eye, direction, LIGHT_RANGE);
+		if (hit == null) {
+			return null;
+		}
+		// The world's own light just in front of the surface (sky by the time of day, and blocks): a flashlight hardly shows at noon.
+		int light = level.getMaxLocalRawBrightness(BlockPos.containing(hit.at.add(eye.subtract(hit.at).normalize().scale(0.3))));
+		return new Spot(hit, eye, 1 - 0.9F * light / 15F);
+	}
+
+	/**
+	 * Where each player's flashlight should light the world this tick, by entity id: just short of where its beam lands, in the air
+	 * before the surface. Read by the dynamic lights integration (compat.LambDynLightsCompat).
+	 */
+	public static Map<Integer, Vec3> lightSpots(Minecraft minecraft) {
+		Map<Integer, Vec3> spots = new HashMap<>();
+		if (minecraft.level == null) {
+			return spots;
+		}
+		Camera camera = minecraft.gameRenderer.mainCamera();
+		for (AbstractClientPlayer player : minecraft.level.players()) {
+			if (player.position().distanceToSqr(camera.position()) <= DRAW_DISTANCE * DRAW_DISTANCE && shining(player, AttachmentItem::isFlashlight)) {
+				Spot spot = lightSpot(minecraft, minecraft.level, camera, player, 1);
+				if (spot != null) {
+					spots.put(player.getId(), spot.hit.at.add(spot.from.subtract(spot.hit.at).normalize().scale(0.7)));
+				}
+			}
+		}
+		return spots;
 	}
 
 	/** Where the first block or body (not {@code holder}) is along {@code direction} from {@code from}, or the point {@code range} along. */
@@ -188,8 +256,10 @@ public final class Lasers {
 		Camera camera = minecraft.gameRenderer.mainCamera();
 		Vec3 cameraPos = camera.position();
 		List<Beam> beams = new ArrayList<>();
+		List<Spot> spots = new ArrayList<>();
+		List<Glow> glows = new ArrayList<>();
 		for (AbstractClientPlayer player : level.players()) {
-			if (player.position().distanceToSqr(cameraPos) > DRAW_DISTANCE * DRAW_DISTANCE || !shining(player)) {
+			if (player.position().distanceToSqr(cameraPos) > DRAW_DISTANCE * DRAW_DISTANCE) {
 				continue;
 			}
 			boolean ownFirstPerson = player == minecraft.player && minecraft.options.getCameraType().isFirstPerson();
@@ -197,16 +267,30 @@ public final class Lasers {
 			if (ownFirstPerson && Viewmodel.showcasing()) {
 				continue;
 			}
-			Emitter emitter = emitter(minecraft, level, camera, player, partialTick);
-			if (emitter != null) {
-				beams.add(cast(level, player, emitter, !ownFirstPerson));
+			if (shining(player, AttachmentItem::isLaser)) {
+				Emitter emitter = emitter(minecraft, level, camera, player, partialTick);
+				if (emitter != null) {
+					beams.add(cast(level, player, emitter, !ownFirstPerson));
+				}
+			}
+			if (shining(player, AttachmentItem::isFlashlight)) {
+				Spot spot = lightSpot(minecraft, level, camera, player, partialTick);
+				if (spot != null) {
+					spots.add(spot);
+				}
+				// Someone else's lit lens, brightest when it points at the camera.
+				Held lamp = ownFirstPerson ? null : HELD_LAMPS.get(player.getId());
+				if (lamp != null && System.nanoTime() - lamp.nanos < STALE_NANOS) {
+					Vec3 at = lamp.camera.add(new Vec3(lamp.pose.transformPosition(new Vector3f()))).subtract(cameraPos);
+					float facing = Math.max(0, -(float)new Vec3(lamp.pose.transformDirection(alongBore())).normalize().dot(at.normalize()));
+					glows.add(new Glow(at.toVector3f(), Math.max(0.02F, (float)at.length() * 0.003F) * (1 + 1.5F * facing * facing), 0.5F + 0.5F * facing, LAMP_COLOR));
+				}
 			}
 		}
-		if (beams.isEmpty()) {
+		if (beams.isEmpty() && spots.isEmpty() && glows.isEmpty()) {
 			return;
 		}
 		float seconds = (level.getGameTime() + partialTick) / 20;
-		List<Glow> glows = new ArrayList<>();
 		for (Beam beam : beams) {
 			float flicker = 1 + 0.07F * Mth.sin(seconds * 31) * Mth.sin(seconds * 17 + beam.from.hashCode());
 			if (beam.hit) {
@@ -230,6 +314,7 @@ public final class Lasers {
 		// One submit per render type (a second one in the same frame is not drawn). An additive glow and a small halo, then a thin normally
 		// blended core and dot on top, so the color holds against sand and sky (as tracers do).
 		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.lightning(), (pose, buffer) -> {
+			spots.forEach(spot -> spot(buffer, pose, spot, cameraPos, left, up));
 			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.006F, 0.0035F, 0.45F, seconds));
 			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius * 2.6F, ((int)(0x80 * glow.strength) << 24) | glow.color));
 		});
@@ -278,6 +363,31 @@ public final class Lasers {
 			back = front;
 			backColor = frontColor;
 		}
+	}
+
+	/**
+	 * A flashlight's spot, added to what is already drawn there: a wide soft pool and a brighter middle, lying on the block face it lands on
+	 * (a hair off it), or facing the camera on a body. Wider and fainter the further it is thrown. The world's own light comes from the
+	 * dynamic lights integration, when there is one.
+	 */
+	private static void spot(VertexConsumer buffer, PoseStack.Pose pose, Spot spot, Vec3 camera, Vector3fc left, Vector3fc up) {
+		double distance = spot.hit.at.distanceTo(spot.from);
+		float radius = (float)Mth.clamp(distance * SPOT_SPREAD, 0.25, 3.5);
+		float strength = (float)Mth.clamp(1.2 - distance / LIGHT_RANGE, 0, 1) * spot.dark;
+		Vector3f at = spot.hit.at.subtract(camera).toVector3f();
+		Vector3fc u = left;
+		Vector3fc v = up;
+		Direction face = spot.hit.face;
+		if (face != null) {
+			Vector3f normal = new Vector3f(face.getStepX(), face.getStepY(), face.getStepZ());
+			at.add(new Vector3f(normal).mul(0.01F));
+			u = face.getAxis() == Direction.Axis.Y ? new Vector3f(1, 0, 0) : new Vector3f(0, 1, 0);
+			v = new Vector3f(normal).cross(u);
+		} else {
+			at.mul(pull(at, BODY_PULL));
+		}
+		disc(buffer, pose, at, u, v, radius, ((int)(0x58 * strength) << 24) | LAMP_COLOR);
+		disc(buffer, pose, at, u, v, radius * 0.45F, ((int)(0x60 * strength) << 24) | LAMP_COLOR);
 	}
 
 	/** A beam point {@code distance} along it, pulled toward the camera over the last stretch of a beam that ends on a body (see {@link #BODY_PULL}). */

@@ -30,7 +30,20 @@
     "speed": 905.0,
     "gravity": 9.81
   },
-  "attachments": [],
+  "attachments": [
+    "mcweapons:silencer",
+    "mcweapons:muzzle_brake",
+    "mcweapons:coyote_sight",
+    "mcweapons:reflex_sight",
+    "mcweapons:holographic_sight",
+    "mcweapons:prism_scope",
+    "mcweapons:acog",
+    "mcweapons:extended_mag_45",
+    "mcweapons:laser",
+    "mcweapons:vertical_grip",
+    "mcweapons:angled_grip",
+    "mcweapons:flashlight"
+  ],
   "feel": {
     "sway_gain": 0.2,
     "sway_max_deg": 5.0,

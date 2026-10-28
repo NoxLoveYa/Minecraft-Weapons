@@ -8,7 +8,9 @@ public enum AttachmentSlot implements StringRepresentable {
 	MUZZLE("muzzle"),
 	OPTIC("optic"),
 	UNDERBARREL("underbarrel"),
-	MAGAZINE("magazine");
+	MAGAZINE("magazine"),
+	GRIP("grip"),
+	LIGHT("light");
 
 	public static final Codec<AttachmentSlot> CODEC = StringRepresentable.fromEnum(AttachmentSlot::values);
 

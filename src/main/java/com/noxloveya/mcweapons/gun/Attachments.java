@@ -65,6 +65,16 @@ public final class Attachments {
 		}
 	}
 
+	/** How {@code gun}'s optic draws its reticle: as set in the attachment menu, or until then in the fitted optic's own shape. */
+	public static Reticle reticle(ItemStack gun) {
+		Reticle set = gun.get(ModComponents.RETICLE);
+		AttachmentItem optic = in(gun, AttachmentSlot.OPTIC);
+		if (set != null || optic == null) {
+			return set != null ? set : Reticle.DEFAULT;
+		}
+		return new Reticle(Reticle.DEFAULT.color(), Reticle.DEFAULT.size(), optic.defaultReticle());
+	}
+
 	/** A silencer is fitted (see {@link AttachmentItem#silences}). */
 	public static boolean silenced(ItemStack gun) {
 		AttachmentItem muzzle = in(gun, AttachmentSlot.MUZZLE);

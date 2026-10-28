@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.client.compat;
 
+import com.noxloveya.mcweapons.client.render.Lasers;
 import com.noxloveya.mcweapons.client.render.MuzzleLight;
 import dev.lambdaurora.lambdynlights.api.DynamicLightsContext;
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer;
@@ -26,6 +27,8 @@ import java.util.Map;
  * fast and fastest modes, and only for sections it has already tracked. A flash a few ticks long was drawn late, in the wrong place, and
  * often never cleared. So the sections the flash reaches are marked for rebuild here: once the light is in place, and again once it is
  * gone. Its light lookup is recomputed every level tick whatever the mode, so a rebuild always shows the current lights.
+ * <p>
+ * Flashlights the same way: one light per holder, kept where the beam lands (see {@link Lasers#lightSpots}).
  */
 public final class LambDynLightsCompat implements DynamicLightsInitializer {
 	// A gunshot flash lights a room, for a moment.
@@ -45,7 +48,13 @@ public final class LambDynLightsCompat implements DynamicLightsInitializer {
 		}
 	}
 
+	// A flashlight lights where its beam lands, less than a flash; moved once its spot has gone a block, checked every few ticks.
+	private static final int SPOT_LUMINANCE = 12;
+	private static final int SPOT_EVERY = 3;
+
 	private final Map<Integer, Light> lights = new HashMap<>();
+	/** Each flashlight's light, by holder entity id. */
+	private final Map<Integer, Light> spots = new HashMap<>();
 	/** Where lights were added, moved or removed: the sections around them are rebuilt at the end of the client tick. */
 	private final List<Vec3> dirty = new ArrayList<>();
 
@@ -74,6 +83,8 @@ public final class LambDynLightsCompat implements DynamicLightsInitializer {
 			if (client.level == null) {
 				lights.values().forEach(light -> manager.remove(light.behavior));
 				lights.clear();
+				spots.values().forEach(light -> manager.remove(light.behavior));
+				spots.clear();
 				dirty.clear();
 				return;
 			}
@@ -92,6 +103,34 @@ public final class LambDynLightsCompat implements DynamicLightsInitializer {
 				dirty.add(light.pos);
 				return true;
 			});
+			// Flashlights change at the end of the tick, after this tick's lookup, so like a removed flash their sections are rebuilt next tick.
+			if (client.level.getGameTime() % SPOT_EVERY == 0) {
+				Map<Integer, Vec3> wanted = Lasers.lightSpots(client);
+				spots.entrySet().removeIf(entry -> {
+					if (wanted.containsKey(entry.getKey())) {
+						return false;
+					}
+					manager.remove(entry.getValue().behavior);
+					dirty.add(entry.getValue().pos);
+					return true;
+				});
+				wanted.forEach((id, pos) -> {
+					Light light = spots.get(id);
+					if (light == null) {
+						light = new Light(new LineLightBehavior(new Vector3d(pos.x, pos.y, pos.z), new Vector3d(pos.x, pos.y, pos.z), SPOT_LUMINANCE), pos);
+						manager.add(light.behavior);
+						spots.put(id, light);
+					} else if (light.pos.distanceToSqr(pos) > 1) {
+						dirty.add(light.pos);
+						light.behavior.setStartPoint(pos.x, pos.y, pos.z);
+						light.behavior.setEndPoint(pos.x, pos.y, pos.z);
+						light.pos = pos;
+					} else {
+						return;
+					}
+					dirty.add(pos);
+				});
+			}
 		});
 	}
 
