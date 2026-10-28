@@ -68,6 +68,8 @@ public class McWeaponsClient implements ClientModInitializer {
 		Lasers.register();
 		Casings.register();
 		ThirdPersonGuns.register();
+		// Under the rest of the HUD, like vanilla's vignette.
+		HudElementRegistry.addFirst(McWeapons.id("breath"), GunHud::renderBreath);
 		HudElementRegistry.addLast(McWeapons.id("ammo"), (graphics, deltaTracker) -> {
 			if (!GunTunerScreen.isOpen()) {
 				GunHud.renderAmmo(graphics, deltaTracker);

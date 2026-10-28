@@ -48,6 +48,8 @@
   "key.mcweapons.inspect": "Inspect",
   "key.mcweapons.fire_mode": "Fire Mode",
   "key.mcweapons.aim_toggle": "Aim (toggle)",
+  "key.mcweapons.hold_breath": "Hold Breath",
+  "key.mcweapons.breath_toggle": "Hold Breath (toggle)",
   "subtitles.mcweapons.gun.select": "Gun fire mode switched",
   "key.mcweapons.tuner": "Gun Tuner (ops only)",
   "gui.mcweapons.tuner": "Gun Tuner",

@@ -12,6 +12,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -21,7 +23,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-/** Ammo panel in the bottom right, and a spread crosshair that fades out while aiming. */
+/** Ammo panel in the bottom right, a spread crosshair that fades out while aiming, and the held breath running low. */
 public final class GunHud {
 	private static final int MARGIN = 8;
 	private static final int WHITE = 0xFFFFFFFF;
@@ -36,6 +38,10 @@ public final class GunHud {
 	private static final int HIT_MARKER_GAP = 4;
 	private static final long HIT_MARKER_MILLIS = 260;
 	private static final long KILL_MARKER_MILLIS = 480;
+	/** Darkens the screen's border (black at the corners) with the vignette pipeline; white is fully dark. */
+	private static final Identifier BREATH_VIGNETTE = McWeapons.id("textures/gui/breath_vignette.png");
+	/** Below this much breath left, the vignette comes in. */
+	private static final float BREATH_LOW = 0.4F;
 
 	private static long safeBlockedUntil;
 	private static long hitmarkerStart;
@@ -44,6 +50,24 @@ public final class GunHud {
 	private static int hitmarkerLength;
 
 	private GunHud() {
+	}
+
+	/**
+	 * As a held breath runs low the screen's border darkens in from the edges: the vignette is drawn oversized, so its dark rim is off
+	 * screen, and closes in to the screen's edges as the breath runs out. It fades as the breath comes back.
+	 */
+	public static void renderBreath(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+		float low = Mth.clamp(1 - GunInput.breath(deltaTracker.getGameTimeDeltaPartialTick(false)) / BREATH_LOW, 0, 1);
+		if (low <= 0) {
+			return;
+		}
+		low = low * low * (3 - 2 * low);
+		int width = graphics.guiWidth();
+		int height = graphics.guiHeight();
+		int x = Math.round(width * 0.4F * (1 - low));
+		int y = Math.round(height * 0.4F * (1 - low));
+		graphics.blit(RenderPipelines.VIGNETTE, BREATH_VIGNETTE, -x, -y, 0, 0, width + 2 * x, height + 2 * y, width + 2 * x, height + 2 * y,
+				ARGB.colorFromFloat(1, low, low, low));
 	}
 
 	public static void renderAmmo(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {

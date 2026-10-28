@@ -50,6 +50,9 @@ import java.nio.file.Path;
 public final class ServerHandlers {
 	/** Present on a player's movement speed while they aim, which also makes it the per-player aiming state. */
 	public static final Identifier ADS_SPEED = McWeapons.id("ads_speed");
+	/** Present while an aiming player holds their breath (see BreathMeter): they move this much slower again. */
+	private static final Identifier BREATH_SPEED = McWeapons.id("breath_speed");
+	private static final float BREATH_MOVE_SPEED_MULTIPLIER = 0.75F;
 	/** World datapack the gun tuner saves into. It is picked up by /reload and on the next world load. */
 	private static final String TUNING_PACK = "mcweapons_tuning";
 	/** Furthest a shot's reported eye may be from the server's, in blocks: a sprint or a jump between ticks, not a teleport. */
@@ -77,7 +80,7 @@ public final class ServerHandlers {
 
 		ServerPlayNetworking.registerGlobalReceiver(ShootPayload.TYPE, (payload, context) -> shoot(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(ReloadPayload.TYPE, (payload, context) -> reload(context.player(), payload.slot()));
-		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming()));
+		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming(), payload.holdingBreath()));
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot()));
@@ -108,7 +111,7 @@ public final class ServerHandlers {
 				ServerPlayNetworking.send(player, new GunDefinitionsPayload(GunDefinitions.all())));
 		ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(player -> {
 			if (!GunItem.holdsGun(player)) {
-				setAiming(player, false);
+				setAiming(player, false, false);
 			}
 			keepGunOutOfOffhand(player);
 		}));
@@ -255,13 +258,19 @@ public final class ServerHandlers {
 		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, payload));
 	}
 
-	private static void setAiming(ServerPlayer player, boolean aiming) {
+	/** Aiming slows the holder by the gun's {@code move_speed_ads_multiplier}, and holding the breath while aiming a little more. */
+	private static void setAiming(ServerPlayer player, boolean aiming, boolean holdingBreath) {
 		AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
 		GunDefinition definition = GunItem.definition(player.getMainHandItem());
 		if (aiming && definition != null && GunItem.holdsGun(player)) {
 			speed.addOrUpdateTransientModifier(new AttributeModifier(ADS_SPEED, definition.moveSpeedAdsMultiplier() - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
 		} else {
 			speed.removeModifier(ADS_SPEED);
+		}
+		if (aiming && holdingBreath && speed.hasModifier(ADS_SPEED)) {
+			speed.addOrUpdateTransientModifier(new AttributeModifier(BREATH_SPEED, BREATH_MOVE_SPEED_MULTIPLIER - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+		} else {
+			speed.removeModifier(BREATH_SPEED);
 		}
 	}
 

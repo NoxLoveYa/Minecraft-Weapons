@@ -101,6 +101,12 @@ public final class Viewmodel {
 	/** 0 in the hand, 1 in the running pose while sprinting. */
 	private static float run;
 	private static float runO;
+	/** 0 to 1 as the breath is held while aiming (GunInput.holdingBreath): the gun steadies and the view closes in a little. */
+	private static float steady;
+	private static float steadyO;
+	/** With the breath held: how much of the sway and walk bob goes (the breathing motion goes entirely), and how much the view closes in. */
+	private static final float BREATH_STEADY = 0.85F;
+	private static final float BREATH_ZOOM = 0.08F;
 
 	private Viewmodel() {
 	}
@@ -137,6 +143,8 @@ public final class Viewmodel {
 		magnification += (scopeMagnification - magnification) * 0.5F;
 		scopeO = scope;
 		scope = Mth.clamp(scope + (scopeReady ? 1.0F : -1.0F) / SCOPE_TICKS, 0, 1);
+		steadyO = steady;
+		steady += ((GunInput.holdingBreath() ? 1 : 0) - steady) * 0.3F;
 		recoilPitch = definition.recoilPitchDeg();
 		feel = definition.feel();
 		recoilO = recoil;
@@ -150,6 +158,7 @@ public final class Viewmodel {
 		showcase = showcaseO = 0;
 		showcaseOpen = false;
 		run = runO = 0;
+		steady = steadyO = 0;
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
@@ -201,13 +210,22 @@ public final class Viewmodel {
 	/** How much of the camera's walk bob to keep: the held gun's bob_scale, so view and gun bob together, or all of it without a gun. */
 	public static float viewBobScale() {
 		LocalPlayer player = Minecraft.getInstance().player;
-		return player != null && GunItem.holdsGun(player) ? feel.bobScale() : 1;
+		return player != null && GunItem.holdsGun(player) ? feel.bobScale() * (1 - BREATH_STEADY * steady(1)) : 1;
 	}
 
-	/** How much aiming narrows the view: the gun's own zoom, and a scope's magnification once it is at the eye (the lens pass, ScopeRenderer). */
+	/**
+	 * How much aiming narrows the view: the gun's own zoom, a scope's magnification once it is at the eye (the lens pass, ScopeRenderer),
+	 * and a little more with the breath held.
+	 */
 	public static float fovMultiplier(float partialTick) {
 		float scoped = Mth.lerp(scopeView(partialTick), adsFovMultiplier, 1 / Mth.lerp(partialTick, magnificationO, magnification));
-		return Mth.lerp(ads(partialTick), 1, scoped);
+		return Mth.lerp(ads(partialTick), 1, scoped) * (1 - BREATH_ZOOM * steady(partialTick));
+	}
+
+	/** How far the breath is held, 0 to 1 (see {@link #steady}). */
+	public static float steady(float partialTick) {
+		float t = Mth.lerp(partialTick, steadyO, steady);
+		return t * t * (3 - 2 * t);
 	}
 
 	/** How much slower the mouse turns the view: as much as aiming zooms in, so what is aimed at moves across the sights at about the usual speed. */
@@ -382,8 +400,9 @@ public final class Viewmodel {
 		float aim = ads(partialTick);
 		float show = Mth.lerp(partialTick, showcaseO, showcase);
 		show = show * show * (3 - 2 * show);
-		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
-		float loose = (1 - 0.8F * aim) * (1 - show);
+		// Sway and bob drop to 20% at full ADS, most of the rest goes with the breath held, and all of it while the gun is showcased.
+		float held = steady(partialTick);
+		float loose = (1 - 0.8F * aim) * (1 - BREATH_STEADY * held) * (1 - show);
 		poseStack.pushPose();
 		// Everything below is in view space relative to this; the tuner reads the gun's pose against it.
 		inverseBase.set(poseStack.last().pose()).invert();
@@ -439,8 +458,8 @@ public final class Viewmodel {
 
 		// 3b. Breathing, under everything (reloads, inspects and the tuner too), because a held gun is never quite still: a slow rise
 		// and fall that tips the muzzle up on the inhale, and a sideways drift and roll from waves at unrelated periods so it never
-		// visibly loops. Pivots on the grip, and drops to 20% while aiming like sway.
-		float breath = feel.breathScale() * (1 - 0.8F * aim);
+		// visibly loops. Pivots on the grip, drops to 20% while aiming like sway, and stops with the breath held.
+		float breath = feel.breathScale() * (1 - 0.8F * aim) * (1 - held);
 		if (breath > 0) {
 			float seconds = (player.tickCount + partialTick) / 20;
 			float inhale = Mth.sin(seconds * Mth.TWO_PI / BREATH_PERIOD);

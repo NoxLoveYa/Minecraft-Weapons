@@ -14,6 +14,7 @@ import com.noxloveya.mcweapons.combat.Ballistics;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
+import com.noxloveya.mcweapons.gun.BreathMeter;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
@@ -68,6 +69,10 @@ public final class GunInput {
 	public static final KeyMapping ATTACHMENTS = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.attachments", InputConstants.KEY_G, CATEGORY));
 	/** Raises or lowers the sights with a press, beside holding use. Unbound by default; bound to use's button it replaces the hold. */
 	public static final KeyMapping AIM_TOGGLE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.aim_toggle", InputConstants.UNKNOWN.getValue(), CATEGORY));
+	/** Held while aiming, holds the breath: steadier, a little closer, a little slower, for as long as it lasts. On sneak's key by default. */
+	public static final KeyMapping HOLD_BREATH = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.hold_breath", InputConstants.KEY_LSHIFT, CATEGORY));
+	/** Holds the breath with a press, until pressed again, the sights come down or the breath runs out. Unbound by default. */
+	public static final KeyMapping BREATH_TOGGLE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.breath_toggle", InputConstants.UNKNOWN.getValue(), CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
 
@@ -117,6 +122,10 @@ public final class GunInput {
 	private static final Map<AttachmentSlot, AttachmentItem> PENDING = new EnumMap<>(AttachmentSlot.class);
 	/** The power a variable optic is turned to with the scroll wheel (kept within each optic's range), or 0 before it is first turned. */
 	private static float zoom;
+	private static final BreathMeter BREATH = new BreathMeter();
+	private static float breathO = 1;
+	private static boolean holdingBreath;
+	private static boolean breathToggled;
 
 	private GunInput() {
 	}
@@ -127,6 +136,15 @@ public final class GunInput {
 
 	public static boolean aiming() {
 		return aiming;
+	}
+
+	public static boolean holdingBreath() {
+		return holdingBreath;
+	}
+
+	/** What is left of the breath, 1 full, between the last tick and this one. */
+	public static float breath(float partialTick) {
+		return Mth.lerp(partialTick, breathO, BREATH.breath());
 	}
 
 	/** What the player is doing for the spread: sprinting, crouching, walking (moving more than a crawl since last tick) or standing still. */
@@ -267,13 +285,21 @@ public final class GunInput {
 		aimHeld = holding && (useHeld || aimToggled || previewing);
 		// Out of a sprint the running pose comes down first, so the sights rise a little later.
 		boolean aim = aimHeld && !Viewmodel.running();
-		if (aim != aiming && player != null) {
-			ClientPlayNetworking.send(new AimPayload(aim));
-			if (holding) {
-				player.playSound(((GunItem)player.getMainHandItem().getItem()).sound(aim ? "aim_in" : "aim_out"), 1.0F, 1.0F);
-			}
+		// The breath is held only while aiming, and comes back otherwise; the toggle lets go when the sights come down or it runs out.
+		if (freshPress(BREATH_TOGGLE) && aim) {
+			breathToggled = !breathToggled;
+		}
+		breathO = BREATH.breath();
+		boolean breath = BREATH.tick(aim && (HOLD_BREATH.isDown() || breathToggled));
+		breathToggled &= breath;
+		if ((aim != aiming || breath != holdingBreath) && player != null) {
+			ClientPlayNetworking.send(new AimPayload(aim, breath));
+		}
+		if (aim != aiming && player != null && holding) {
+			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound(aim ? "aim_in" : "aim_out"), 1.0F, 1.0F);
 		}
 		aiming = aim;
+		holdingBreath = breath;
 
 		if (!holding) {
 			// Still read every tick, to keep their held state right.
