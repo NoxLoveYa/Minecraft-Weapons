@@ -92,6 +92,8 @@ public final class GunInput {
 	private static long noSprintUntil;
 	/** Client game time, in fractional ticks, when the next shot is due (see GunDefinition.nextShotDue). */
 	private static double nextShotDue;
+	/** Shots still to come in the burst the last click started; each fires as it comes due. */
+	private static int burstLeft;
 	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
 	private static long predictedReloadUntil;
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
@@ -323,6 +325,7 @@ public final class GunInput {
 			drawDue = false;
 			predictedReloadUntil = 0;
 			noSprintUntil = 0;
+			burstLeft = 0;
 			Viewmodel.reset();
 			return;
 		}
@@ -339,6 +342,7 @@ public final class GunInput {
 			reloadHeldTicks = -1;
 			predictedMode = null;
 			attachingUntil = 0;
+			burstLeft = 0;
 			PENDING.clear();
 			Viewmodel.reset();
 			drawDue = true;
@@ -392,10 +396,20 @@ public final class GunInput {
 			}
 		}
 		while (minecraft.options.keyAttack.consumeClick()) {
-			shoot(player, stack, gun, definition);
+			// Clicks during a burst do nothing, as on the real trigger.
+			if (burstLeft == 0 && shoot(player, stack, gun, definition) && GunDefinition.BURST.equals(fireMode(player, stack, definition))) {
+				burstLeft = GunDefinition.BURST_ROUNDS - 1;
+			}
 		}
 		if (definition != null && "auto".equals(fireMode(player, stack, definition)) && minecraft.options.keyAttack.isDown()) {
 			shoot(player, stack, gun, definition);
+		}
+		if (burstLeft > 0 && definition != null && definition.shotDue(nextShotDue, player.level().getGameTime())) {
+			// A gun that runs dry, or a shot refused (a reload started, the mode switched to safe), ends the burst.
+			burstLeft--;
+			if (slideLocked(player, stack, definition) || !shoot(player, stack, gun, definition)) {
+				burstLeft = 0;
+			}
 		}
 		while (minecraft.options.keyUse.consumeClick()) {
 			// Aiming reads keyUse.isDown() above, the clicks only need to be kept from vanilla.
@@ -440,10 +454,11 @@ public final class GunInput {
 		}
 	}
 
-	private static void shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
+	/** Pulls the trigger if a shot is due; true when a round fired (not a dry click or the safe). */
+	private static boolean shoot(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition) {
 		long now = player.level().getGameTime();
 		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
-			return;
+			return false;
 		}
 		// On safe the trigger is blocked: it clicks like an empty gun and nothing fires (the server checks too).
 		boolean safe = GunDefinition.SAFE.equals(fireMode(player, stack, definition));
@@ -492,6 +507,7 @@ public final class GunInput {
 			}
 		}
 		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot, stance));
+		return fires;
 	}
 
 	/**

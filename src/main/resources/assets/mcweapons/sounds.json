@@ -240,6 +240,89 @@
       { "name": "mcweapons:mosin_nagant/casing_2", "volume": 0.4 }
     ]
   },
+  "m4a1.fire": {
+    "subtitle": "subtitles.mcweapons.gun.fire",
+    "sounds": [
+      { "name": "mcweapons:m4a1/fire", "volume": 1.0 }
+    ]
+  },
+  "m4a1.dry": {
+    "subtitle": "subtitles.mcweapons.gun.dry",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/dry", "volume": 0.6 }
+    ]
+  },
+  "m4a1.mag_out": {
+    "subtitle": "subtitles.mcweapons.gun.mag_out",
+    "sounds": [
+      { "name": "mcweapons:m4a1/mag_out", "volume": 0.55 }
+    ]
+  },
+  "m4a1.mag_in": {
+    "subtitle": "subtitles.mcweapons.gun.mag_in",
+    "sounds": [
+      { "name": "mcweapons:m4a1/mag_in", "volume": 0.6 }
+    ]
+  },
+  "m4a1.charge_back": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:m4a1/charge_back", "volume": 0.55 }
+    ]
+  },
+  "m4a1.charge_release": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:m4a1/charge_release", "volume": 0.6 }
+    ]
+  },
+  "m4a1.bolt_release": {
+    "subtitle": "subtitles.mcweapons.gun.bolt",
+    "sounds": [
+      { "name": "mcweapons:m4a1/charge_release", "volume": 0.65 }
+    ]
+  },
+  "m4a1.select": {
+    "subtitle": "subtitles.mcweapons.gun.select",
+    "sounds": [
+      { "name": "mcweapons:m4a1/select_1", "volume": 0.45 },
+      { "name": "mcweapons:m4a1/select_2", "volume": 0.45 }
+    ]
+  },
+  "m4a1.draw": {
+    "subtitle": "subtitles.mcweapons.gun.draw",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/draw", "volume": 0.5 }
+    ]
+  },
+  "m4a1.handling": {
+    "subtitle": "subtitles.mcweapons.gun.handling",
+    "sounds": [
+      { "name": "mcweapons:mosin_nagant/handling_1", "volume": 0.4 },
+      { "name": "mcweapons:mosin_nagant/handling_2", "volume": 0.4 }
+    ]
+  },
+  "m4a1.aim_in": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_in", "volume": 0.25 }
+    ]
+  },
+  "m4a1.aim_out": {
+    "subtitle": "subtitles.mcweapons.gun.aim",
+    "sounds": [
+      { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
+    ]
+  },
+  "m4a1.casing": {
+    "subtitle": "subtitles.mcweapons.gun.casing",
+    "sounds": [
+      { "name": "mcweapons:glock17/casing_1", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_2", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_3", "volume": 0.35 },
+      { "name": "mcweapons:glock17/casing_4", "volume": 0.35 }
+    ]
+  },
   "breath.hold": {
     "subtitle": "subtitles.mcweapons.breath.hold",
     "sounds": [

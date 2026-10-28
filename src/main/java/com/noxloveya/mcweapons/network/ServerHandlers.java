@@ -141,7 +141,7 @@ public final class ServerHandlers {
 		if (state.reloading() || !definition.readyToFire(state.lastShotTick(), now, 1)) {
 			return;
 		}
-		gun.set(ModComponents.GUN_STATE, new GunState(0, now));
+		gun.set(ModComponents.GUN_STATE, new GunState(0, definition.shotRecorded(state.lastShotTick(), now, 1)));
 		GunItem item = (GunItem) gun.getItem();
 		int ammo = GunItem.ammo(gun, definition);
 		// Empty, or on safe (the trigger is blocked): the same dry click, and no shot.

@@ -19,6 +19,7 @@ import java.util.function.UnaryOperator;
 public final class ModItems {
 	public static final GunItem GLOCK17 = gun("glock17");
 	public static final GunItem MOSIN_NAGANT = gun("mosin_nagant");
+	public static final GunItem M4A1 = gun("m4a1");
 	// Gas held back by the baffles: the bullet leaves a little slower and the gun kicks less.
 	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences().velocity(0.93F).recoil(0.85F));
 	// On the model the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone); the magnified ones are looked through (ScopeRenderer).

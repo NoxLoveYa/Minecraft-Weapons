@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "mcweapons:item/m4a1",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
+  }
+}

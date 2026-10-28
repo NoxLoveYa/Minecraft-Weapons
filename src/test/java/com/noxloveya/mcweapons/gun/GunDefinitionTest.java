@@ -142,10 +142,40 @@ class GunDefinitionTest {
 	}
 
 	@Test
+	void m4a1HasSemiBurstAutoAndSafe() throws Exception {
+		GunDefinition m4;
+		try (Reader reader = new InputStreamReader(getClass().getResourceAsStream("/data/mcweapons/guns/m4a1.json"), StandardCharsets.UTF_8)) {
+			m4 = GunDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader)).getOrThrow();
+		}
+		assertEquals(List.of("semi", GunDefinition.BURST, "auto", "safe"), m4.selectableModes());
+		assertEquals(31, m4.reloadTarget(1));
+		assertTrue(m4.attachments().isEmpty());
+		// 800 RPM fires 1.5 ticks apart on average, so some gaps are a single tick, and with a tick of network jitter two shots can
+		// arrive in one server tick (fired at 0, 2, 3, 5, 6, arriving at 0, 2, 4, 4, 6): the server must take them all.
+		long last = -1000;
+		for (long arrival : new long[] {0, 2, 4, 4, 6}) {
+			assertTrue(m4.readyToFire(last, arrival, 1), "shot arriving at " + arrival);
+			last = m4.shotRecorded(last, arrival, 1);
+		}
+		// Shots sent faster than the gun fires still get no more than one a tick, after one extra.
+		last = -1000;
+		int taken = 0;
+		for (long now = 10; now < 30; now++) {
+			for (int packet = 0; packet < 5; packet++) {
+				if (m4.readyToFire(last, now, 1)) {
+					last = m4.shotRecorded(last, now, 1);
+					taken++;
+				}
+			}
+		}
+		assertEquals(21, taken);
+	}
+
+	@Test
 	void clientFireRateAveragesTheRpm() {
 		// Firing on every tick a shot is due for one minute (1200 ticks) must give the RPM, not the RPM of the gap rounded up
 		// to whole ticks (590 used to fire at 400).
-		for (int rpm : new int[] {590, 600, 500, 450, 700, 400}) {
+		for (int rpm : new int[] {590, 600, 500, 450, 700, 400, 800}) {
 			GunDefinition gun = new GunDefinition(List.of("semi"), rpm, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
 			double due = 0;
 			int shots = 0;

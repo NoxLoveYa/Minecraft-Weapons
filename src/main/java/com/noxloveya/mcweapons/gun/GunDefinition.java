@@ -152,6 +152,9 @@ public record GunDefinition(
 	 * keyframe) rather than the shot. The bolt closes on an empty chamber, so nothing locks back.
 	 */
 	public static final String BOLT = "bolt";
+	/** A click fires this many rounds, one each time a shot comes due. */
+	public static final String BURST = "burst";
+	public static final int BURST_ROUNDS = 3;
 
 	public boolean boltAction() {
 		return fireModes.contains(BOLT);
@@ -204,6 +207,16 @@ public record GunDefinition(
 	/** Server check, in whole ticks. {@code now < lastShotTick} means the stack came from a world with a later clock, so it may fire. */
 	public boolean readyToFire(long lastShotTick, long now, int allowanceTicks) {
 		return now < lastShotTick || now - lastShotTick >= shotIntervalTicks() - allowanceTicks;
+	}
+
+	/**
+	 * The tick the server records for a shot it took at {@code now}: when that shot was due, up to {@code allowanceTicks} back, rather
+	 * than when it arrived. Shots fired a tick apart (800 RPM) can arrive in one server tick after a late one; timing the next from the
+	 * due time lets them through, while the average stays at the RPM.
+	 */
+	public long shotRecorded(long lastShotTick, long now, int allowanceTicks) {
+		// A record ahead of now came from another world's clock: start over.
+		return lastShotTick > now ? now : Math.max(lastShotTick + shotIntervalTicks() - allowanceTicks, now - allowanceTicks);
 	}
 
 	/** Rounds after a reload. Also the "mag is full" limit: a reload is pointless once {@code ammo >= reloadTarget(ammo)}. */

@@ -57,6 +57,10 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
 	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
+	/** The gun's fire mode, which turns its {@code selector} bone (see {@link #SELECTOR_DEG}). */
+	public static final DataTicket<String> FIRE_MODE = DataTicket.create("mcweapons_fire_mode", String.class);
+	/** The selector lever's turn up from safe for each mode, as on an AR: safe points forward, semi up, burst and auto back. */
+	private static final Map<String, Float> SELECTOR_DEG = Map.of(GunDefinition.SAFE, 0F, "semi", 90F, GunDefinition.BURST, 135F, "auto", 180F);
 	/** A reload animation is playing: the gun's {@code prop_} bones (a stripper clip, a round in the other hand) are drawn only then. */
 	public static final DataTicket<Boolean> RELOADING = DataTicket.create("mcweapons_reloading", Boolean.class);
 	/** Furthest a magazine or attachment strays from its place on a gun in someone's hand, in model pixels (see keepInReach). */
@@ -201,6 +205,10 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		renderState.addGeckolibData(RETICLE, renderData != null ? renderData.itemStack().getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT) : Reticle.DEFAULT);
 		renderState.addGeckolibData(THIRD_PERSON_AIM, !firstPerson && holder != null && ThirdPersonGuns.pose(holder) == ThirdPersonGuns.Pose.AIM);
 		renderState.addGeckolibData(GunItem.SLIDE_LOCKED, renderData != null && slideLocked(renderData));
+		String fireMode = renderData != null ? fireMode(renderData) : null;
+		if (fireMode != null) {
+			renderState.addGeckolibData(FIRE_MODE, fireMode);
+		}
 		renderState.addGeckolibData(MAG_FILL, renderData != null ? magFill(renderData, partialTick) : 1);
 		renderState.addGeckolibData(CHAMBERED, renderData != null && chambered(renderData));
 		renderState.addGeckolibData(RELOADING, holder != null && reloadPlaying(gun, holder));
@@ -296,6 +304,20 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			return GunInput.slideLocked(player, stack, definition);
 		}
 		return GunItem.ammo(stack, definition) == 0 && !stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading();
+	}
+
+	/** Our own switch shows at once (the prediction), anyone else's when their gun's mode arrives. */
+	private static @Nullable String fireMode(RenderData renderData) {
+		ItemStack stack = renderData.itemStack();
+		GunDefinition definition = GunItem.definition(stack);
+		if (definition == null) {
+			return null;
+		}
+		LocalPlayer player = Minecraft.getInstance().player;
+		if (player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player) {
+			return GunInput.fireMode(player, stack, definition);
+		}
+		return GunItem.fireMode(stack, definition);
 	}
 
 	/**
@@ -501,6 +523,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			for (int round = (int)Math.ceil(fill * slots) + 1; round <= slots; round++) {
 				snapshots.get("mag_round_" + round).ifPresent(snapshot -> snapshot.skipRender(true));
 			}
+		}
+		String mode = renderPassInfo.renderState().getGeckolibData(FIRE_MODE);
+		Float selector = mode == null ? null : SELECTOR_DEG.get(mode);
+		if (selector != null) {
+			snapshots.get("selector").ifPresent(snapshot -> snapshot.setRotation(selector * Mth.DEG_TO_RAD, 0, 0));
 		}
 		if (Boolean.FALSE.equals(renderPassInfo.renderState().getGeckolibData(CHAMBERED))) {
 			snapshots.get("chamber_round").ifPresent(snapshot -> snapshot.skipRender(true));

@@ -1,0 +1,11 @@
+{
+  "gui_light": "front",
+  "textures": {
+    "particle": "mcweapons:item/m4a1"
+  },
+  "display": {
+    "fixed": {
+      "rotation": [0, 180, 0]
+    }
+  }
+}

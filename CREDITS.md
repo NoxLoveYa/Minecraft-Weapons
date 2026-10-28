@@ -28,6 +28,8 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `mosin_nagant/select.ogg` | [Remington 700 Safety](https://pixabay.com/sound-effects/film-special-effects-remington-700-safety-48897/) | freesound_community |
 | `mosin_nagant/dry.ogg` | [Gun Dry Firing (1)](https://pixabay.com/sound-effects/film-special-effects-gun-dry-firing-1-96426/) | freesound_community |
 | `mosin_nagant/casing_1.ogg`, `casing_2.ogg` | [080962_Shell Hitting Ground](https://pixabay.com/sound-effects/film-special-effects-080962-shell-hitting-ground-39855/), [080963_Shell Hitting ground](https://pixabay.com/sound-effects/film-special-effects-080963-shell-hitting-ground-39857/) | freesound_community |
+| `m4a1/fire.ogg` | [M4 Assault rifle Long Burst](https://pixabay.com/sound-effects/film-special-effects-m4-assault-rifle-long-burst-102682/) (the burst's last shot, the only one with its tail) | freesound_community |
+| `m4a1/mag_out.ogg`, `mag_in.ogg`, `select_1.ogg`, `select_2.ogg`, `charge_back.ogg`, `charge_release.ogg` | [m4 rifle reload](https://pixabay.com/sound-effects/film-special-effects-m4-rifle-reload-103528/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 | `breath/hold.ogg` | [Breath in](https://pixabay.com/sound-effects/people-breath-in-242641/) (sped up 1.35x) | u_hm3ohsiik6 |
