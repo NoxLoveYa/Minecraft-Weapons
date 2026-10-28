@@ -19,7 +19,8 @@ public record Reticle(int color, float size, Shape shape) {
 	/** The colors and sizes the attachment menu steps through. */
 	public static final List<Integer> COLORS = List.of(0xFF3223, 0x3CFF50, 0x30E0FF, 0xFFE030, 0xFF40E0, 0xFFFFFF);
 	public static final List<Float> SIZES = List.of(0.25F, 0.5F, 0.75F, 1.0F, 1.25F);
-	public static final Reticle DEFAULT = new Reticle(COLORS.getFirst(), 1.0F, Shape.DOT);
+	public static final float DEFAULT_SIZE = 0.5F;
+	public static final Reticle DEFAULT = new Reticle(COLORS.getFirst(), DEFAULT_SIZE, Shape.DOT);
 
 	public static final Codec<Reticle> CODEC = RecordCodecBuilder.create(i -> i.group(
 			Codec.INT.fieldOf("color").forGetter(Reticle::color),
@@ -35,7 +36,7 @@ public record Reticle(int color, float size, Shape shape) {
 
 	public Reticle {
 		color &= 0xFFFFFF;
-		size = Float.isFinite(size) ? Mth.clamp(size, SIZES.getFirst(), SIZES.getLast()) : 1.0F;
+		size = Float.isFinite(size) ? Mth.clamp(size, SIZES.getFirst(), SIZES.getLast()) : DEFAULT_SIZE;
 	}
 
 	/** The next color in {@link #COLORS} ({@code step} -1 for the previous one); a color not in the list goes to the first. */
