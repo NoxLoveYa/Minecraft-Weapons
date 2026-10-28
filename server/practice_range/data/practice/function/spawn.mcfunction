@@ -1,0 +1,5 @@
+scoreboard players set @s pr_cd 0
+execute if entity @s[tag=pr_1shot] run summon husk ~ ~ ~ {Tags:["pr","pr_target"],Rotation:[180f,0f],NoAI:1b,Silent:1b,PersistenceRequired:1b,CustomNameVisible:1b,CustomName:{text:"One-shot (5 HP)",color:"green"},Health:5f,attributes:[{id:"minecraft:max_health",base:5d},{id:"minecraft:armor",base:0d},{id:"minecraft:knockback_resistance",base:1d}]}
+execute if entity @s[tag=pr_std] run summon vindicator ~ ~ ~ {Tags:["pr","pr_target"],Rotation:[180f,0f],NoAI:1b,Silent:1b,PersistenceRequired:1b,CustomNameVisible:1b,CustomName:{text:"20 HP",color:"yellow"},Health:20f,attributes:[{id:"minecraft:max_health",base:20d},{id:"minecraft:armor",base:0d},{id:"minecraft:knockback_resistance",base:1d}]}
+execute if entity @s[tag=pr_tank] run summon iron_golem ~ ~ ~ {Tags:["pr","pr_target"],Rotation:[180f,0f],NoAI:1b,Silent:1b,PersistenceRequired:1b,CustomNameVisible:1b,CustomName:{text:"Tank (60 HP)",color:"red"},Health:60f,attributes:[{id:"minecraft:max_health",base:60d},{id:"minecraft:armor",base:0d},{id:"minecraft:knockback_resistance",base:1d}]}
+particle minecraft:poof ~ ~1 ~ 0.3 0.5 0.3 0.02 10
