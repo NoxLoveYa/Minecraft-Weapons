@@ -370,10 +370,13 @@ public final class GunInput {
 		return definition != null && !busy(player, stack) && definition.shotDue(nextShotDue, player.level().getGameTime());
 	}
 
-	/** A random inspect variant, never the same one twice in a row. A slide locked back on an empty gun cannot be press checked. */
+	/**
+	 * A random inspect variant for the inspect key, never the same one twice in a row. The mag check is not one: it is holding reload. A
+	 * slide locked back on an empty gun cannot be press checked.
+	 */
 	private static String nextInspect(LocalPlayer player, boolean slideLocked) {
-		List<String> options = slideLocked ? GunItem.INSPECT_ACTIONS.stream().filter(action -> !action.equals("inspect_press_check")).toList()
-				: GunItem.INSPECT_ACTIONS;
+		List<String> options = GunItem.INSPECT_ACTIONS.stream()
+				.filter(action -> !action.equals("inspect_mag_check") && !(slideLocked && action.equals("inspect_press_check"))).toList();
 		int last = options.indexOf(lastInspect);
 		int pick = player.getRandom().nextInt(last < 0 ? options.size() : options.size() - 1);
 		if (last >= 0 && pick >= last) {

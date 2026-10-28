@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 /** Every gun is an instance of this class. Its stats live in the definition it points to. */
 public class GunItem extends Item implements GeoItem {
 	public static final String MAIN_CONTROLLER = "main";
-	/** Inspect variants; the client picks one at random each time. */
+	/** Inspect variants. The inspect key picks one of the others at random; the mag check is holding reload. */
 	public static final List<String> INSPECT_ACTIONS = List.of("inspect", "inspect_press_check", "inspect_mag_check");
 	/** Fitting and removing attachments, {@code attach_<slot>} and {@code detach_<slot>}: each takes this long. */
 	public static final List<String> ATTACHMENT_ACTIONS = Arrays.stream(AttachmentSlot.values()).flatMap(slot -> Stream.of(slot.attachAction(), slot.detachAction())).toList();
