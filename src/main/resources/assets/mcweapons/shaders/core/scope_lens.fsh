@@ -65,11 +65,13 @@ void main() {
     // Glass takes a little light and tints it faintly cool.
     colour *= mix(vec3(1.0), vec3(0.93, 0.96, 1.0), Strength);
 
-    // The reticle sits in the eyepiece's focal plane: fixed on the lens, drawn over the picture.
+    // The reticle sits in the eyepiece's focal plane: fixed on the lens, drawn over the picture. The screen's y runs up and the
+    // textures' rows down, so the reticles are read upside down to stand the right way up (an ACOG's ladder below, a PU's post rising).
     if (r <= 1.0) {
-        vec4 etched = texture(ReticleSampler, d * 0.5 + 0.5);
+        vec2 upright = vec2(d.x, -d.y);
+        vec4 etched = texture(ReticleSampler, upright * 0.5 + 0.5);
         colour = mix(colour, etched.rgb, etched.a * Strength);
-        vec2 litUv = d / LitColor.a * 0.5 + 0.5;
+        vec2 litUv = upright / LitColor.a * 0.5 + 0.5;
         if (all(greaterThanEqual(litUv, vec2(0.0))) && all(lessThanEqual(litUv, vec2(1.0)))) {
             vec4 lit = texture(LitSampler, litUv);
             colour = mix(colour, LitColor.rgb * lit.rgb, lit.a * Strength);
