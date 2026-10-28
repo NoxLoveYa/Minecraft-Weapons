@@ -57,6 +57,13 @@ public final class Lasers {
 	/** Within this angle (degrees) of what the holder aims at, the first-person beam lands on it; it lets go fully by {@link #LOCK_FADE_DEG}. */
 	private static final double LOCK_DEG = 10;
 	private static final double LOCK_FADE_DEG = 18;
+	/**
+	 * On a mob or player the dot is the hitbox's face, but arms and heads stick out of the hitbox toward the shooter (a zombie's arms by
+	 * almost half a block) and hid it. So the dot and the beam's last {@link #ON_BODY_STRETCH} blocks are drawn this far toward the camera,
+	 * along each point's own line of sight: the same pixels, in front of the model.
+	 */
+	private static final float BODY_PULL = 0.8F;
+	private static final double ON_BODY_STRETCH = 1.5;
 	/** How each holder's laser emitter was last drawn in third person, relative to the camera, by entity id. */
 	private static final Map<Integer, Held> HELD = new HashMap<>();
 
@@ -66,7 +73,11 @@ public final class Lasers {
 	private record Held(Matrix4f pose, Vec3 camera, long nanos) {
 	}
 
-	private record Beam(Vec3 from, Vec3 to, boolean hit, boolean lens, int color) {
+	private record Beam(Vec3 from, Vec3 to, boolean hit, boolean onBody, boolean lens, int color) {
+	}
+
+	/** Where a ray stopped, and whether on a body rather than a block. */
+	private record Hit(Vec3 at, boolean body) {
 	}
 
 	/** A glow at {@code at} (from the camera): the dot where a beam lands, or a lens seen from outside. */
@@ -155,27 +166,26 @@ public final class Lasers {
 	}
 
 	/** The first block or body (not {@code holder}) along {@code direction} from {@code from} within {@link #RANGE}, or null. */
-	private static @Nullable Vec3 firstHit(ClientLevel level, LivingEntity holder, Vec3 from, Vec3 direction) {
+	private static @Nullable Hit firstHit(ClientLevel level, LivingEntity holder, Vec3 from, Vec3 direction) {
 		Vec3 end = from.add(direction.scale(RANGE));
 		BlockHitResult block = level.clip(new ClipContext(from, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
 		Vec3 to = block.getType() != HitResult.Type.MISS ? block.getLocation() : end;
 		EntityHitResult entity = ProjectileUtil.getEntityHitResult(holder, from, to, new AABB(from, to).inflate(1.0),
 				candidate -> candidate != holder && candidate.isPickable() && !candidate.isSpectator(), from.distanceToSqr(to));
-		return entity != null ? entity.getLocation() : block.getType() != HitResult.Type.MISS ? to : null;
+		return entity != null ? new Hit(entity.getLocation(), true) : block.getType() != HitResult.Type.MISS ? new Hit(to, false) : null;
 	}
 
 	private static Vec3 firstHitOr(ClientLevel level, LivingEntity holder, Vec3 from, Vec3 direction) {
-		Vec3 hit = firstHit(level, holder, from, direction);
-		return hit != null ? hit : from.add(direction.scale(RANGE));
+		Hit hit = firstHit(level, holder, from, direction);
+		return hit != null ? hit.at : from.add(direction.scale(RANGE));
 	}
 
 	private static Beam cast(ClientLevel level, LivingEntity holder, Emitter emitter, boolean lens) {
 		int color = holder.getMainHandItem().getOrDefault(ModComponents.LASER_COLOR, Reticle.COLORS.getFirst());
 		Vec3 from = emitter.pos();
-		Vec3 hitAt = firstHit(level, holder, from, emitter.forward());
-		boolean hit = hitAt != null;
-		Vec3 to = hit ? hitAt : from.add(emitter.forward().scale(RANGE));
-		return new Beam(from, to, hit, lens, color);
+		Hit hit = firstHit(level, holder, from, emitter.forward());
+		Vec3 to = hit != null ? hit.at : from.add(emitter.forward().scale(RANGE));
+		return new Beam(from, to, hit != null, hit != null && hit.body, lens, color);
 	}
 
 	private static void submit(LevelRenderContext context) {
@@ -207,9 +217,11 @@ public final class Lasers {
 		for (Beam beam : beams) {
 			float flicker = 1 + 0.07F * Mth.sin(seconds * 31) * Mth.sin(seconds * 17 + beam.from.hashCode());
 			if (beam.hit) {
-				// Pulled toward the camera a little, so the surface it lies on does not cut through it.
-				Vec3 at = beam.to.add(cameraPos.subtract(beam.to).normalize().scale(0.03)).subtract(cameraPos);
-				glows.add(new Glow(at.toVector3f(), Math.max(0.015F, (float)at.length() * 0.003F) * flicker, 1, beam.color));
+				// Pulled toward the camera a little, so the surface it lies on does not cut through it; on a body, past its arms and head.
+				Vector3f at = beam.to.subtract(cameraPos).toVector3f();
+				float radius = Math.max(0.025F, at.length() * 0.006F) * flicker;
+				float scale = pull(at, beam.onBody ? BODY_PULL : 0.03F);
+				glows.add(new Glow(at.mul(scale), radius * scale, 1, beam.color));
 			}
 			if (beam.lens) {
 				// Brightest when the laser points at the camera.
@@ -225,19 +237,23 @@ public final class Lasers {
 		// One submit per render type (a second one in the same frame is not drawn). An additive glow and a small halo, then a thin normally
 		// blended core and dot on top, so the color holds against sand and sky (as tracers do).
 		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.lightning(), (pose, buffer) -> {
-			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.0035F, 0.002F, 0.32F, seconds));
-			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius * 2.2F, ((int)(0x60 * glow.strength) << 24) | glow.color));
+			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.005F, 0.003F, 0.42F, seconds));
+			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius * 2, ((int)(0x70 * glow.strength) << 24) | glow.color));
 		});
 		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.debugQuads(), (pose, buffer) -> {
-			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.0008F, 0.0006F, 0.85F, seconds));
-			// The dot's core a little whiter than the beam, as a laser spot looks.
-			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius, ((int)(0xFF * glow.strength) << 24) | ARGB.srgbLerp(0.35F, glow.color, 0xFFFFFF)));
+			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.0013F, 0.001F, 0.9F, seconds));
+			// The dot: the color, and a hot whiter center on top, as a laser spot looks.
+			glows.forEach(glow -> {
+				disc(buffer, pose, glow.at, left, up, glow.radius, ((int)(0xFF * glow.strength) << 24) | glow.color);
+				disc(buffer, pose, glow.at, left, up, glow.radius * 0.55F, ((int)(0xFF * glow.strength) << 24) | ARGB.srgbLerp(0.5F, glow.color, 0xFFFFFF));
+			});
 		});
 	}
 
 	/**
 	 * The beam as camera-facing segments about half a block long, so it can fade with distance and shimmer like dust drifting through
-	 * it. Widths grow with distance from the camera, so it keeps the same thin look on screen near and far. Both windings, so culling never hides it.
+	 * it. Widths grow with distance from the camera, so it keeps the same thin look on screen near and far (pulled points keep it too, as
+	 * their width follows their pulled distance). Both windings, so culling never hides it.
 	 */
 	private static void beam(VertexConsumer buffer, PoseStack.Pose pose, Beam beam, Vec3 camera, float widthPerBlock, float minWidth, float alpha, float seconds) {
 		double length = beam.from.distanceTo(beam.to);
@@ -246,11 +262,11 @@ public final class Lasers {
 		}
 		Vec3 direction = beam.to.subtract(beam.from).scale(1 / length);
 		int segments = Mth.clamp(Mth.ceil(length / 0.5), 1, 96);
-		Vector3f back = beam.from.subtract(camera).toVector3f();
+		Vector3f back = onBody(beam, beam.from.subtract(camera).toVector3f(), length, 0);
 		int backColor = color(beam.color, alpha, 0, seconds);
 		for (int i = 1; i <= segments; i++) {
 			double distance = length * i / segments;
-			Vector3f front = beam.from.add(direction.scale(distance)).subtract(camera).toVector3f();
+			Vector3f front = onBody(beam, beam.from.add(direction.scale(distance)).subtract(camera).toVector3f(), length, distance);
 			Vector3f side = new Vector3f(front).sub(back).cross(new Vector3f(back).add(front).mul(0.5F));
 			int frontColor = color(beam.color, alpha, distance, seconds);
 			if (side.lengthSquared() > 1.0E-12F) {
@@ -271,9 +287,24 @@ public final class Lasers {
 		}
 	}
 
-	/** {@code rgb} at {@code alpha}, fading to a quarter over the first dozen blocks, with a slow shimmer drifting outward. */
+	/** A beam point {@code distance} along it, pulled toward the camera over the last stretch of a beam that ends on a body (see {@link #BODY_PULL}). */
+	private static Vector3f onBody(Beam beam, Vector3f point, double length, double distance) {
+		if (!beam.onBody) {
+			return point;
+		}
+		float near = (float)Mth.clamp(1 - (length - distance) / ON_BODY_STRETCH, 0, 1);
+		return point.mul(pull(point, BODY_PULL * near));
+	}
+
+	/** The scale that brings {@code point} (from the camera) {@code by} blocks closer along its line of sight, never past halfway. */
+	private static float pull(Vector3f point, float by) {
+		float distance = point.length();
+		return distance < 1.0E-4F ? 1 : Math.max(0.5F, 1 - by / distance);
+	}
+
+	/** {@code rgb} at {@code alpha}, fading to 40% over the first dozen blocks, with a slow shimmer drifting outward. */
 	private static int color(int rgb, float alpha, double distance, float seconds) {
-		float fade = 0.25F + 0.75F * (float)Math.exp(-distance / 12);
+		float fade = 0.4F + 0.6F * (float)Math.exp(-distance / 12);
 		float shimmer = 0.8F + 0.2F * Mth.sin((float)distance * 2.7F - seconds * 5) * Mth.sin((float)distance * 1.3F + seconds * 1.7F);
 		return ((int)(Mth.clamp(alpha * fade * shimmer, 0, 1) * 255) << 24) | rgb;
 	}
