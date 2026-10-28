@@ -106,6 +106,8 @@ public final class Viewmodel {
 	/** With the breath held: how much of the sway and walk bob goes (the breathing motion goes entirely), and how much the view closes in. */
 	private static final float BREATH_STEADY = 0.85F;
 	private static final float BREATH_ZOOM = 0.08F;
+	/** Looking up or down, the gun trails this many times further than turning sideways by as much: nods are smaller and slower than turns. */
+	private static final float PITCH_SWAY = 2.5F;
 
 	private Viewmodel() {
 	}
@@ -410,7 +412,7 @@ public final class Viewmodel {
 		// lean it a bit further instead of stopping dead.
 		float lagPitch = hands.viewXRot - Mth.lerp(partialTick, swayPitchO, swayPitch);
 		float lagYaw = Mth.wrapDegrees(hands.viewYRot - Mth.lerp(partialTick, swayYawO, swayYaw));
-		float swayPitchDeg = softLimit(lagPitch * feel.swayGain(), feel.swayMaxDeg()) * loose;
+		float swayPitchDeg = softLimit(lagPitch * feel.swayGain() * PITCH_SWAY, feel.swayMaxDeg()) * loose;
 		float swayYawDeg = softLimit(lagYaw * feel.swayGain(), feel.swayMaxDeg()) * loose;
 		poseStack.rotateDegrees(Axis.XP, swayPitchDeg);
 		poseStack.rotateDegrees(Axis.YP, swayYawDeg);

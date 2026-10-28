@@ -43,9 +43,9 @@
     "mcweapons:variable_scope"
   ],
   "feel": {
-    "sway_gain": 0.04,
-    "sway_max_deg": 1.2,
-    "sway_follow": 0.3,
+    "sway_gain": 0.2,
+    "sway_max_deg": 5.0,
+    "sway_follow": 1.0,
     "bob_scale": 0.25,
     "breath_scale": 1.6,
     "recoil_push_back": 0.12,
