@@ -122,7 +122,8 @@ public class GunTunerScreen extends Screen {
 	}
 
 	private static final List<Group> GROUPS = List.of(
-			new Group("aim", ICON_AIM, Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
+			new Group("aim", ICON_AIM, Side.TOP, "ads_anchor", List.of("spread_hip_deg", "spread_ads_deg", "movement_spread.walk",
+					"movement_spread.sprint", "movement_spread.crouch", "ads_ticks", "ads_fov_multiplier", "move_speed_ads_multiplier")),
 			new Group("magazine", ICON_MAGAZINE, Side.BOTTOM, "magazine", List.of("mag_size", "chamber", "draw_ticks", "reload_ticks", "reload_empty_ticks")),
 			new Group("fire", ICON_FIRE, Side.LEFT, "muzzle", List.of("fire_modes", "rpm", "damage", "headshot_multiplier", "range", "bullet.speed", "bullet.gravity")),
 			new Group("handling", ICON_HANDLING, Side.LEFT, "trigger", List.of("feel.sway_gain", "feel.sway_max_deg", "feel.sway_follow", "feel.bob_scale", "feel.breath_scale")),
@@ -143,6 +144,9 @@ public class GunTunerScreen extends Screen {
 			Map.entry("reload_empty_ticks", new Range(5, 120, 1)),
 			Map.entry("spread_hip_deg", new Range(0, 10, 0.05)),
 			Map.entry("spread_ads_deg", new Range(0, 5, 0.05)),
+			Map.entry("movement_spread.walk", new Range(0.1, 5, 0.05)),
+			Map.entry("movement_spread.sprint", new Range(0.1, 5, 0.05)),
+			Map.entry("movement_spread.crouch", new Range(0.1, 2, 0.05)),
 			Map.entry("ads_ticks", new Range(0, 20, 1)),
 			Map.entry("ads_fov_multiplier", new Range(0.1, 1, 0.01)),
 			Map.entry("move_speed_ads_multiplier", new Range(0, 1, 0.05)),

@@ -62,9 +62,15 @@ public class AttachmentScreen extends Screen {
 	/** Lang key suffixes of {@link Reticle#COLORS}, in the same order. */
 	private static final List<String> COLOR_NAMES = List.of("red", "green", "cyan", "yellow", "magenta", "white");
 
-	/** A setting of an optic's reticle, shown under the optic's row once its arrow is opened (right click). */
+	/**
+	 * A setting of an attachment, shown under its row once its arrow is opened (right click): an optic's reticle color, size and shape,
+	 * or a laser's color. Looks only, so they are stored on the gun and change any time.
+	 */
 	private enum Option {
-		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3);
+		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3), LASER_COLOR(0xE1DD);
+
+		private static final List<Option> RETICLE = List.of(COLOR, SIZE, SHAPE);
+		private static final List<Option> LASER = List.of(LASER_COLOR);
 
 		final int icon;
 
@@ -72,24 +78,46 @@ public class AttachmentScreen extends Screen {
 			this.icon = icon;
 		}
 
-		Reticle step(Reticle reticle, int step) {
-			return switch (this) {
-				case COLOR -> reticle.cycleColor(step);
-				case SIZE -> reticle.cycleSize(step);
-				case SHAPE -> reticle.cycleShape(step);
-			};
+		static List<Option> of(@Nullable AttachmentItem attachment) {
+			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.slot() == AttachmentSlot.OPTIC ? RETICLE : List.of();
 		}
 
-		Component value(Reticle reticle) {
+		/** Moves this setting of the held gun {@code step} choices on (-1 back). */
+		void step(LocalPlayer player, ItemStack gun, int step) {
+			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
+			switch (this) {
+				case COLOR -> GunInput.reticle(player, reticle.cycleColor(step));
+				case SIZE -> GunInput.reticle(player, reticle.cycleSize(step));
+				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
+				case LASER_COLOR -> GunInput.laserColor(player, Reticle.nextColor(laserColor(gun), step));
+			}
+		}
+
+		Component value(ItemStack gun) {
+			Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 			return switch (this) {
-				case COLOR -> {
-					int index = Reticle.COLORS.indexOf(reticle.color());
-					yield index < 0 ? Component.literal(String.format("#%06X", reticle.color()))
-							: Component.translatable("gui.mcweapons.reticle.color." + COLOR_NAMES.get(index));
-				}
+				case COLOR, LASER_COLOR -> colorName(swatch(gun));
 				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
 				case SHAPE -> Component.translatable("gui.mcweapons.reticle.shape." + reticle.shape().getSerializedName());
 			};
+		}
+
+		/** The color this setting shows a swatch of, or -1 for none. */
+		int swatch(ItemStack gun) {
+			return switch (this) {
+				case COLOR -> gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT).color();
+				case LASER_COLOR -> laserColor(gun);
+				default -> -1;
+			};
+		}
+
+		private static int laserColor(ItemStack gun) {
+			return gun.getOrDefault(ModComponents.LASER_COLOR, Reticle.COLORS.getFirst());
+		}
+
+		private static Component colorName(int color) {
+			int index = Reticle.COLORS.indexOf(color);
+			return index < 0 ? Component.literal(String.format("#%06X", color)) : Component.translatable("gui.mcweapons.reticle.color." + COLOR_NAMES.get(index));
 		}
 	}
 
@@ -145,7 +173,7 @@ public class AttachmentScreen extends Screen {
 		for (List<AttachmentItem> items : fitting.values()) {
 			lines += items.size() + 1;
 			for (AttachmentItem item : items) {
-				lines += open(item) ? Option.values().length : 0;
+				lines += open(item) ? Option.of(item).size() : 0;
 			}
 		}
 		// Room for the hint line under the panel.
@@ -166,7 +194,7 @@ public class AttachmentScreen extends Screen {
 				rows.add(new Row(section.getKey(), item, null, y));
 				y += rowHeight;
 				if (open(item)) {
-					for (Option option : Option.values()) {
+					for (Option option : Option.of(item)) {
 						rows.add(new Row(section.getKey(), item, option, y));
 						y += rowHeight;
 					}
@@ -181,9 +209,8 @@ public class AttachmentScreen extends Screen {
 		return minecraft.player == null ? ItemStack.EMPTY : minecraft.player.getMainHandItem();
 	}
 
-	/** Optics have reticle options (drawn by ReticleLayer); nothing else has any yet. */
 	private static boolean hasOptions(@Nullable AttachmentItem attachment) {
-		return attachment != null && attachment.slot() == AttachmentSlot.OPTIC;
+		return !Option.of(attachment).isEmpty();
 	}
 
 	private boolean open(AttachmentItem attachment) {
@@ -221,20 +248,20 @@ public class AttachmentScreen extends Screen {
 			graphics.text(font, icon(SLOT_ICONS.get(section.getKey())), x0 + 8, y + (headerHeight - 6) / 2, MUTED, false);
 			graphics.text(font, ui(Component.translatable("gui.mcweapons.attachments.slot." + section.getKey().getSerializedName())), x0 + 21, y + (headerHeight - 6) / 2, MUTED, false);
 		}
-		Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 		for (Row row : rows) {
 			if (row.option() != null) {
-				// Looks only: changeable any time, even mid-reload or before the optic is fitted.
+				// Looks only: changeable any time, even mid-reload or before the attachment is fitted.
 				if (hovered(row, mouseX, mouseY)) {
 					rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + rowHeight, ROW_HOVER);
 				}
 				graphics.text(font, icon(row.option().icon), x0 + 23, row.y() + pad, MUTED, false);
 				graphics.text(font, ui(Component.translatable("gui.mcweapons.reticle." + row.option().name().toLowerCase(Locale.ROOT))), x0 + 36, row.y() + pad, 0xD9FFFFFF, false);
-				Component value = ui(row.option().value(reticle));
+				Component value = ui(row.option().value(gun));
 				int valueX = x1 - 9 - font.width(value);
 				graphics.text(font, value, valueX, row.y() + pad, TEXT, false);
-				if (row.option() == Option.COLOR) {
-					graphics.fill(valueX - 10, row.y() + pad, valueX - 3, row.y() + pad + 7, 0xFF000000 | reticle.color());
+				int swatch = row.option().swatch(gun);
+				if (swatch >= 0) {
+					graphics.fill(valueX - 10, row.y() + pad, valueX - 3, row.y() + pad + 7, 0xFF000000 | swatch);
 				}
 				continue;
 			}
@@ -309,7 +336,7 @@ public class AttachmentScreen extends Screen {
 			}
 			if (row.option() != null) {
 				// Left steps forward, right steps back.
-				GunInput.reticle(player, row.option().step(gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT), right ? -1 : 1));
+				row.option().step(player, gun, right ? -1 : 1);
 				return true;
 			}
 			if (right && hasOptions(row.attachment())) {

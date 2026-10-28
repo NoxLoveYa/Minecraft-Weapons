@@ -69,6 +69,18 @@ class GunDefinitionTest {
 		assertEquals(GunDefinition.DEFAULT_HEADSHOT_MULTIPLIER, GunDefinition.CODEC.parse(JsonOps.INSTANCE, headshot).getOrThrow().headshotMultiplier());
 		headshot.addProperty("headshot_multiplier", 0.5);
 		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, headshot).isError(), "a headshot must not do less than a body shot");
+		// Stance multiplies the spread, hip and aimed: from the file, and the defaults when a file has none.
+		assertEquals(0.4F * 1.5F, glock.spread(false, MovementSpread.Stance.WALK), 1.0E-6);
+		assertEquals(0.05F * 2.5F, glock.spread(true, MovementSpread.Stance.SPRINT), 1.0E-6);
+		assertEquals(0.4F * 0.7F, glock.spread(false, MovementSpread.Stance.CROUCH), 1.0E-6);
+		assertEquals(0.4F, glock.spread(false, MovementSpread.Stance.STILL), 1.0E-6);
+		JsonObject noStance = GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, glock).getOrThrow().getAsJsonObject();
+		noStance.remove("movement_spread");
+		assertEquals(MovementSpread.DEFAULT, GunDefinition.CODEC.parse(JsonOps.INSTANCE, noStance).getOrThrow().movementSpread());
+		assertEquals(MovementSpread.Stance.SPRINT, MovementSpread.Stance.of(true, false, true));
+		assertEquals(MovementSpread.Stance.CROUCH, MovementSpread.Stance.of(false, true, true), "crouch-walking counts as crouching");
+		assertEquals(MovementSpread.Stance.WALK, MovementSpread.Stance.of(false, false, true));
+		assertEquals(MovementSpread.Stance.STILL, MovementSpread.Stance.of(false, false, false));
 		// The ranges that keep tuner typos off the server.
 		json.addProperty("ads_fov_multiplier", 0);
 		assertTrue(GunDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError(), "a zero FOV multiplier must be rejected");

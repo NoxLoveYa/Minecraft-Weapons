@@ -35,6 +35,10 @@ public final class ModComponents {
 	public static final DataComponentType<Reticle> RETICLE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("reticle"),
 			DataComponentType.<Reticle>builder().persistent(Reticle.CODEC).networkSynchronized(Reticle.STREAM_CODEC).build());
 
+	/** The color (0xRRGGBB) of the gun's laser sight. Absent means the first of {@link Reticle#COLORS}, red. */
+	public static final DataComponentType<Integer> LASER_COLOR = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("laser_color"),
+			DataComponentType.<Integer>builder().persistent(Codec.INT).networkSynchronized(ByteBufCodecs.INT).build());
+
 	private ModComponents() {
 	}
 

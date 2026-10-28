@@ -18,11 +18,13 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.gun.MovementSpread;
 import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
 import com.noxloveya.mcweapons.network.AttachPayload;
 import com.noxloveya.mcweapons.network.FireModePayload;
+import com.noxloveya.mcweapons.network.LaserColorPayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
 import com.noxloveya.mcweapons.network.ReticlePayload;
@@ -104,6 +106,11 @@ public final class GunInput {
 		return aiming;
 	}
 
+	/** What the player is doing for the spread: sprinting, crouching, walking (moving more than a crawl since last tick) or standing still. */
+	public static MovementSpread.Stance stance(LocalPlayer player) {
+		return MovementSpread.Stance.of(player.isSprinting(), player.isCrouching(), player.getDeltaMovement().horizontalDistanceSqr() > 4.0E-4);
+	}
+
 	/** Aiming or a recent shot: no sprinting, as the gun cannot be up and in the running pose at once (see LocalPlayerMixin). */
 	public static boolean blocksSprint(LocalPlayer player) {
 		return aimHeld || player.level().getGameTime() < noSprintUntil;
@@ -152,6 +159,15 @@ public final class GunInput {
 		if (stack.getItem() instanceof GunItem) {
 			stack.set(ModComponents.RETICLE, reticle);
 			ClientPlayNetworking.send(new ReticlePayload(player.getInventory().getSelectedSlot(), reticle));
+		}
+	}
+
+	/** Colors the held gun's laser sight: here straight away, and on the server, which syncs it to everyone. */
+	public static void laserColor(LocalPlayer player, int color) {
+		ItemStack stack = player.getMainHandItem();
+		if (stack.getItem() instanceof GunItem) {
+			stack.set(ModComponents.LASER_COLOR, color);
+			ClientPlayNetworking.send(new LaserColorPayload(player.getInventory().getSelectedSlot(), color));
 		}
 	}
 
@@ -288,6 +304,7 @@ public final class GunInput {
 		float xRot = player.getXRot();
 		float yRot = player.getYRot();
 		long seed = player.getRandom().nextLong();
+		MovementSpread.Stance stance = stance(player);
 		int shotId = ++lastShotId;
 		player.playSound(gun.sound(!fires ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
 		if (fires) {
@@ -295,7 +312,7 @@ public final class GunInput {
 			// Before the recoil kick moves the view.
 			Casings.eject(player, gun);
 			ThirdPersonGuns.flash(player.getId());
-			Vec3 direction = Ballistics.direction(xRot, yRot, seed, aiming ? definition.spreadAdsDeg() : definition.spreadHipDeg());
+			Vec3 direction = Ballistics.direction(xRot, yRot, seed, definition.spread(aiming, stance));
 			// Rounded like the server's bullet (see Bullets.fire), so this tracer and the bullet follow one path.
 			Vec3 velocity = new Vec3(direction.scale(definition.bullet().speedPerTick()).toVector3f());
 			Vec3 muzzle = Tracers.muzzle(player);
@@ -309,7 +326,7 @@ public final class GunInput {
 				predictedEmptyUntil = now + 10;
 			}
 		}
-		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot));
+		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot, stance));
 	}
 
 	/** Same checks as the server, so the animation only starts for a reload the server will accept. */

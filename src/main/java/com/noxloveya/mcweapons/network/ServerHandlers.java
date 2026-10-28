@@ -67,6 +67,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(FireModePayload.TYPE, FireModePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(AttachPayload.TYPE, AttachPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(ReticlePayload.TYPE, ReticlePayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(LaserColorPayload.TYPE, LaserColorPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
@@ -85,6 +86,13 @@ public final class ServerHandlers {
 			ItemStack gun = heldGun(context.player(), payload.slot());
 			if (!gun.isEmpty()) {
 				gun.set(ModComponents.RETICLE, payload.reticle());
+			}
+		});
+		ServerPlayNetworking.registerGlobalReceiver(LaserColorPayload.TYPE, (payload, context) -> {
+			// Looks only, like the reticle: any held gun takes any color.
+			ItemStack gun = heldGun(context.player(), payload.slot());
+			if (!gun.isEmpty()) {
+				gun.set(ModComponents.LASER_COLOR, payload.color() & 0xFFFFFF);
 			}
 		});
 
@@ -137,7 +145,8 @@ public final class ServerHandlers {
 		Vec3 origin = payload.origin().distanceToSqr(eye) <= MAX_SHOT_ORIGIN_OFFSET * MAX_SHOT_ORIGIN_OFFSET ? payload.origin() : eye;
 		float xRot = Float.isFinite(payload.xRot()) ? Mth.clamp(payload.xRot(), -90, 90) : player.getXRot();
 		float yRot = Float.isFinite(payload.yRot()) ? payload.yRot() : player.getYRot();
-		Vec3 direction = Ballistics.direction(xRot, yRot, payload.seed(), isAiming(player) ? definition.spreadAdsDeg() : definition.spreadHipDeg());
+		// The stance is the client's word, as the spread already is (the client picks the seed), so its tracer and the bullet agree.
+		Vec3 direction = Ballistics.direction(xRot, yRot, payload.seed(), definition.spread(isAiming(player), payload.stance()));
 		Bullets.fire(player, payload.shotId(), origin, direction, definition, gun, payload.clientTick());
 		// Volume above 1 only widens the range (16 blocks per unit), so gunshots carry about 48 blocks, and silenced ones about 16.
 		boolean silenced = Attachments.silenced(gun);

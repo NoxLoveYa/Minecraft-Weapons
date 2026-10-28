@@ -10,6 +10,11 @@
   "chamber": true,
   "spread_hip_deg": 0.4,
   "spread_ads_deg": 0.05,
+  "movement_spread": {
+    "walk": 1.5,
+    "sprint": 2.5,
+    "crouch": 0.7
+  },
   "recoil_pitch_deg": 0.8,
   "recoil_yaw_deg": 0.3,
   "draw_ticks": 10,

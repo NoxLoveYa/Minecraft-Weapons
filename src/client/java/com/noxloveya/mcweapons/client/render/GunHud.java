@@ -151,10 +151,11 @@ public final class GunHud {
 		if (alpha <= 0) {
 			return true;
 		}
-		// Gap matches the hip spread cone at the current FOV, plus a little bloom while the recoil settles.
+		// Gap matches the hip spread cone for the current stance at the current FOV, plus a little bloom while the recoil settles.
 		float fov = minecraft.gameRenderer.mainCamera().getFov();
 		float pixelsPerUnit = graphics.guiHeight() / 2.0F / (float)Math.tan(Math.toRadians(fov / 2));
-		int gap = 2 + Math.round((float)Math.tan(Math.toRadians(definition.spreadHipDeg())) * pixelsPerUnit + Math.max(0, Viewmodel.recoil(partialTick)) * 3);
+		float spread = definition.spread(false, GunInput.stance(minecraft.player));
+		int gap = 2 + Math.round((float)Math.tan(Math.toRadians(spread)) * pixelsPerUnit + Math.max(0, Viewmodel.recoil(partialTick)) * 3);
 		int x = graphics.guiWidth() / 2;
 		int y = graphics.guiHeight() / 2;
 		int color = ARGB.color(Math.round(alpha * 230), 255, 255, 255);

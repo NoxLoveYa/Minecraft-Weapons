@@ -40,7 +40,12 @@ public record Reticle(int color, float size, Shape shape) {
 
 	/** The next color in {@link #COLORS} ({@code step} -1 for the previous one); a color not in the list goes to the first. */
 	public Reticle cycleColor(int step) {
-		return new Reticle(cycle(COLORS, color, step), size, shape);
+		return new Reticle(nextColor(color, step), size, shape);
+	}
+
+	/** The color {@code step} places after {@code color} in {@link #COLORS}; a color not in the list goes to the first. Lasers use the same choice. */
+	public static int nextColor(int color, int step) {
+		return cycle(COLORS, color, step);
 	}
 
 	public Reticle cycleSize(int step) {
