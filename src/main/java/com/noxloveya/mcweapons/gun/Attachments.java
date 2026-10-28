@@ -50,10 +50,16 @@ public final class Attachments {
 		return muzzle != null && muzzle.isSilencer();
 	}
 
-	/** {@code definition} as changed by what is fitted to {@code gun}: a fitted magazine sets the capacity. */
+	/** {@code definition} as changed by what is fitted to {@code gun} (see {@link AttachmentItem#applyTo}). */
 	public static GunDefinition apply(ItemStack gun, GunDefinition definition) {
-		AttachmentItem magazine = in(gun, AttachmentSlot.MAGAZINE);
-		return magazine != null && magazine.capacity() > 0 ? definition.withMagSize(magazine.capacity()) : definition;
+		GunDefinition applied = definition;
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			AttachmentItem attachment = in(gun, slot);
+			if (attachment != null) {
+				applied = attachment.applyTo(applied);
+			}
+		}
+		return applied;
 	}
 
 	/** Whether {@code definition} lists {@code attachment} as one that fits. */

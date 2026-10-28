@@ -17,6 +17,8 @@ public class AttachmentItem extends Item {
 	private final AttachmentSlot slot;
 	private boolean silences;
 	private int capacity;
+	private float velocity = 1;
+	private float recoil = 1;
 
 	public AttachmentItem(AttachmentSlot slot, Properties properties) {
 		super(properties);
@@ -52,5 +54,29 @@ public class AttachmentItem extends Item {
 	/** Rounds this magazine holds, or 0 when it is not a magazine. */
 	public int capacity() {
 		return capacity;
+	}
+
+	/** Bullets leave at {@code multiplier} times the gun's speed. */
+	public AttachmentItem velocity(float multiplier) {
+		this.velocity = multiplier;
+		return this;
+	}
+
+	/** The gun kicks (pitch and yaw) {@code multiplier} times as much. */
+	public AttachmentItem recoil(float multiplier) {
+		this.recoil = multiplier;
+		return this;
+	}
+
+	/** {@code definition} as this attachment changes it. */
+	public GunDefinition applyTo(GunDefinition definition) {
+		GunDefinition applied = capacity > 0 ? definition.withMagSize(capacity) : definition;
+		if (velocity != 1) {
+			applied = applied.withBullet(new BulletStats(applied.bullet().speed() * velocity, applied.bullet().gravity()));
+		}
+		if (recoil != 1) {
+			applied = applied.withRecoil(applied.recoilPitchDeg() * recoil, applied.recoilYawDeg() * recoil);
+		}
+		return applied;
 	}
 }
