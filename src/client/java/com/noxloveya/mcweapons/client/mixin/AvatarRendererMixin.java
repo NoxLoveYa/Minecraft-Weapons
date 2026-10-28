@@ -29,7 +29,9 @@ public class AvatarRendererMixin {
 	// (PlayerModelMixin).
 	@Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("TAIL"))
 	private void mcweapons$gunArms(Avatar avatar, AvatarRenderState state, float partialTick, CallbackInfo ci) {
-		state.setData(ThirdPersonGuns.AIM_HOLD, ThirdPersonGuns.pose(avatar) == ThirdPersonGuns.Pose.AIM);
+		ThirdPersonGuns.Pose pose = ThirdPersonGuns.pose(avatar);
+		state.setData(ThirdPersonGuns.AIM_HOLD, pose == ThirdPersonGuns.Pose.AIM);
+		state.setData(ThirdPersonGuns.LOW_READY, pose == ThirdPersonGuns.Pose.HIP && ThirdPersonGuns.longGun(avatar));
 		state.setData(ThirdPersonGuns.SUPPORT_HAND, ThirdPersonGuns.supportHandTarget(avatar));
 	}
 }

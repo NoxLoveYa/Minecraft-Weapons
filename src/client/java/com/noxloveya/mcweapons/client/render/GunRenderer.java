@@ -75,8 +75,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	// Third person: the model is built around the eye, so it is moved until the grip sits in the hand. Its arms are the player model's (4 by
 	// 12 pixels), so at 1 the gun is the same size against the hand as in first person.
 	private static final float THIRD_PERSON_SCALE = 1.0F;
-	/** A long gun is shrunk further in a hand, to at most this many blocks long: a rifle about as long as a person is tall looks wrong. */
-	private static final float THIRD_PERSON_MAX_LENGTH = 1.25F;
+	/** A long gun is shrunk further in a hand, to at most this many blocks long: at its first-person size against the hand a rifle would be
+	 * about three times as long as a person is tall, while at 1.25 it looked tiny next to the pistol. */
+	private static final float THIRD_PERSON_MAX_LENGTH = 2.5F;
 	/** Outside a hand (the inventory, dropped, in a frame or on a display) the gun lies still: one shared instance, never animated. */
 	private static final long STILL_ID = HOLDER_ID_BASE - 1;
 	/** A gun this many times longer than tall (bare) is shown on the diagonal outside a hand, like a sword, where it has the most room. */

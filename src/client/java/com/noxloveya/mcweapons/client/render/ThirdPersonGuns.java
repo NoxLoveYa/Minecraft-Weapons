@@ -50,6 +50,12 @@ public final class ThirdPersonGuns {
 	private static final float AIM_SUPPORT_ARM_IN = 0.7F;
 	/** Set on an avatar's render state while it aims a gun, for {@link #poseAimHold}. */
 	public static final RenderStateDataKey<Boolean> AIM_HOLD = RenderStateDataKey.create(() -> "mcweapons:aim_hold");
+	/** Set on an avatar's render state while it carries a long gun at the hip, for {@link #poseLowReady}. */
+	public static final RenderStateDataKey<Boolean> LOW_READY = RenderStateDataKey.create(() -> "mcweapons:low_ready");
+	/** A long gun at the hip is carried two-handed, its arm raised forward this far (radians) and turned in by LOW_READY_IN: hanging down
+	 * along the arm like a pistol, the barrel went into the ground. */
+	private static final float LOW_READY_RAISE = 1.05F;
+	private static final float LOW_READY_IN = 0.35F;
 	/** Set on an avatar's render state while its other hand holds the magazine: where the magazine is, for {@link #reachSupportArm}. */
 	public static final RenderStateDataKey<Vec3> SUPPORT_HAND = RenderStateDataKey.create(() -> "mcweapons:support_hand");
 	/** The magazine's base in its bone (blocks from the pivot), where a hand takes hold of it. */
@@ -58,6 +64,9 @@ public final class ThirdPersonGuns {
 	private static final Map<Integer, Vec3> magBases = new HashMap<>();
 	/** Where each holder's gun has its {@code support_hand} locator (a long gun's handguard, or the clip it is loading), when it has one. */
 	private static final Map<Integer, Vec3> supportHands = new HashMap<>();
+	/** When each holder's {@code support_hand} was last drawn: only a gun drawn with one just now has one (otherwise a pistol switched to
+	 * would keep the rifle's, its magazine keeping the entry alive). */
+	private static final Map<Integer, Long> supportNanos = new HashMap<>();
 	private static final Map<Integer, Long> magBaseNanos = new HashMap<>();
 	// Where the other hand holds each attachment while fitting it, as in the first-person animations: blocks from a bone's pivot (model x is
 	// Blockbench's mirrored). The silencer's is in the gun's frame, so the hand does not circle it while it is screwed on.
@@ -101,6 +110,7 @@ public final class ThirdPersonGuns {
 			magBases.clear();
 			magBaseNanos.clear();
 			supportHands.clear();
+			supportNanos.clear();
 			attachmentHolds.clear();
 			gunPoses.clear();
 			return;
@@ -124,7 +134,8 @@ public final class ThirdPersonGuns {
 		raisedUntil.values().removeIf(until -> until < now);
 		magBaseNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
 		magBases.keySet().retainAll(magBaseNanos.keySet());
-		supportHands.keySet().retainAll(magBaseNanos.keySet());
+		supportNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
+		supportHands.keySet().retainAll(supportNanos.keySet());
 		attachmentHolds.keySet().retainAll(magBaseNanos.keySet());
 		gunPoses.keySet().retainAll(magBaseNanos.keySet());
 	}
@@ -210,6 +221,15 @@ public final class ThirdPersonGuns {
 		supportArm.zRot = 0;
 	}
 
+	/** A long gun at the hip, after vanilla has posed the model: the gun arm raised forward and turned in, so the gun points ahead and down
+	 * across the body; {@link #reachSupportArm} puts the other hand on its handguard. */
+	public static void poseLowReady(HumanoidModel<?> model, HumanoidArm mainArm) {
+		ModelPart gunArm = mainArm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
+		gunArm.xRot = -LOW_READY_RAISE;
+		gunArm.yRot = (mainArm == HumanoidArm.RIGHT ? -1 : 1) * LOW_READY_IN;
+		gunArm.zRot = 0;
+	}
+
 	/** Called by {@link BonePoseLayer} with the pose a held gun's magazine is drawn with, relative to the camera. */
 	static void recordMag(Entity holder, Matrix4fc pose) {
 		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
@@ -223,6 +243,13 @@ public final class ThirdPersonGuns {
 	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code support_hand} locator is drawn with, relative to the camera. */
 	static void recordSupport(Entity holder, Matrix4fc pose) {
 		supportHands.put(holder.getId(), Minecraft.getInstance().gameRenderer.mainCamera().position().add(new Vec3(pose.transformPosition(new Vector3f()))));
+		supportNanos.put(holder.getId(), System.nanoTime());
+	}
+
+	/** The holder's gun has a {@code support_hand} locator (a long gun's handguard), going by the last frames it was drawn in. */
+	public static boolean longGun(LivingEntity holder) {
+		Long drawn = supportNanos.get(holder.getId());
+		return drawn != null && System.nanoTime() - drawn < 200_000_000L;
 	}
 
 	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code gun} bone is drawn with, relative to the camera. */
@@ -269,9 +296,9 @@ public final class ThirdPersonGuns {
 			}
 		}
 		Pose pose = pose(holder);
-		Vec3 support = supportHands.get(holder.getId());
-		if (support != null && pose != Pose.HIP) {
-			return support;
+		Vec3 support = longGun(holder) ? supportHands.get(holder.getId()) : null;
+		if (support != null) {
+			return support;  // at the hip too: a long gun is carried two-handed (poseLowReady)
 		}
 		boolean magInHand = pose == Pose.RELOAD || pose == Pose.INSPECT && playing(main, "inspect_mag_check");
 		return magInHand ? magBases.get(holder.getId()) : null;
