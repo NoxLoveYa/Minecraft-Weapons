@@ -27,12 +27,12 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -56,8 +56,19 @@ public final class ThirdPersonGuns {
 	/** Where each holder's magazine base was last drawn, by entity id, and when. */
 	private static final Map<Integer, Vec3> magBases = new HashMap<>();
 	private static final Map<Integer, Long> magBaseNanos = new HashMap<>();
-	/** Where each holder's {@code attach_<slot>} bones were last drawn, by entity id: the hand follows them while fitting attachments. */
-	private static final Map<Integer, Map<AttachmentSlot, Vec3>> slotBones = new HashMap<>();
+	// Where the other hand holds each attachment while fitting it, as in the first-person animations: blocks from a bone's pivot (model x is
+	// Blockbench's mirrored). The silencer's is in the gun's frame, so the hand does not circle it while it is screwed on.
+	private static final Vector3fc MUZZLE_HOLD = new Vector3f(1.5F / 16, -1.6F / 16, -6.5F / 16);
+	private static final Vector3fc OPTIC_HOLD = new Vector3f(2.55F / 16, -0.65F / 16, -2F / 16);
+	// In the magazine bone: the side of the extended magazine going in, or of the gun's own going back in.
+	private static final Vector3fc EXTENDED_MAG_HOLD = new Vector3f(0.8F / 16, -3.9F / 16, 3F / 16);
+	private static final Vector3fc MAG_HOLD = new Vector3f(1.4F / 16, -0.3F / 16, 2.1F / 16);
+	/** From a player model's shoulder pivot to the end of its fist, in model pixels. */
+	private static final float ARM_REACH = 10;
+	/** Where each holder's other hand holds the attachment in each attach or detach animation, by entity id and animation. */
+	private static final Map<Integer, Map<String, Vec3>> attachmentHolds = new HashMap<>();
+	/** How each holder's gun bone was last drawn, by entity id: orients the silencer hold. */
+	private static final Map<Integer, Matrix4f> gunPoses = new HashMap<>();
 	private static final long FLASH_NANOS = 60_000_000L;
 	/** After a shot the gun stays up this long, so firing from the hip does not show it pointing at the ground. */
 	private static final long RAISED_NANOS = 1_500_000_000L;
@@ -84,7 +95,8 @@ public final class ThirdPersonGuns {
 			raisedUntil.clear();
 			magBases.clear();
 			magBaseNanos.clear();
-			slotBones.clear();
+			attachmentHolds.clear();
+			gunPoses.clear();
 			return;
 		}
 		Set<Integer> present = new HashSet<>();
@@ -106,7 +118,8 @@ public final class ThirdPersonGuns {
 		raisedUntil.values().removeIf(until -> until < now);
 		magBaseNanos.values().removeIf(drawn -> now - drawn > 1_000_000_000L);
 		magBases.keySet().retainAll(magBaseNanos.keySet());
-		slotBones.keySet().retainAll(magBaseNanos.keySet());
+		attachmentHolds.keySet().retainAll(magBaseNanos.keySet());
+		gunPoses.keySet().retainAll(magBaseNanos.keySet());
 	}
 
 	private static void othersAnimation(@Nullable ClientLevel level, GunAnimationPayload payload) {
@@ -190,12 +203,31 @@ public final class ThirdPersonGuns {
 		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
 		magBases.put(holder.getId(), camera.add(new Vec3(pose.transformPosition(new Vector3f(MAG_BASE)))));
 		magBaseNanos.put(holder.getId(), System.nanoTime());
+		Map<String, Vec3> holds = attachmentHolds.computeIfAbsent(holder.getId(), id -> new HashMap<>());
+		holds.put(AttachmentSlot.MAGAZINE.attachAction(), camera.add(new Vec3(pose.transformPosition(new Vector3f(EXTENDED_MAG_HOLD)))));
+		holds.put(AttachmentSlot.MAGAZINE.detachAction(), camera.add(new Vec3(pose.transformPosition(new Vector3f(MAG_HOLD)))));
 	}
 
-	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code attach_<slot>} bone is drawn with, relative to the camera. */
+	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code gun} bone is drawn with, relative to the camera. */
+	static void recordGun(Entity holder, Matrix4fc pose) {
+		gunPoses.computeIfAbsent(holder.getId(), id -> new Matrix4f()).set(pose);
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose a held gun's {@code attach_<slot>} bone is drawn with: where the hand holds it. */
 	static void recordSlot(Entity holder, AttachmentSlot slot, Matrix4fc pose) {
-		Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
-		slotBones.computeIfAbsent(holder.getId(), id -> new EnumMap<>(AttachmentSlot.class)).put(slot, camera.add(new Vec3(pose.transformPosition(new Vector3f()))));
+		Vector3f hold;
+		if (slot == AttachmentSlot.MUZZLE) {
+			Matrix4f gun = gunPoses.get(holder.getId());
+			hold = pose.transformPosition(new Vector3f()).add((gun != null ? gun : pose).transformDirection(new Vector3f(MUZZLE_HOLD)));
+		} else if (slot == AttachmentSlot.OPTIC) {
+			hold = pose.transformPosition(new Vector3f(OPTIC_HOLD));
+		} else {
+			return;
+		}
+		Vec3 at = Minecraft.getInstance().gameRenderer.mainCamera().position().add(new Vec3(hold));
+		Map<String, Vec3> holds = attachmentHolds.computeIfAbsent(holder.getId(), id -> new HashMap<>());
+		holds.put(slot.attachAction(), at);
+		holds.put(slot.detachAction(), at);
 	}
 
 	/**
@@ -209,10 +241,10 @@ public final class ThirdPersonGuns {
 		}
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 		if (main != null) {
-			for (AttachmentSlot slot : AttachmentSlot.values()) {
-				if (main.isTriggeredAnimation(slot.attachAction()) || main.isTriggeredAnimation(slot.detachAction())) {
-					Map<AttachmentSlot, Vec3> bones = slotBones.get(holder.getId());
-					return bones == null ? null : bones.get(slot);
+			for (String action : GunItem.ATTACHMENT_ACTIONS) {
+				if (main.isTriggeredAnimation(action)) {
+					Map<String, Vec3> holds = attachmentHolds.get(holder.getId());
+					return holds == null ? null : holds.get(action);
 				}
 			}
 		}
@@ -237,7 +269,10 @@ public final class ThirdPersonGuns {
 		double y = -rel.y;
 		double z = rel.x * sin + rel.z * cos;
 		Vector3f toTarget = new Vector3f((float)(x / 0.9375 * 16), (float)((y / 0.9375 + 1.501) * 16), (float)(z / 0.9375 * 16))
-				.sub(arm.x, arm.y, arm.z).normalize();
+				.sub(arm.x, arm.y, arm.z);
+		// An arm cannot bend, so a target closer than its reach is held with a shorter arm instead of a fist that goes past it into the gun.
+		arm.yScale = Mth.clamp(toTarget.length() / ARM_REACH, 0.6F, 1);
+		toTarget.normalize();
 		// The arm hangs along +Y (model space points down); this pitch and yaw turn that onto the target, with no roll.
 		arm.xRot = (float)-Math.acos(Mth.clamp(toTarget.y, -1, 1));
 		float pitchSin = Mth.sin(arm.xRot);

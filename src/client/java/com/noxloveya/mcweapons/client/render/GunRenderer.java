@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.client.render;
 
+import com.geckolib.animation.state.BoneSnapshot;
 import com.geckolib.cache.model.BakedGeoModel;
 import com.geckolib.cache.model.GeoBone;
 import com.geckolib.cache.model.GeoQuad;
@@ -28,6 +29,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -39,6 +41,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,6 +53,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Float> MAG_FILL = DataTicket.create("mcweapons_mag_fill", Float.class);
 	/** A round is in the chamber: the {@code chamber_round} bone shows through the ejection port whenever the slide is back. */
 	public static final DataTicket<Boolean> CHAMBERED = DataTicket.create("mcweapons_chambered", Boolean.class);
+	/** Furthest a magazine or attachment strays from its place on a gun in someone's hand, in model pixels (see keepInReach). */
+	private static final float THIRD_PERSON_REACH = 6;
 	/** Attachment item ids to draw: the ones fitted, and one on its way on or off in an attach or detach animation. */
 	@SuppressWarnings("unchecked")
 	public static final DataTicket<Set<Identifier>> ATTACHMENTS = (DataTicket<Set<Identifier>>)(DataTicket<?>)DataTicket.create("mcweapons_attachments", Set.class);
@@ -151,7 +156,8 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 
 	/**
 	 * The fitted attachments, plus the one in the hand during an attach or detach animation: an attachment being fitted shows before the
-	 * server's attachments arrive (our own pick, see GunInput), and one being taken off still shows after they have.
+	 * server's attachments arrive (our own pick, see GunInput, or for someone else the only one that fits that slot), and one being taken
+	 * off still shows after they have.
 	 */
 	private static Set<Identifier> shownAttachments(GunItem gun, ItemStack stack, @Nullable LivingEntity holder) {
 		Map<String, Identifier> fitted = Attachments.of(stack);
@@ -168,8 +174,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 			if (main != null && main.isTriggeredAnimation(slot.detachAction())) {
 				id = last.get(slot);
-			} else if (id == null && main != null && main.isTriggeredAnimation(slot.attachAction()) && holder == Minecraft.getInstance().player) {
-				AttachmentItem pending = GunInput.pending(slot);
+			} else if (id == null && main != null && main.isTriggeredAnimation(slot.attachAction())) {
+				// Someone else's animation can arrive a tick before their gun's new attachments.
+				AttachmentItem pending = holder == Minecraft.getInstance().player ? GunInput.pending(slot) : onlyFitting(stack, slot);
 				id = pending == null ? null : BuiltInRegistries.ITEM.getKey(pending);
 			}
 			if (id != null) {
@@ -177,6 +184,21 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 		}
 		return shown;
+	}
+
+	/** The attachment for {@code slot} when the gun's definition lists exactly one, else null (which one is coming cannot be known yet). */
+	private static @Nullable AttachmentItem onlyFitting(ItemStack stack, AttachmentSlot slot) {
+		GunDefinition definition = GunItem.definition(stack);
+		AttachmentItem only = null;
+		for (Identifier id : definition == null ? List.<Identifier>of() : definition.attachments()) {
+			if (BuiltInRegistries.ITEM.getValue(id) instanceof AttachmentItem item && item.slot() == slot) {
+				if (only != null) {
+					return null;
+				}
+				only = item;
+			}
+		}
+		return only;
 	}
 
 	/** The bone shots leave from: a fitted attachment's own {@code <attachment>_muzzle} locator (a silencer's tip), or the gun's {@code muzzle}. */
@@ -198,6 +220,18 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 		}
 		return fallback;
+	}
+
+	/** Scales a bone's translation down to at most {@link #THIRD_PERSON_REACH} pixels from its rest place. */
+	private static void keepInReach(BoneSnapshot snapshot) {
+		float x = snapshot.getTranslateX();
+		float y = snapshot.getTranslateY();
+		float z = snapshot.getTranslateZ();
+		float length = Mth.sqrt(x * x + y * y + z * z);
+		if (length > THIRD_PERSON_REACH) {
+			float scale = THIRD_PERSON_REACH / length;
+			snapshot.setTranslation(x * scale, y * scale, z * scale);
+		}
 	}
 
 	private static boolean slideLocked(RenderData renderData) {
@@ -265,6 +299,12 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			// Their rotations pivot on the grip and stay: the draw flick, the fire kick, the reload tilt and the inspect turns.
 			snapshots.get("root").ifPresent(snapshot -> snapshot.setTranslation(0, 0, 0));
 			snapshots.get("gun").ifPresent(snapshot -> snapshot.setTranslation(0, 0, 0));
+			// Parts set aside below the first-person view (a magazine pulled out, an attachment on its way) end up a block from the gun, out
+			// of an arm's reach: in a hand they stay close enough for the other hand to hold them.
+			snapshots.get("magazine").ifPresent(GunRenderer::keepInReach);
+			for (AttachmentSlot slot : AttachmentSlot.values()) {
+				snapshots.get("attach_" + slot.getSerializedName()).ifPresent(GunRenderer::keepInReach);
+			}
 		}
 		// The follower pushes the stack up, so rounds go from the bottom: hide every round bone below the share still loaded.
 		Float fill = renderPassInfo.renderState().getGeckolibData(MAG_FILL);
