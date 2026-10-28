@@ -1,22 +1,9 @@
 {
   "model": {
-    "type": "minecraft:select",
-    "property": "minecraft:display_context",
-    "cases": [
-      {
-        "when": ["thirdperson_righthand", "thirdperson_lefthand"],
-        "model": {
-          "type": "minecraft:special",
-          "base": "mcweapons:item/glock17_held",
-          "model": {
-            "type": "geckolib:geckolib"
-          }
-        }
-      }
-    ],
-    "fallback": {
-      "type": "minecraft:model",
-      "model": "mcweapons:item/glock17"
+    "type": "minecraft:special",
+    "base": "mcweapons:item/glock17",
+    "model": {
+      "type": "geckolib:geckolib"
     }
   }
 }

@@ -37,6 +37,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
@@ -75,10 +76,20 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	private static final float THIRD_PERSON_SCALE = 0.75F;
 	/** A long gun is shrunk further in a hand, to at most this many blocks long: a rifle about as long as a person is tall looks wrong. */
 	private static final float THIRD_PERSON_MAX_LENGTH = 1.25F;
+	/** Outside a hand (the inventory, dropped, in a frame or on a display) the gun lies still: one shared instance, never animated. */
+	private static final long STILL_ID = HOLDER_ID_BASE - 1;
+	/** A gun this many times longer than tall (bare) is shown on the diagonal outside a hand, like a sword, where it has the most room. */
+	private static final float LONG_GUN = 3.5F;
+	/** Dropped, a gun is this much of its size in a hand. */
+	private static final float GROUND_SCALE = 0.6F;
+	/** In the inventory a gun spans 14 of the slot's 16 pixels, clear of its frame like vanilla's icons. */
+	private static final float ICON_FILL = 14 / 16.0F;
 
 	private final Identifier modelId;
 	private float thirdPersonScale = -1;
 	private @Nullable List<String> propBones;
+	/** Rest-pose boxes around the gun with each set of fitted attachments, for framing it outside a hand. */
+	private final Map<Set<Identifier>, float[]> stillBounds = new HashMap<>();
 
 	public GunRenderer(GunItem gun) {
 		super(new DefaultedItemGeoModel<>(gun.definitionId()));
@@ -107,6 +118,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return context != null && context.firstPerson();
 	}
 
+	/** In first person or in someone's hand; anywhere else the gun is drawn still (see {@link #frameStill}). */
+	private static boolean inHand(@Nullable ItemDisplayContext context) {
+		return context != null && (context.firstPerson() || context == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
+	}
+
 	/** Rest position of a bone's pivot in model space, in blocks. For this model that is view space (eye at the origin, looking down -Z). */
 	public Vector3f restPivot(String boneName) {
 		BakedGeoModel model = getGeoModel().getBakedModel(this.modelId);
@@ -120,12 +136,17 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 
 	/** Rest-pose box around the gun (the {@code gun} bone and everything under it) in model space, in blocks: min xyz, then max xyz. */
 	public float[] gunBounds() {
+		return gunBounds(Set.of());
+	}
+
+	/** {@link #gunBounds()} with the {@code fitted} attachments (bones named after their items). */
+	private float[] gunBounds(Set<String> fitted) {
 		float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
-		getGeoModel().getBakedModel(this.modelId).getBone("gun").ifPresent(bone -> growBounds(bone, bounds));
+		getGeoModel().getBakedModel(this.modelId).getBone("gun").ifPresent(bone -> growBounds(bone, bounds, fitted));
 		return bounds;
 	}
 
-	private static void growBounds(GeoBone bone, float[] bounds) {
+	private static void growBounds(GeoBone bone, float[] bounds, Set<String> fitted) {
 		if (bone instanceof CuboidGeoBone cuboid) {
 			for (GeoCube cube : cuboid.cubes) {
 				for (GeoQuad quad : cube.quads()) {
@@ -141,15 +162,24 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 		}
 		for (GeoBone child : bone.children()) {
-			// Attachments are hidden unless fitted, so they do not count towards the bare gun's size.
+			// Attachments are hidden unless fitted, so only the fitted ones count towards the gun's size.
 			if (!child.name().startsWith("attach_")) {
-				growBounds(child, bounds);
+				growBounds(child, bounds, fitted);
+			} else {
+				for (GeoBone attachment : child.children()) {
+					if (fitted.contains(attachment.name())) {
+						growBounds(attachment, bounds, fitted);
+					}
+				}
 			}
 		}
 	}
 
 	@Override
 	public long getInstanceId(GunItem gun, RenderData renderData) {
+		if (!inHand(renderData.renderPerspective())) {
+			return STILL_ID;
+		}
 		LivingEntity holder = renderData.itemOwner() == null ? null : renderData.itemOwner().asLivingEntity();
 		return holder != null ? instanceId(holder) : super.getInstanceId(gun, renderData);
 	}
@@ -159,7 +189,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (renderData != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() instanceof AbstractClientPlayer player) {
 			renderState.addGeckolibData(SKIN, player.getSkin().body().texturePath());
 		}
-		LivingEntity holder = renderData == null || renderData.itemOwner() == null ? null : renderData.itemOwner().asLivingEntity();
+		// A gun in the hotbar is the player's too, but it is not in their hands: it does not flash, reload or animate with the held one.
+		LivingEntity holder = renderData == null || renderData.itemOwner() == null || !inHand(renderData.renderPerspective())
+				? null : renderData.itemOwner().asLivingEntity();
 		boolean firstPerson = renderData != null && renderData.renderPerspective().firstPerson();
 		boolean silenced = renderData != null && Attachments.silenced(renderData.itemStack());
 		renderState.addGeckolibData(MUZZLE_FLASH, !silenced && (firstPerson ? Viewmodel.muzzleFlash() : holder != null && ThirdPersonGuns.flashing(holder)));
@@ -369,6 +401,11 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (firstPerson(renderPassInfo.renderState())) {
 			return;
 		}
+		ItemDisplayContext context = renderPassInfo.renderState().getGeckolibData(DataTickets.ITEM_RENDER_PERSPECTIVE);
+		if (!inHand(context)) {
+			frameStill(renderPassInfo.poseStack(), context, renderPassInfo.renderState().getGeckolibData(ATTACHMENTS));
+			return;
+		}
 		super.adjustRenderPose(renderPassInfo);
 		PoseStack poseStack = renderPassInfo.poseStack();
 		Vector3f grip = restPivot("gun");
@@ -384,8 +421,62 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
 	}
 
+	/**
+	 * Outside a hand: side on, the gun's right side to the viewer and the muzzle to the right (a long gun on the diagonal, muzzle up, like
+	 * a sword), framed by its size with what is fitted, so a scope or a silencer always fits. In the inventory, in frames and on displays
+	 * it fills the block the flat icon did, its back where the icon's was (frames and displays turn it round, as vanilla's flat items, by
+	 * the base model's fixed display); dropped it is a little over half its size in a hand, resting on its underside.
+	 */
+	private void frameStill(PoseStack poseStack, @Nullable ItemDisplayContext context, @Nullable Set<Identifier> shown) {
+		boolean dropped = context == ItemDisplayContext.GROUND;
+		float[] bare = gunBounds();
+		boolean diagonal = !dropped && bare[5] - bare[2] > LONG_GUN * (bare[4] - bare[1]);
+		// The barrel (model -Z) to +X, and the gun's right side (+X) to the viewer (+Z).
+		Matrix4f turn = new Matrix4f().rotateZ(diagonal ? Mth.PI / 4 : 0).rotateY(-Mth.HALF_PI);
+		float[] box = stillBounds.computeIfAbsent(shown == null ? Set.of() : shown, fitted -> {
+			Set<String> names = new HashSet<>();
+			fitted.forEach(id -> names.add(id.getPath()));
+			return gunBounds(names);
+		});
+		float[] turned = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+		for (int corner = 0; corner < 8; corner++) {
+			Vector3f point = turn.transformPosition(new Vector3f(box[(corner & 1) * 3], box[1 + (corner >> 1 & 1) * 3], box[2 + (corner >> 2) * 3]));
+			turned[0] = Math.min(turned[0], point.x);
+			turned[1] = Math.min(turned[1], point.y);
+			turned[2] = Math.min(turned[2], point.z);
+			turned[3] = Math.max(turned[3], point.x);
+			turned[4] = Math.max(turned[4], point.y);
+			turned[5] = Math.max(turned[5], point.z);
+		}
+		float fill = context == ItemDisplayContext.GUI ? ICON_FILL : 1;
+		float scale = dropped ? thirdPersonScale() * GROUND_SCALE : fill / Math.max(turned[3] - turned[0], turned[4] - turned[1]);
+		float centerY = dropped ? turned[1] : (turned[1] + turned[4]) / 2;
+		float centerZ = context == ItemDisplayContext.GUI || dropped ? (turned[2] + turned[5]) / 2 : turned[2] + 1 / 32.0F / scale;
+		// GeckoLib gives the item's extents as the block's corner, so vanilla lifts a dropped one by half a block: its underside goes there.
+		poseStack.translate(0.5F, dropped ? 0 : 0.5F, 0.5F);
+		poseStack.scale(scale, scale, scale);
+		poseStack.translate(-(turned[0] + turned[3]) / 2, -centerY, -centerZ);
+		poseStack.mulPose(turn);
+	}
+
+	/** Every bone back to its rest pose, whatever the shared animation state is doing. */
+	private static void rest(GeoBone bone, BoneSnapshots snapshots) {
+		BoneSnapshot rest = BoneSnapshot.create(bone);
+		snapshots.get(bone).setRotation(rest.getRotX(), rest.getRotY(), rest.getRotZ())
+				.setTranslation(rest.getTranslateX(), rest.getTranslateY(), rest.getTranslateZ())
+				.setScale(rest.getScaleX(), rest.getScaleY(), rest.getScaleZ());
+		for (GeoBone child : bone.children()) {
+			rest(child, snapshots);
+		}
+	}
+
 	@Override
 	public void adjustModelBonesForRender(RenderPassInfo<GeoRenderState> renderPassInfo, BoneSnapshots snapshots) {
+		if (!inHand(renderPassInfo.renderState().getGeckolibData(DataTickets.ITEM_RENDER_PERSPECTIVE))) {
+			for (GeoBone bone : getGeoModel().getBakedModel(this.modelId).topLevelBones()) {
+				rest(bone, snapshots);
+			}
+		}
 		if (!firstPerson(renderPassInfo.renderState())) {
 			snapshots.get("arm_right").ifPresent(snapshot -> snapshot.skipRender(true));
 			snapshots.get("arm_left").ifPresent(snapshot -> snapshot.skipRender(true));

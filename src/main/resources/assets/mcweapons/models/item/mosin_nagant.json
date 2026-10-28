@@ -1,6 +1,11 @@
 {
-  "parent": "minecraft:item/generated",
+  "gui_light": "front",
   "textures": {
-    "layer0": "mcweapons:item/mosin_nagant_icon"
+    "particle": "mcweapons:item/mosin_nagant_icon"
+  },
+  "display": {
+    "fixed": {
+      "rotation": [0, 180, 0]
+    }
   }
 }
