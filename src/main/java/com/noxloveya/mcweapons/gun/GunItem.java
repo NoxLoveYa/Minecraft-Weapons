@@ -50,7 +50,7 @@ public class GunItem extends Item implements GeoItem {
 	/** Most rounds a round-at-a-time reload has an animation for (see {@link GunDefinition#roundReloadAction}). */
 	// shortcut: a gun loaded a round at a time with a bigger magazine shows only this many rounds going in; raise it with such a gun.
 	public static final int MAX_ROUND_RELOAD = 8;
-	public static final List<String> TRIGGERED_ACTIONS = Stream.of(Stream.of("draw", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
+	public static final List<String> TRIGGERED_ACTIONS = Stream.of(Stream.of("draw", "draw_first", "put_away", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
 			"inspect_mag_check", "fire_mode"), ATTACHMENT_ACTIONS.stream(), IntStream.rangeClosed(1, MAX_ROUND_RELOAD).mapToObj(GunDefinition::roundReloadAction))
 			.flatMap(actions -> actions).toList();
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */

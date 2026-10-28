@@ -36,9 +36,11 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -67,6 +69,8 @@ public final class GunInput {
 
 	/** A shot keeps the gun up this long (0.5 s) before a held sprint key runs again. */
 	private static final int SHOT_NO_SPRINT_TICKS = 10;
+	/** A gun switched off lowers out of view for this long (its put_away animation, 0.4 s) before the next item comes up. */
+	private static final int PUT_AWAY_TICKS = 8;
 
 	private static boolean aiming;
 	/** The aim key is held with a gun in hand. It ends a sprint at once; the sights come up once the running pose is down. */
@@ -86,6 +90,16 @@ public final class GunInput {
 	private static int reloadHeldTicks = -1;
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
+	/** The gun in hand last tick, to put away once it leaves the hand. */
+	private static ItemStack drawnStack = ItemStack.EMPTY;
+	/** The gun being put away, drawn instead of what is now in hand until {@link #putAwayUntil}. */
+	private static ItemStack puttingAway = ItemStack.EMPTY;
+	private static long putAwayUntil;
+	/** The gun now in hand waits for the put-away to finish before it is drawn. */
+	private static boolean drawDue;
+	/** Gun types already pulled out once in this world: the first pull-out also readies the gun (draw_first). */
+	private static final Set<Item> READIED = new HashSet<>();
+	private static @Nullable ClientLevel readiedIn;
 	/** The fire mode we switched to, used until the server's fire_mode arrives. */
 	private static @Nullable String predictedMode;
 	private static long predictedModeUntil;
@@ -132,9 +146,14 @@ public final class GunInput {
 		return predictedMode != null && player.level().getGameTime() < predictedModeUntil ? definition.fireMode(predictedMode) : GunItem.fireMode(stack, definition);
 	}
 
-	/** Reloading, or fitting an attachment: the gun takes no other action. */
+	/** Reloading, fitting an attachment, or the gun before it still being put away: the gun takes no other action. */
 	public static boolean busy(LocalPlayer player, ItemStack stack) {
-		return reloading(player, stack) || player.level().getGameTime() < attachingUntil;
+		return reloading(player, stack) || player.level().getGameTime() < attachingUntil || !puttingAway.isEmpty();
+	}
+
+	/** The gun being put away, which the viewmodel draws instead of the item now in hand, or empty. */
+	public static ItemStack puttingAway() {
+		return puttingAway;
 	}
 
 	/**
@@ -188,6 +207,12 @@ public final class GunInput {
 	private static void tick(Minecraft minecraft) {
 		LocalPlayer player = minecraft.player;
 		boolean holding = player != null && GunItem.holdsGun(player);
+		if (minecraft.level != readiedIn) {
+			readiedIn = minecraft.level;
+			READIED.clear();
+			drawnStack = puttingAway = ItemStack.EMPTY;
+		}
+		putAway(player, holding);
 
 		aimHeld = holding && minecraft.options.keyUse.isDown();
 		// Out of a sprint the running pose comes down first, so the sights rise a little later.
@@ -213,6 +238,8 @@ public final class GunInput {
 			reloadHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
+			drawnStack = ItemStack.EMPTY;
+			drawDue = false;
 			predictedReloadUntil = 0;
 			noSprintUntil = 0;
 			Viewmodel.reset();
@@ -232,7 +259,12 @@ public final class GunInput {
 			attachingUntil = 0;
 			PENDING.clear();
 			Viewmodel.reset();
-			play(player, gun, "draw");
+			drawDue = true;
+		}
+		drawnStack = stack;
+		if (drawDue && puttingAway.isEmpty()) {
+			drawDue = false;
+			play(player, gun, READIED.add(gun) ? "draw_first" : "draw");
 		}
 		if (definition != null) {
 			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen);
@@ -283,6 +315,31 @@ public final class GunInput {
 		}
 		while (minecraft.options.keySwapOffhand.consumeClick()) {
 			// Guns stay in the main hand; the server also moves any that reach the offhand another way.
+		}
+	}
+
+	/**
+	 * A gun that left the hand (another slot, another item, dropped) is put away: it lowers out of view, drawn by the viewmodel in place
+	 * of the new item, which comes up once it is gone (vanilla's raise for an item, the draw for a gun). The switch itself is not held
+	 * up, so scrolling the hotbar stays as fast as ever.
+	 */
+	private static void putAway(@Nullable LocalPlayer player, boolean holding) {
+		if (player == null) {
+			drawnStack = puttingAway = ItemStack.EMPTY;
+			return;
+		}
+		long now = player.level().getGameTime();
+		boolean left = !drawnStack.isEmpty() && (!holding || player.getInventory().getSelectedSlot() != drawnSlot || player.getMainHandItem().getItem() != drawnItem);
+		if (left) {
+			puttingAway = drawnStack;
+			putAwayUntil = now + PUT_AWAY_TICKS;
+			drawnStack = ItemStack.EMPTY;
+			play(player, (GunItem)puttingAway.getItem(), "put_away");
+		} else if (!puttingAway.isEmpty() && now >= putAwayUntil) {
+			puttingAway = ItemStack.EMPTY;
+			if (!holding) {
+				player.firstPersonHandsAndItems().itemUsed(InteractionHand.MAIN_HAND);
+			}
 		}
 	}
 

@@ -7,6 +7,7 @@ import com.geckolib.renderer.GeoItemRenderer;
 import com.geckolib.renderer.base.GeoRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunFeel;
 import com.noxloveya.mcweapons.gun.GunItem;
@@ -274,10 +275,13 @@ public final class Viewmodel {
 		return max <= 0 ? 0 : max * (float)Math.tanh(value / max);
 	}
 
-	/** Replaces vanilla's first-person hands and items while a gun is in the main hand. Returns false to let vanilla render. */
+	/**
+	 * Replaces vanilla's first-person hands and items while a gun is in the main hand, or while the gun just switched off is put away.
+	 * Returns false to let vanilla render.
+	 */
 	public static boolean submit(float partialTick, PoseStack poseStack, SubmitNodeCollector renderTasks, PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState hands) {
 		Minecraft minecraft = Minecraft.getInstance();
-		ItemStack stack = hands.mainHandItem;
+		ItemStack stack = GunInput.puttingAway().isEmpty() ? hands.mainHandItem : GunInput.puttingAway();
 		if (!(stack.getItem() instanceof GunItem gun) || minecraft.player == null || playerState.avatarRenderState == null
 				|| !(GeoRenderProvider.of(gun).getGeoItemRenderer() instanceof GunRenderer renderer)) {
 			return false;
