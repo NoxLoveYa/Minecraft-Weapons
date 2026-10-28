@@ -37,6 +37,9 @@ public final class Viewmodel {
 	private static final float SHOWCASE_STEP = 0.15F;
 	/** Seconds per breath of the idle layer, about a calm resting rate. */
 	private static final float BREATH_PERIOD = 3.7F;
+	/** Ticks the running pose takes to come up, and to go back down; aiming out of a sprint waits for it (see GunInput). */
+	private static final int RUN_IN_TICKS = 5;
+	private static final int RUN_OUT_TICKS = 4;
 	private static final Matrix4f inverseBase = new Matrix4f();
 	private static final Matrix4f gunPose = new Matrix4f();
 	private static long gunPoseNanos;
@@ -68,11 +71,16 @@ public final class Viewmodel {
 	/** 0 in the hand, 1 turned sideways in the middle of the screen while the gun tuner is open. */
 	private static float showcase;
 	private static float showcaseO;
+	/** 0 in the hand, 1 in the running pose while sprinting. */
+	private static float run;
+	private static float runO;
 
 	private Viewmodel() {
 	}
 
-	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean showcasing) {
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing) {
+		runO = run;
+		run = Mth.clamp(run + (running ? 1.0F / RUN_IN_TICKS : -1.0F / RUN_OUT_TICKS), 0, 1);
 		if (showcasing != showcaseOpen) {
 			// Played here, as the showcase animation loops and would repeat a sound keyframe every second.
 			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound("handling"), 1.0F, 1.0F);
@@ -105,6 +113,7 @@ public final class Viewmodel {
 		ads = adsO = 0;
 		showcase = showcaseO = 0;
 		showcaseOpen = false;
+		run = runO = 0;
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
@@ -123,6 +132,11 @@ public final class Viewmodel {
 	public static float ads(float partialTick) {
 		float t = Mth.lerp(partialTick, adsO, ads);
 		return t * t * (3 - 2 * t);
+	}
+
+	/** True until the running pose is all the way down. */
+	public static boolean running() {
+		return run > 0;
 	}
 
 	public static float recoil(float partialTick) {
@@ -281,10 +295,30 @@ public final class Viewmodel {
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
 		}
 
+		// 3a. Running: the gun comes in close, turned and canted across the body, and bounces with the stride (unless view
+		// bobbing is off). Pivots on the grip. Arms and gun move as one, so nothing can pass through anything.
+		Vector3f grip = renderer.restPivot("gun");
+		float running = Mth.lerp(partialTick, runO, run);
+		running = running * running * (3 - 2 * running);
+		if (running > 0) {
+			poseStack.translate(-0.02F * running, -0.03F * running, 0.03F * running);
+			poseStack.rotateAround(Axis.YP.rotationDegrees(30 * running), grip.x, grip.y, grip.z);
+			poseStack.rotateAround(Axis.XP.rotationDegrees(5 * running), grip.x, grip.y, grip.z);
+			poseStack.rotateAround(Axis.ZP.rotationDegrees(30 * running), grip.x, grip.y, grip.z);
+			if (minecraft.options.bobView().get()) {
+				ClientAvatarState avatar = player.avatarState();
+				float stride = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
+				// Vanilla's bob is 0.1 running on the ground and 0 in the air, so the bounce pauses mid-jump.
+				float bounce = running * avatar.getInterpolatedBob(partialTick) * 10;
+				poseStack.translate(Mth.sin(stride) * 0.025F * bounce, -Math.abs(Mth.cos(stride)) * 0.03F * bounce, 0);
+				poseStack.rotateAround(Axis.ZP.rotationDegrees(Mth.sin(stride) * 4 * bounce), grip.x, grip.y, grip.z);
+				poseStack.rotateAround(Axis.XP.rotationDegrees(-Math.abs(Mth.cos(stride - 0.3F)) * 3 * bounce), grip.x, grip.y, grip.z);
+			}
+		}
+
 		// 3b. Breathing, under everything (reloads, inspects and the tuner too), because a held gun is never quite still: a slow rise
 		// and fall that tips the muzzle up on the inhale, and a sideways drift and roll from waves at unrelated periods so it never
 		// visibly loops. Pivots on the grip, and drops to 20% while aiming like sway.
-		Vector3f grip = renderer.restPivot("gun");
 		float breath = feel.breathScale() * (1 - 0.8F * aim);
 		if (breath > 0) {
 			float seconds = (player.tickCount + partialTick) / 20;
