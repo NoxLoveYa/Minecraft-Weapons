@@ -1,7 +1,9 @@
 # Test server practice range
 
-`practice_range/` is a datapack for the superflat test server. It builds a shooting range at the world spawn (0 -60 0, facing south):
+`practice_range/` is a datapack for the superflat test server. It builds a walled shooting range, facing south from the firing line at z 2:
 
+- A roofed, lit lobby behind the firing line (z -8 to 1), with doors out at the back (the entry) and on both sides. The range itself has no roof.
+- The world spawn is just inside the entry (0 -60 -7, with `respawn_radius` 0), and the gun table is in front of it: right-click it for a Glock 17, one per player (advancement `practice:take_gun`).
 - Static targets, two rows at 12 and 30 blocks: green husk 5 HP (one shot), yellow vindicator 20 HP, red iron golem 60 HP.
 - Moving targets: four lanes, strafing 20 blocks at 2, 4 or 5 m/s.
 - A killed target drops and stands back up 3 seconds later.
@@ -13,9 +15,9 @@
 2. Load the area, build, and unload it again:
 
    ```
-   forceload add -28 -4 32 104
+   forceload add -29 -9 33 105
    function practice:build
-   forceload remove -28 -4 32 104
+   forceload remove -29 -9 33 105
    ```
 
    Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again.
