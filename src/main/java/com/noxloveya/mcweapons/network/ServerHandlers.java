@@ -105,14 +105,15 @@ public final class ServerHandlers {
 		}
 		GunState state = gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
 		long now = player.level().getGameTime();
-		// 1 tick of allowance for latency jitter. On safe the trigger does not move.
-		if (state.reloading() || GunDefinition.SAFE.equals(GunItem.fireMode(gun, definition)) || !definition.readyToFire(state.lastShotTick(), now, 1)) {
+		// 1 tick of allowance for latency jitter.
+		if (state.reloading() || !definition.readyToFire(state.lastShotTick(), now, 1)) {
 			return;
 		}
 		gun.set(ModComponents.GUN_STATE, new GunState(0, now));
 		GunItem item = (GunItem) gun.getItem();
 		int ammo = GunItem.ammo(gun, definition);
-		if (ammo <= 0) {
+		// Empty, or on safe (the trigger is blocked): the same dry click, and no shot.
+		if (ammo <= 0 || GunDefinition.SAFE.equals(GunItem.fireMode(gun, definition))) {
 			playSound(player, item.sound("dry"), 1.0F);
 			return;
 		}

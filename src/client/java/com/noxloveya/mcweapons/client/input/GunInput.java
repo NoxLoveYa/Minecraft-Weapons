@@ -241,15 +241,16 @@ public final class GunInput {
 		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
-		// On safe the trigger does not move: no shot, no click, and the server ignores it too.
-		if (GunDefinition.SAFE.equals(fireMode(player, stack, definition))) {
+		// On safe the trigger is blocked: it clicks like an empty gun and nothing fires (the server checks too).
+		boolean safe = GunDefinition.SAFE.equals(fireMode(player, stack, definition));
+		if (safe) {
 			GunHud.safeBlocked();
-			return;
 		}
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		int ammo = GunItem.ammo(stack, definition);
-		player.playSound(gun.sound(ammo == 0 ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
-		if (ammo > 0) {
+		boolean fires = !safe && ammo > 0;
+		player.playSound(gun.sound(!fires ? "dry" : Attachments.silenced(stack) ? "fire_silenced" : "fire"), 1.0F, 1.0F);
+		if (fires) {
 			play(player, gun, "fire");
 			// Before the recoil kick moves the view.
 			Casings.eject(player, gun);

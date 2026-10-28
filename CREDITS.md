@@ -7,7 +7,7 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | File (`assets/mcweapons/sounds/`) | Source | Author |
 |---|---|---|
 | `glock17/fire.ogg` | [Glock19](https://pixabay.com/sound-effects/film-special-effects-glock19-18535/) | MaxHammarbäck |
-| `glock17/dry.ogg` | [Dry fire](https://pixabay.com/sound-effects/film-special-effects-dry-fire-364846/) | spinopel |
+| `glock17/dry.ogg` | [Dry fire gun](https://pixabay.com/sound-effects/film-special-effects-dry-fire-gun-364844/) (one click, given a hollow low-mid body) | spinopel |
 | `glock17/mag_out.ogg` | [gun magazine out](https://pixabay.com/sound-effects/film-special-effects-gun-magazine-out-384504/) | MelBeeBelBee |
 | `glock17/mag_in.ogg` | [gun mag in](https://pixabay.com/sound-effects/film-special-effects-gun-mag-in-384505/) | MelBeeBelBee |
 | `glock17/slide_back.ogg` | [gun slide back](https://pixabay.com/sound-effects/film-special-effects-gun-slide-back-384509/) | MelBeeBelBee |
