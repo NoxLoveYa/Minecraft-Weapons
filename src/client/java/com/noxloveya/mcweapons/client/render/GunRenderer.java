@@ -70,6 +70,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		withRenderLayer(new ArmSkinLayer(this, "arm_right"));
 		withRenderLayer(new ArmSkinLayer(this, "arm_left"));
 		withRenderLayer(new MuzzleFlashLayer(this));
+		withRenderLayer(new ReticleLayer(this));
 		withRenderLayer(new ShowcasePoseLayer(this));
 		withRenderLayer(new BonePoseLayer(this));
 	}
@@ -118,7 +119,10 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			}
 		}
 		for (GeoBone child : bone.children()) {
-			growBounds(child, bounds);
+			// Attachments are hidden unless fitted, so they do not count towards the bare gun's size.
+			if (!child.name().startsWith("attach_")) {
+				growBounds(child, bounds);
+			}
 		}
 	}
 
@@ -177,14 +181,23 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 
 	/** The bone shots leave from: a fitted attachment's own {@code <attachment>_muzzle} locator (a silencer's tip), or the gun's {@code muzzle}. */
 	public String muzzleBone(ItemStack stack) {
+		return attachmentBone(stack, "_muzzle", "muzzle");
+	}
+
+	/** The bone aiming lines up with the eye: a fitted optic's {@code <attachment>_reticle}, or the gun's {@code ads_anchor} (the iron sights). */
+	public String aimBone(ItemStack stack) {
+		return attachmentBone(stack, "_reticle", "ads_anchor");
+	}
+
+	private String attachmentBone(ItemStack stack, String suffix, String fallback) {
 		BakedGeoModel model = getGeoModel().getBakedModel(this.modelId);
 		for (Identifier id : Attachments.of(stack).values()) {
-			String bone = id.getPath() + "_muzzle";
+			String bone = id.getPath() + suffix;
 			if (model.getBone(bone).isPresent()) {
 				return bone;
 			}
 		}
-		return "muzzle";
+		return fallback;
 	}
 
 	private static boolean slideLocked(RenderData renderData) {

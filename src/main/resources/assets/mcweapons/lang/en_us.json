@@ -1,6 +1,7 @@
 {
   "item.mcweapons.glock17": "Glock 17",
   "item.mcweapons.silencer": "Silencer",
+  "item.mcweapons.red_dot": "Red Dot Sight",
   "key.mcweapons.attachments": "Attachments",
   "gui.mcweapons.attachments": "Attachments",
   "gui.mcweapons.attachments.slot.muzzle": "Muzzle",

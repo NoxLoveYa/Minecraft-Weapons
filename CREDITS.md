@@ -20,6 +20,7 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `glock17/fire_silenced.ogg` | [Silenced Gunshot](https://pixabay.com/sound-effects/film-special-effects-silenced-gunshot-81063/) | freesound_community |
 | `glock17/attach_twist.ogg` | [screwing and unscrewing brass](https://pixabay.com/sound-effects/film-special-effects-screwing-and-unscrewing-brass-31579/) | freesound_community |
 | `glock17/attach_click_1.ogg`, `attach_click_2.ogg` | [Metallic attach, release](https://pixabay.com/sound-effects/film-special-effects-metallic-attach-release-35932/) | freesound_community |
+| `glock17/optic_click_1.ogg`, `optic_click_2.ogg` | [Attaching camera lens](https://pixabay.com/sound-effects/film-special-effects-attaching-camera-lens-42748/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
 

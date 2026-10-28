@@ -19,6 +19,8 @@ import java.util.function.UnaryOperator;
 public final class ModItems {
 	public static final GunItem GLOCK17 = gun("glock17");
 	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences());
+	// Its effect is on the model: the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone).
+	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, UnaryOperator.identity());
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
 			FabricCreativeModeTab.builder()

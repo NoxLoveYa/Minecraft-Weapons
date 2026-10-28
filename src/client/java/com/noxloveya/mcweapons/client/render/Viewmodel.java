@@ -139,7 +139,7 @@ public final class Viewmodel {
 	/** World position where a first-person gun bone's pivot (the muzzle, the chamber) appears on screen, so effects can start from it. */
 	public static Vec3 bonePosition(GunRenderer renderer, String bone, Camera camera, float partialTick) {
 		float aim = ads(partialTick);
-		Vector3f anchor = renderer.restPivot("ads_anchor");
+		Vector3f anchor = renderer.restPivot(renderer.aimBone(Minecraft.getInstance().player.getMainHandItem()));
 		Vector3f muzzle = renderer.restPivot(bone).add(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
 		return camera.position().add(viewToWorld(camera, muzzle));
 	}
@@ -238,9 +238,9 @@ public final class Viewmodel {
 		// Our casings while still at the gun, drawn with it so the slide hides them until they clear the port.
 		Casings.submitInHand(poseStack, renderTasks, partialTick);
 
-		// 1. ADS: slide the model so ads_anchor lands on the view axis, at the center of the screen,
+		// 1. ADS: slide the model so ads_anchor (or a fitted optic's reticle) lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view.
-		Vector3f anchor = renderer.restPivot("ads_anchor");
+		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
 		poseStack.translate(-anchor.x * aim, -anchor.y * aim, -ADS_PUSH_FORWARD * aim);
 
 		// 2. Sway: the model trails the view a little and eases back when it stops (swayYaw/swayPitch), with a soft limit so flicks

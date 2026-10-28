@@ -20,7 +20,8 @@
   "move_speed_ads_multiplier": 1.0,
   "headshot_multiplier": 2.0,
   "attachments": [
-    "mcweapons:silencer"
+    "mcweapons:silencer",
+    "mcweapons:red_dot"
   ],
   "feel": {
     "sway_gain": 0.005,
