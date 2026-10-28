@@ -322,7 +322,8 @@ public final class GunInput {
 			// Off the scope while the gun is busy, and while a bolt is worked between shots, so those can be seen.
 			boolean scopeReady = optic != null && optic.isScope() && !busy(player, stack)
 					&& (!definition.boltAction() || definition.shotDue(nextShotDue, player.level().getGameTime()));
-			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen, scopeReady);
+			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen, scopeReady,
+					optic != null && optic.isScope() ? zoom(optic) : 1);
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.

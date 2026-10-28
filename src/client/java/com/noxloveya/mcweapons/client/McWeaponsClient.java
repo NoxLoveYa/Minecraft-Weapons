@@ -13,7 +13,6 @@ import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
 import com.noxloveya.mcweapons.client.render.Lasers;
 import com.noxloveya.mcweapons.client.render.MuzzleLight;
-import com.noxloveya.mcweapons.client.render.ScopeRenderer;
 import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
 import com.noxloveya.mcweapons.client.screen.GunTunerScreen;
@@ -69,7 +68,6 @@ public class McWeaponsClient implements ClientModInitializer {
 		Lasers.register();
 		Casings.register();
 		ThirdPersonGuns.register();
-		ScopeRenderer.register();
 		HudElementRegistry.addLast(McWeapons.id("ammo"), (graphics, deltaTracker) -> {
 			if (!GunTunerScreen.isOpen()) {
 				GunHud.renderAmmo(graphics, deltaTracker);

@@ -5,6 +5,7 @@ import com.geckolib.cache.model.GeoBone;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.renderer.GeoItemRenderer;
 import com.geckolib.renderer.base.GeoRenderState;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.client.input.GunInput;
@@ -76,6 +77,9 @@ public final class Viewmodel {
 	private static float ads;
 	private static float adsO;
 	private static float adsFovMultiplier = 1;
+	/** A fitted scope's magnification, eased so a variable one's steps zoom smoothly; the view zooms by it at the eye. */
+	private static float magnification = 1;
+	private static float magnificationO = 1;
 	/** 0 to 1 as a fitted scope comes to the eye: aimed, the gun then sits with its eyepiece its eye distance from the eye (Attachments.eyeDistance). */
 	private static float scope;
 	private static float scopeO;
@@ -101,8 +105,11 @@ public final class Viewmodel {
 	private Viewmodel() {
 	}
 
-	/** {@code scopeReady} says a fitted scope can be looked through (the gun is not busy): aiming then brings it to the eye. */
-	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing, boolean scopeReady) {
+	/**
+	 * {@code scopeReady} says a fitted scope can be looked through (the gun is not busy): aiming then brings it to the eye, and the view
+	 * zooms by {@code scopeMagnification}.
+	 */
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing, boolean scopeReady, float scopeMagnification) {
 		runO = run;
 		run = Mth.clamp(run + (running ? 1.0F / RUN_IN_TICKS : -1.0F / RUN_OUT_TICKS), 0, 1);
 		if (showcasing != showcaseOpen) {
@@ -126,6 +133,8 @@ public final class Viewmodel {
 		float step = 1.0F / Math.max(1, definition.adsTicks());
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
 		adsFovMultiplier = definition.adsFovMultiplier();
+		magnificationO = magnification;
+		magnification += (scopeMagnification - magnification) * 0.5F;
 		scopeO = scope;
 		scope = Mth.clamp(scope + (scopeReady ? 1.0F : -1.0F) / SCOPE_TICKS, 0, 1);
 		recoilPitch = definition.recoilPitchDeg();
@@ -195,22 +204,16 @@ public final class Viewmodel {
 		return player != null && GunItem.holdsGun(player) ? feel.bobScale() : 1;
 	}
 
+	/** How much aiming narrows the view: the gun's own zoom, and a scope's magnification once it is at the eye (the lens pass, ScopeRenderer). */
 	public static float fovMultiplier(float partialTick) {
-		return Mth.lerp(ads(partialTick), 1, adsFovMultiplier);
+		float scoped = Mth.lerp(scopeView(partialTick), adsFovMultiplier, 1 / Mth.lerp(partialTick, magnificationO, magnification));
+		return Mth.lerp(ads(partialTick), 1, scoped);
 	}
 
-	/**
-	 * How much slower the mouse turns the view: as much as aiming zooms in, or a scope at the eye magnifies, so what is aimed at moves
-	 * across the sights at about the usual speed.
-	 */
+	/** How much slower the mouse turns the view: as much as aiming zooms in, so what is aimed at moves across the sights at about the usual speed. */
 	public static float turnScale() {
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null || !GunItem.holdsGun(player)) {
-			return 1;
-		}
-		AttachmentItem optic = Attachments.in(player.getMainHandItem(), AttachmentSlot.OPTIC);
-		float scoped = optic != null && optic.isScope() ? ads(1) * scopeView(1) : 0;
-		return Mth.lerp(scoped, fovMultiplier(1), scoped > 0 ? 1 / GunInput.zoom(optic) : 1);
+		return player != null && GunItem.holdsGun(player) ? fovMultiplier(1) : 1;
 	}
 
 	/** How far a fitted scope has come to the eye, 0 to 1 (see {@link #scope}). */
@@ -464,9 +467,13 @@ public final class Viewmodel {
 		return true;
 	}
 
-	/** Called by {@link BonePoseLayer} with the pose a fitted scope's eyepiece ({@code <item>_reticle}) is drawn with, and its lens's radius. */
+	/**
+	 * Called by {@link BonePoseLayer} with the pose a fitted scope's eyepiece ({@code <item>_reticle}) is drawn with, and its lens's radius.
+	 * Taken to view space as the hand pass does: vanilla puts the inverse camera rotation in the hand's poses and the camera rotation in
+	 * the model-view matrix, so the poses alone turn with the camera.
+	 */
 	static void recordLensPose(Matrix4fc bonePose, float radius) {
-		lensPose.set(inverseBase).mul(bonePose);
+		lensPose.set(RenderSystem.getModelViewStack()).mul(bonePose);
 		lensRadius = radius;
 		lensPoseNanos = System.nanoTime();
 	}
@@ -480,10 +487,5 @@ public final class Viewmodel {
 	}
 
 	public record Lens(Matrix4f pose, float radius) {
-	}
-
-	/** {@code direction} (the hand's view space) as the world direction that looks the same on screen, at {@code camera}'s FOV. */
-	public static Vec3 worldDirection(Camera camera, Vector3fc direction) {
-		return viewToWorld(camera, direction).normalize();
 	}
 }

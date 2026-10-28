@@ -15,8 +15,8 @@ import java.util.Map;
 /** Reads and writes the attachments on a gun stack ({@link ModComponents#ATTACHMENTS}: slot name to attachment item id). */
 public final class Attachments {
 	/** The eye distances the attachment menu steps through for a scope (see {@link #eyeDistance}), in blocks of the first-person view. */
-	public static final List<Float> EYE_DISTANCES = List.of(0.1F, 0.13F, 0.16F, 0.2F, 0.25F, 0.3F, 0.4F, 0.5F, 0.6F);
-	public static final float DEFAULT_EYE_DISTANCE = 0.2F;
+	public static final List<Float> EYE_DISTANCES = List.of(0.065F, 0.0845F, 0.104F, 0.13F, 0.1625F, 0.195F, 0.26F, 0.325F, 0.39F);
+	public static final float DEFAULT_EYE_DISTANCE = 0.13F;
 
 	private Attachments() {
 	}

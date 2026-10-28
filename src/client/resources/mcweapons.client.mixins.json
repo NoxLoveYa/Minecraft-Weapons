@@ -5,15 +5,12 @@
 	"client": [
 		"AbstractClientPlayerMixin",
 		"AvatarRendererMixin",
-		"CameraAccessor",
 		"CameraMixin",
 		"FirstPersonHandsAndItemsRendererMixin",
-		"GameRendererAccessor",
 		"GameRendererMixin",
 		"LocalPlayerMixin",
 		"MouseHandlerMixin",
-		"PlayerModelMixin",
-		"SkyRendererMixin"
+		"PlayerModelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
