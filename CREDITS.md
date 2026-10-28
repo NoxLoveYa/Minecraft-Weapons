@@ -30,6 +30,9 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `mosin_nagant/casing_1.ogg`, `casing_2.ogg` | [080962_Shell Hitting Ground](https://pixabay.com/sound-effects/film-special-effects-080962-shell-hitting-ground-39855/), [080963_Shell Hitting ground](https://pixabay.com/sound-effects/film-special-effects-080963-shell-hitting-ground-39857/) | freesound_community |
 | `hitmarker.ogg` | [hit sound (video game type)](https://pixabay.com/sound-effects/film-special-effects-hit-soundvideo-game-type-230510/) | RibhavAgrawal |
 | `headshot.ogg` | [Battle game - headshot ding](https://pixabay.com/sound-effects/film-special-effects-battle-game-headshot-ding-489769/) | cartoon_music |
+| `breath/hold.ogg` | [Breath in](https://pixabay.com/sound-effects/people-breath-in-242641/) (sped up 1.35x) | u_hm3ohsiik6 |
+| `breath/release.ogg` | [Breath out](https://pixabay.com/sound-effects/people-breath-out-242642/) (sped up 1.2x) | u_hm3ohsiik6 |
+| `breath/gasp.ogg` | [Male Gasp 1](https://pixabay.com/sound-effects/film-special-effects-male-gasp-1-7183/), then [Out of Breath (Male)](https://pixabay.com/sound-effects/people-out-of-breath-male-176715/) (the first pants) | freesound_community, VoiceBosch |
 
 ## Fonts
 

@@ -41,7 +41,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
@@ -295,6 +298,9 @@ public final class GunInput {
 		if ((aim != aiming || breath != holdingBreath) && player != null) {
 			ClientPlayNetworking.send(new AimPayload(aim, breath));
 		}
+		if (breath != holdingBreath && player != null) {
+			breathSound(minecraft, player, breath);
+		}
 		if (aim != aiming && player != null && holding) {
 			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound(aim ? "aim_in" : "aim_out"), 1.0F, 1.0F);
 		}
@@ -398,6 +404,16 @@ public final class GunInput {
 		while (minecraft.options.keySwapOffhand.consumeClick()) {
 			// Guns stay in the main hand; the server also moves any that reach the offhand another way.
 		}
+	}
+
+	/** A breath in as it is held; out as it is let go, cutting a quick tap's breath in short, or a gasp when it ran out. Only the holder hears it. */
+	private static void breathSound(Minecraft minecraft, LocalPlayer player, boolean held) {
+		Identifier hold = McWeapons.id("breath.hold");
+		if (!held) {
+			minecraft.getSoundManager().stop(hold, SoundSource.PLAYERS);
+		}
+		Identifier sound = held ? hold : McWeapons.id(BREATH.winded() ? "breath.gasp" : "breath.release");
+		player.playSound(SoundEvent.createVariableRangeEvent(sound), 1.0F, 1.0F);
 	}
 
 	/**

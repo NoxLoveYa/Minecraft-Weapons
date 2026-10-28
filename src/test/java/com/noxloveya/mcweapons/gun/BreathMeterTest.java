@@ -16,12 +16,14 @@ class BreathMeterTest {
 		}
 		assertEquals(BreathMeter.HOLD_TICKS, held, "a full breath lasts its hold time");
 		assertEquals(0, meter.breath());
+		assertTrue(meter.winded(), "ran out: the gasp, not a calm breath out");
 		// Still wanted, but winded: it comes back instead, and is held again only once enough is back.
 		int winded = 0;
 		while (!meter.tick(true)) {
 			winded++;
 		}
 		assertEquals(Math.round(BreathMeter.WINDED_UNTIL * BreathMeter.RECOVER_TICKS), winded, 1);
+		assertFalse(meter.winded());
 	}
 
 	@Test

@@ -32,4 +32,9 @@ public final class BreathMeter {
 	public float breath() {
 		return breath;
 	}
+
+	/** Used up, and not yet back to {@link #WINDED_UNTIL}. */
+	public boolean winded() {
+		return winded;
+	}
 }

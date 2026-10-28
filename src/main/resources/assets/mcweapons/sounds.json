@@ -239,5 +239,23 @@
       { "name": "mcweapons:mosin_nagant/casing_1", "volume": 0.4 },
       { "name": "mcweapons:mosin_nagant/casing_2", "volume": 0.4 }
     ]
+  },
+  "breath.hold": {
+    "subtitle": "subtitles.mcweapons.breath.hold",
+    "sounds": [
+      { "name": "mcweapons:breath/hold", "volume": 0.22 }
+    ]
+  },
+  "breath.release": {
+    "subtitle": "subtitles.mcweapons.breath.release",
+    "sounds": [
+      { "name": "mcweapons:breath/release", "volume": 0.22 }
+    ]
+  },
+  "breath.gasp": {
+    "subtitle": "subtitles.mcweapons.breath.gasp",
+    "sounds": [
+      { "name": "mcweapons:breath/gasp", "volume": 0.4 }
+    ]
   }
 }
