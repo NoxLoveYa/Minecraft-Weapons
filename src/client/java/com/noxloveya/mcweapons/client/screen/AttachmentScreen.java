@@ -55,7 +55,8 @@ public class AttachmentScreen extends Screen {
 			AttachmentSlot.UNDERBARREL, 0xE0D3, AttachmentSlot.MAGAZINE, 0xE58A);
 	private static final int ICON_COLLAPSED = 0xE06F;
 	private static final int ICON_EXPANDED = 0xE06D;
-	private static final int WIDTH = 160;
+	// Room for an optic's name with its zoom ("Variable Scope (6-10x)"), its options arrow and the note on the right.
+	private static final int WIDTH = 200;
 	private static final int HEADER = 16;
 	private static final int ROW = 15;
 	private static final int SECTION_GAP = 6;

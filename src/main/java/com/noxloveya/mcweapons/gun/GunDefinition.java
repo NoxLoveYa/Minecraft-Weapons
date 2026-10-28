@@ -120,6 +120,11 @@ public record GunDefinition(
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
+	public GunDefinition withAdsFovMultiplier(float adsFovMultiplier) {
+		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
+				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
+	}
+
 	public GunDefinition withBullet(BulletStats bullet) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);

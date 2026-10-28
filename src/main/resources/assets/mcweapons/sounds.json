@@ -207,6 +207,32 @@
       { "name": "mcweapons:glock17/aim_out", "volume": 0.2 }
     ]
   },
+  "mosin_nagant.fire_silenced": {
+    "subtitle": "subtitles.mcweapons.gun.fire_silenced",
+    "sounds": [
+      { "name": "mcweapons:glock17/fire_silenced", "volume": 0.8, "pitch": 0.75 }
+    ]
+  },
+  "mosin_nagant.attach_twist": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_twist", "volume": 0.5, "pitch": 0.85 }
+    ]
+  },
+  "mosin_nagant.attach_click": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/attach_click_1", "volume": 0.6, "pitch": 0.85 },
+      { "name": "mcweapons:glock17/attach_click_2", "volume": 0.6, "pitch": 0.85 }
+    ]
+  },
+  "mosin_nagant.optic_click": {
+    "subtitle": "subtitles.mcweapons.gun.attachment",
+    "sounds": [
+      { "name": "mcweapons:glock17/optic_click_1", "volume": 0.6 },
+      { "name": "mcweapons:glock17/optic_click_2", "volume": 0.6 }
+    ]
+  },
   "mosin_nagant.casing": {
     "subtitle": "subtitles.mcweapons.gun.casing",
     "sounds": [

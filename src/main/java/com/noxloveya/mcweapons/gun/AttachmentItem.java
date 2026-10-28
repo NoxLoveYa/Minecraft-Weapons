@@ -22,6 +22,9 @@ public class AttachmentItem extends Item {
 	private float spreadHip = 1;
 	private float aimTime = 1;
 	private boolean laser;
+	private float zoom;
+	private float maxZoom;
+	private boolean scope;
 
 	public AttachmentItem(AttachmentSlot slot, Properties properties) {
 		super(properties);
@@ -93,9 +96,43 @@ public class AttachmentItem extends Item {
 		return laser;
 	}
 
+	/** Aiming through it magnifies {@code magnification} times: the view narrows to 1 / magnification, in place of the gun's {@code ads_fov_multiplier}. */
+	public AttachmentItem zoom(float magnification) {
+		return zoom(magnification, magnification);
+	}
+
+	/** A variable power optic, from {@code min} to {@code max} times; the holder steps it with the scroll wheel while aiming. */
+	public AttachmentItem zoom(float min, float max) {
+		this.zoom = min;
+		this.maxZoom = max;
+		return this;
+	}
+
+	/** Lowest magnification, or 0 when it does not magnify. */
+	public float minZoom() {
+		return zoom;
+	}
+
+	public float maxZoom() {
+		return maxZoom;
+	}
+
+	/** A magnifying scope: fully aimed, the holder looks through it (drawn over the screen from {@code textures/gui/scope/<item>.png}). */
+	public AttachmentItem scope() {
+		this.scope = true;
+		return this;
+	}
+
+	public boolean isScope() {
+		return scope;
+	}
+
 	/** {@code definition} as this attachment changes it. */
 	public GunDefinition applyTo(GunDefinition definition) {
 		GunDefinition applied = capacity > 0 ? definition.withMagSize(capacity) : definition;
+		if (zoom > 0) {
+			applied = applied.withAdsFovMultiplier(1 / zoom);
+		}
 		if (velocity != 1) {
 			applied = applied.withBullet(new BulletStats(applied.bullet().speed() * velocity, applied.bullet().gravity()));
 		}

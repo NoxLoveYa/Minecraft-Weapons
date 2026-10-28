@@ -53,4 +53,14 @@ class AttachmentItemTest {
 		assertEquals(1, laser.applyTo(glock.withAdsTicks(1)).adsTicks(), "never below a tick");
 		assertEquals(0, laser.applyTo(glock.withAdsTicks(0)).adsTicks(), "an instant aim stays instant");
 	}
+
+	@Test
+	void opticZoomReplacesTheGunsOwn() {
+		GunDefinition mosin = new GunDefinition(List.of("bolt"), 55, 17, 256, 5, false, 2.5F, 0.02F, 4, 0.8F, 18, 32, 55, 6, 0.75F, 0.75F);
+
+		assertEquals(0.25F, attachment("test_acog", AttachmentSlot.OPTIC).zoom(4).scope().applyTo(mosin).adsFovMultiplier(), 1.0E-6);
+		AttachmentItem variable = attachment("test_variable", AttachmentSlot.OPTIC).zoom(6, 10);
+		assertEquals(1 / 6F, variable.applyTo(mosin).adsFovMultiplier(), 1.0E-6, "a variable optic starts at its lowest power");
+		assertEquals(10, variable.maxZoom());
+	}
 }

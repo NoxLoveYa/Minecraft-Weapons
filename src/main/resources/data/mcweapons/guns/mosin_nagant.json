@@ -33,7 +33,15 @@
     "speed": 700.0,
     "gravity": 9.81
   },
-  "attachments": [],
+  "attachments": [
+    "mcweapons:silencer",
+    "mcweapons:red_dot",
+    "mcweapons:scout_scope",
+    "mcweapons:pu_scope",
+    "mcweapons:acog",
+    "mcweapons:sniper_scope",
+    "mcweapons:variable_scope"
+  ],
   "feel": {
     "sway_gain": 0.04,
     "sway_max_deg": 1.2,

@@ -41,6 +41,8 @@ public final class Viewmodel {
 	/** Ticks the running pose takes to come up, and to go back down; aiming out of a sprint waits for it (see GunInput). */
 	private static final int RUN_IN_TICKS = 5;
 	private static final int RUN_OUT_TICKS = 4;
+	/** Ticks the view through a scope takes to fade in or out (see {@link ScopeView}). */
+	private static final int SCOPE_TICKS = 2;
 	private static final Matrix4f inverseBase = new Matrix4f();
 	private static final Matrix4f gunPose = new Matrix4f();
 	private static long gunPoseNanos;
@@ -64,6 +66,10 @@ public final class Viewmodel {
 	private static float ads;
 	private static float adsO;
 	private static float adsFovMultiplier = 1;
+	private static float adsFovMultiplierO = 1;
+	/** 0 looking at the gun, 1 looking through its scope. */
+	private static float scope;
+	private static float scopeO;
 	private static float recoilPitch;
 	private static float recoil;
 	private static float recoilO;
@@ -86,7 +92,11 @@ public final class Viewmodel {
 	private Viewmodel() {
 	}
 
-	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing) {
+	/**
+	 * {@code fovMultiplier} is the zoom when fully aimed; {@code scopeReady} says a fitted scope can be looked through (the gun is not busy),
+	 * which it then is once aimed.
+	 */
+	public static void tick(LocalPlayer player, GunDefinition definition, boolean aiming, boolean running, boolean showcasing, float fovMultiplier, boolean scopeReady) {
 		runO = run;
 		run = Mth.clamp(run + (running ? 1.0F / RUN_IN_TICKS : -1.0F / RUN_OUT_TICKS), 0, 1);
 		if (showcasing != showcaseOpen) {
@@ -109,7 +119,11 @@ public final class Viewmodel {
 		adsO = ads;
 		float step = 1.0F / Math.max(1, definition.adsTicks());
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
-		adsFovMultiplier = definition.adsFovMultiplier();
+		adsFovMultiplierO = adsFovMultiplier;
+		// Eased, so a variable scope zooms smoothly to the power the scroll wheel picked.
+		adsFovMultiplier += (fovMultiplier - adsFovMultiplier) * 0.5F;
+		scopeO = scope;
+		scope = Mth.clamp(scope + (scopeReady && ads >= 1 ? 1.0F : -1.0F) / SCOPE_TICKS, 0, 1);
 		recoilPitch = definition.recoilPitchDeg();
 		feel = definition.feel();
 		recoilO = recoil;
@@ -119,6 +133,7 @@ public final class Viewmodel {
 
 	public static void reset() {
 		ads = adsO = 0;
+		scope = scopeO = 0;
 		showcase = showcaseO = 0;
 		showcaseOpen = false;
 		run = runO = 0;
@@ -177,7 +192,28 @@ public final class Viewmodel {
 	}
 
 	public static float fovMultiplier(float partialTick) {
-		return Mth.lerp(ads(partialTick), 1, adsFovMultiplier);
+		return Mth.lerp(ads(partialTick), 1, Mth.lerp(partialTick, adsFovMultiplierO, adsFovMultiplier));
+	}
+
+	/** How much slower the mouse turns the view: as much as aiming zooms in, so a scope's picture moves at about the usual speed. */
+	public static float turnScale() {
+		LocalPlayer player = Minecraft.getInstance().player;
+		return player != null && GunItem.holdsGun(player) ? fovMultiplier(1) : 1;
+	}
+
+	/** How far into the view through a scope, 0 (the gun) to 1 (only the scope's picture; the gun is not drawn). */
+	public static float scopeView(float partialTick) {
+		return Mth.lerp(partialTick, scopeO, scope);
+	}
+
+	/** The barrel's last drawn tip off the view in the hand's view space, in degrees (muzzle up), or 0 when it has not been drawn lately. */
+	static float barrelUp() {
+		return System.nanoTime() - barrelNanos > 200_000_000L ? 0 : barrelPitch;
+	}
+
+	/** Like {@link #barrelUp}, muzzle left. */
+	static float barrelLeft() {
+		return System.nanoTime() - barrelNanos > 200_000_000L ? 0 : barrelYaw;
 	}
 
 	/** World position where a first-person gun bone's pivot (the muzzle, the chamber) appears on screen, so effects can start from it. */
@@ -297,11 +333,15 @@ public final class Viewmodel {
 		show = show * show * (3 - 2 * show);
 		// Sway and bob drop to 20% at full ADS, and go away while the gun is showcased.
 		float loose = (1 - 0.8F * aim) * (1 - show);
+		// Looking through a scope, only its picture shows (ScopeView); the pose is still worked out, as shots and the scope follow the barrel.
+		boolean drawn = scopeView(partialTick) < 1;
 		poseStack.pushPose();
 		// Everything below is in view space relative to this; the tuner reads the gun's pose against it.
 		inverseBase.set(poseStack.last().pose()).invert();
 		// Our casings while still at the gun, drawn with it so the slide hides them until they clear the port.
-		Casings.submitInHand(poseStack, renderTasks, partialTick);
+		if (drawn) {
+			Casings.submitInHand(poseStack, renderTasks, partialTick);
+		}
 
 		// 1. ADS: slide the model so ads_anchor (or a fitted optic's reticle) lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view.
@@ -373,7 +413,9 @@ public final class Viewmodel {
 		barrelYaw = swayYawDeg;
 		barrelNanos = System.nanoTime();
 
-		renderer.submit(renderState, poseStack, renderTasks, 0);
+		if (drawn) {
+			renderer.submit(renderState, poseStack, renderTasks, 0);
+		}
 		poseStack.popPose();
 		return true;
 	}

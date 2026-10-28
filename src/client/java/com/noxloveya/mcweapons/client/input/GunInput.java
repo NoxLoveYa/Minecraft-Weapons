@@ -40,6 +40,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.item.Item;
@@ -109,6 +110,8 @@ public final class GunInput {
 	private static long attachingUntil;
 	/** What we asked to fit into each slot, shown in the hand during the attach animation until the server's attachments arrive. */
 	private static final Map<AttachmentSlot, AttachmentItem> PENDING = new EnumMap<>(AttachmentSlot.class);
+	/** The power a variable optic is turned to with the scroll wheel (kept within each optic's range), or 0 before it is first turned. */
+	private static float zoom;
 
 	private GunInput() {
 	}
@@ -191,6 +194,29 @@ public final class GunInput {
 		}
 	}
 
+	/** The power {@code optic} is turned to: its own for a fixed one, the scroll wheel's pick for a variable one. */
+	public static float zoom(AttachmentItem optic) {
+		return Mth.clamp(zoom, optic.minZoom(), optic.maxZoom());
+	}
+
+	/**
+	 * The scroll wheel moved {@code steps} notches (up is positive). Aiming with a variable optic, it turns the power a step per notch
+	 * instead of changing the hotbar slot; returns whether it did.
+	 */
+	public static boolean scrollZoom(int steps) {
+		LocalPlayer player = Minecraft.getInstance().player;
+		AttachmentItem optic = player != null && aiming ? Attachments.in(player.getMainHandItem(), AttachmentSlot.OPTIC) : null;
+		if (optic == null || optic.maxZoom() <= optic.minZoom()) {
+			return false;
+		}
+		float before = zoom(optic);
+		zoom = Mth.clamp(before + steps, optic.minZoom(), optic.maxZoom());
+		if (zoom != before) {
+			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound("optic_click"), 0.35F, 1.6F);
+		}
+		return true;
+	}
+
 	/** The attachment we asked to fit into {@code slot}, for the attach animation to show before the server's attachments arrive. */
 	public static @Nullable AttachmentItem pending(AttachmentSlot slot) {
 		return PENDING.get(slot);
@@ -267,7 +293,13 @@ public final class GunInput {
 			play(player, gun, READIED.add(gun) ? "draw_first" : "draw");
 		}
 		if (definition != null) {
-			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen);
+			AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
+			// A fixed optic's zoom is in the definition already (see AttachmentItem.applyTo).
+			float fovMultiplier = optic != null && optic.maxZoom() > optic.minZoom() ? 1 / zoom(optic) : definition.adsFovMultiplier();
+			// Off the scope while the gun is busy, and while a bolt is worked between shots, so those can be seen.
+			boolean scopeReady = optic != null && optic.isScope() && !busy(player, stack)
+					&& (!definition.boltAction() || definition.shotDue(nextShotDue, player.level().getGameTime()));
+			Viewmodel.tick(player, definition, aim, player.isSprinting() && !blocksSprint(player), minecraft.gui.screen() instanceof GunTunerScreen, fovMultiplier, scopeReady);
 		}
 
 		// A tap reloads when the key is let go; holding it checks the mag instead, empty or not, so ammo can be read without the HUD.

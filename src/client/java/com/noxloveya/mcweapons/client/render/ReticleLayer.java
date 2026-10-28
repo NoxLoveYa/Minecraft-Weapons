@@ -9,11 +9,13 @@ import com.geckolib.renderer.layer.GeoRenderLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.noxloveya.mcweapons.McWeapons;
+import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.Reticle;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 
 import java.util.EnumMap;
@@ -28,8 +30,9 @@ import java.util.function.BiConsumer;
  */
 public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
 	private static final Map<Reticle.Shape, Identifier> TEXTURES = new EnumMap<>(Reticle.Shape.class);
-	// Half the quad, halo included, in blocks, at size 1: the dot's core comes out a few pixels across at the ADS distance.
-	private static final float RADIUS = 0.022F;
+	// Half the quad, halo included, in blocks, at size 1, per model pixel from the eye to the reticle (0.022 on the Glock's red dot, 12.1
+	// out): the dot's core comes out a few pixels across at the ADS distance, on a pistol or out on a rifle's rail.
+	private static final float RADIUS = 0.022F / 12.1F;
 	private static final int FULL_BRIGHT = 0xF000F0;
 
 	static {
@@ -49,13 +52,16 @@ public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Render
 			return;
 		}
 		for (Identifier id : shown) {
-			renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone -> consumer.accept(bone, this::submitReticle));
+			// A scope's reticle is seen only through it (ScopeView); its locator is just the sight line.
+			if (!(BuiltInRegistries.ITEM.getValue(id) instanceof AttachmentItem attachment && attachment.isScope())) {
+				renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone -> consumer.accept(bone, this::submitReticle));
+			}
 		}
 	}
 
 	private void submitReticle(RenderPassInfo<GeoRenderState> renderPassInfo, GeoBone bone, SubmitNodeCollector renderTasks) {
 		Reticle reticle = Objects.requireNonNullElse(renderPassInfo.getGeckolibData(GunRenderer.RETICLE), Reticle.DEFAULT);
-		float radius = RADIUS * reticle.size();
+		float radius = RADIUS * reticle.size() * Math.abs(bone.pivotZ());
 		int color = 0xFF000000 | reticle.color();
 		renderTasks.submitCustomGeometry(renderPassInfo.poseStack(), RenderTypes.eyes(TEXTURES.get(reticle.shape())), (pose, buffer) -> {
 			vertex(buffer, pose, -radius, -radius, 0, 1, color);
