@@ -34,6 +34,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -299,10 +300,12 @@ public final class GunInput {
 		noSprintUntil = now + SHOT_NO_SPRINT_TICKS;
 		int ammo = GunItem.ammo(stack, definition);
 		boolean fires = !safe && ammo > 0;
-		// The shot leaves the eye along the aim from before its own recoil kick; the server fires the same bullet from these.
+		// The shot leaves the eye along the barrel (the aim, tipped by sway, bob, breathing and earlier kicks), from before its own recoil
+		// kick; the server fires the same bullet from these.
 		Vec3 origin = player.getEyePosition();
-		float xRot = player.getXRot();
-		float yRot = player.getYRot();
+		Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
+		float xRot = player.getXRot() + Viewmodel.barrelXRot(camera);
+		float yRot = player.getYRot() + Viewmodel.barrelYRot(camera);
 		long seed = player.getRandom().nextLong();
 		MovementSpread.Stance stance = stance(player);
 		int shotId = ++lastShotId;

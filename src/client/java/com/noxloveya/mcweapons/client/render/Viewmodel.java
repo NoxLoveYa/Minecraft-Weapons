@@ -49,6 +49,13 @@ public final class Viewmodel {
 	/** A fitted laser's emitter as drawn in view space, for the beam to leave from (see {@link #laserEmitter}). */
 	private static final Matrix4f emitterPose = new Matrix4f();
 	private static long emitterPoseNanos;
+	/**
+	 * How far the barrel was last drawn tipped off the view, in the hand's view space (degrees, muzzle up and muzzle left), from sway,
+	 * walk bob, breathing and the recoil kick. Shots go this way (see {@link #barrelXRot}). Not the running pose or animations.
+	 */
+	private static float barrelPitch;
+	private static float barrelYaw;
+	private static long barrelNanos;
 	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
@@ -117,6 +124,25 @@ public final class Viewmodel {
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
+		barrelPitch = barrelYaw = 0;
+	}
+
+	/** Degrees to add to the view's xRot for where the first-person barrel points (see {@link #barrelPitch}); 0 when it is not drawn. */
+	public static float barrelXRot(Camera camera) {
+		return -barrelAngle(barrelPitch, camera);
+	}
+
+	/** Degrees to add to the view's yRot for where the first-person barrel points; 0 when it is not drawn. */
+	public static float barrelYRot(Camera camera) {
+		return -barrelAngle(barrelYaw, camera);
+	}
+
+	/** A hand view-space angle as the world angle that lands on the same pixel, like {@link #viewToWorld}. */
+	private static float barrelAngle(float degrees, Camera camera) {
+		if (System.nanoTime() - barrelNanos > 200_000_000L) {
+			return 0;
+		}
+		return (float)Math.toDegrees(Math.atan(Math.tan(Math.toRadians(degrees)) * fovScale(camera)));
 	}
 
 	/** A local shot: model kick, a camera pitch kick that does not recover by itself, and the muzzle flash. */
@@ -282,8 +308,11 @@ public final class Viewmodel {
 		// lean it a bit further instead of stopping dead.
 		float lagPitch = hands.viewXRot - Mth.lerp(partialTick, swayPitchO, swayPitch);
 		float lagYaw = Mth.wrapDegrees(hands.viewYRot - Mth.lerp(partialTick, swayYawO, swayYaw));
-		poseStack.rotateDegrees(Axis.XP, softLimit(lagPitch * feel.swayGain(), feel.swayMaxDeg()) * loose);
-		poseStack.rotateDegrees(Axis.YP, softLimit(lagYaw * feel.swayGain(), feel.swayMaxDeg()) * loose);
+		float swayPitchDeg = softLimit(lagPitch * feel.swayGain(), feel.swayMaxDeg()) * loose;
+		float swayYawDeg = softLimit(lagYaw * feel.swayGain(), feel.swayMaxDeg()) * loose;
+		poseStack.rotateDegrees(Axis.XP, swayPitchDeg);
+		poseStack.rotateDegrees(Axis.YP, swayYawDeg);
+		float pitch = swayPitchDeg;
 
 		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
 		if (minecraft.options.bobView().get()) {
@@ -293,6 +322,7 @@ public final class Viewmodel {
 			poseStack.translate(Mth.sin(walk) * bob * 0.5F, -Math.abs(Mth.cos(walk) * bob), 0);
 			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
+			pitch += Math.abs(Mth.cos(walk - 0.2F) * bob) * 5;
 		}
 
 		// 3a. Running: the gun comes in close, turned and canted across the body, and bounces with the stride (unless view
@@ -326,6 +356,7 @@ public final class Viewmodel {
 			float drift = 0.6F * Mth.sin(seconds * Mth.TWO_PI / 5.3F + 1.1F) + 0.4F * Mth.sin(seconds * Mth.TWO_PI / 2.3F + 2.4F);
 			poseStack.translate(drift * 0.003F * breath, inhale * 0.006F * breath, 0);
 			poseStack.rotateAround(Axis.XP.rotationDegrees(inhale * 0.35F * breath), grip.x, grip.y, grip.z);
+			pitch += inhale * 0.35F * breath;
 			poseStack.rotateAround(Axis.ZP.rotationDegrees(drift * 0.25F * breath), grip.x, grip.y, grip.z);
 		}
 
@@ -334,6 +365,9 @@ public final class Viewmodel {
 		poseStack.translate(grip.x, grip.y, grip.z + kick * feel.recoilPushBack());
 		poseStack.rotateDegrees(Axis.XP, kick * recoilPitch);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
+		barrelPitch = pitch + kick * recoilPitch;
+		barrelYaw = swayYawDeg;
+		barrelNanos = System.nanoTime();
 
 		renderer.submit(renderState, poseStack, renderTasks, 0);
 		poseStack.popPose();

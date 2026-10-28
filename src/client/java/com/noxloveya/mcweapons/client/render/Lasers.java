@@ -144,7 +144,10 @@ public final class Lasers {
 	 */
 	private static Emitter emitter(Minecraft minecraft, ClientLevel level, Camera camera, LivingEntity holder, float partialTick) {
 		Vector3f zeroed = zeroed(holder.getMainHandItem());
-		Vec3 aimed = firstHitOr(level, holder, holder.getEyePosition(partialTick), holder.getViewVector(partialTick));
+		// Our own shots go along the barrel, not the view (see Viewmodel.barrelXRot), so our dot lands where the bullet will.
+		Vec3 look = holder == minecraft.player ? Vec3.directionFromRotation(holder.getViewXRot(partialTick) + Viewmodel.barrelXRot(camera),
+				holder.getViewYRot(partialTick) + Viewmodel.barrelYRot(camera)) : holder.getViewVector(partialTick);
+		Vec3 aimed = firstHitOr(level, holder, holder.getEyePosition(partialTick), look);
 		if (holder == minecraft.player && minecraft.options.getCameraType().isFirstPerson()) {
 			Emitter drawn = Viewmodel.laserEmitter(camera, zeroed);
 			if (drawn != null) {
@@ -237,11 +240,11 @@ public final class Lasers {
 		// One submit per render type (a second one in the same frame is not drawn). An additive glow and a small halo, then a thin normally
 		// blended core and dot on top, so the color holds against sand and sky (as tracers do).
 		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.lightning(), (pose, buffer) -> {
-			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.005F, 0.003F, 0.42F, seconds));
-			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius * 2, ((int)(0x70 * glow.strength) << 24) | glow.color));
+			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.007F, 0.004F, 0.45F, seconds));
+			glows.forEach(glow -> disc(buffer, pose, glow.at, left, up, glow.radius * 2.6F, ((int)(0x80 * glow.strength) << 24) | glow.color));
 		});
 		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.debugQuads(), (pose, buffer) -> {
-			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.0013F, 0.001F, 0.9F, seconds));
+			beams.forEach(beam -> beam(buffer, pose, beam, cameraPos, 0.0019F, 0.0014F, 0.95F, seconds));
 			// The dot: the color, and a hot whiter center on top, as a laser spot looks.
 			glows.forEach(glow -> {
 				disc(buffer, pose, glow.at, left, up, glow.radius, ((int)(0xFF * glow.strength) << 24) | glow.color);

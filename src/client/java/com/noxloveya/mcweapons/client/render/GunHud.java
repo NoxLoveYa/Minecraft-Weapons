@@ -138,32 +138,16 @@ public final class GunHud {
 		graphics.fill(x, y + 9, x + BULLET_WIDTH, y + 10, 0xFFA07A2A);
 	}
 
-	/** Draws the gun crosshair and returns true, or returns false so vanilla draws its own. Hidden while aiming. */
+	/**
+	 * With a gun in first person there is no crosshair (vanilla's neither), as shots go where the barrel points, not the screen center
+	 * (see {@link Viewmodel#barrelXRot}); only the hitmarker. Returns false to let vanilla draw otherwise.
+	 */
 	public static boolean renderCrosshair(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft minecraft = Minecraft.getInstance();
-		GunDefinition definition = heldDefinition(minecraft.player);
-		if (definition == null || !minecraft.options.getCameraType().isFirstPerson()) {
+		if (heldDefinition(minecraft.player) == null || !minecraft.options.getCameraType().isFirstPerson()) {
 			return false;
 		}
 		renderHitmarker(graphics);
-		float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
-		float alpha = 1 - Viewmodel.ads(partialTick) * 2.5F;
-		if (alpha <= 0) {
-			return true;
-		}
-		// Gap matches the hip spread cone for the current stance at the current FOV, plus a little bloom while the recoil settles.
-		float fov = minecraft.gameRenderer.mainCamera().getFov();
-		float pixelsPerUnit = graphics.guiHeight() / 2.0F / (float)Math.tan(Math.toRadians(fov / 2));
-		float spread = definition.spread(false, GunInput.stance(minecraft.player));
-		int gap = 2 + Math.round((float)Math.tan(Math.toRadians(spread)) * pixelsPerUnit + Math.max(0, Viewmodel.recoil(partialTick)) * 3);
-		int x = graphics.guiWidth() / 2;
-		int y = graphics.guiHeight() / 2;
-		int color = ARGB.color(Math.round(alpha * 230), 255, 255, 255);
-		int shadow = ARGB.color(Math.round(alpha * 120), 0, 0, 0);
-		bar(graphics, x - gap - 4, y, x - gap, y + 1, color, shadow);
-		bar(graphics, x + 1 + gap, y, x + 1 + gap + 4, y + 1, color, shadow);
-		bar(graphics, x, y - gap - 4, x + 1, y - gap, color, shadow);
-		bar(graphics, x, y + 1 + gap, x + 1, y + 1 + gap + 4, color, shadow);
 		return true;
 	}
 
@@ -206,11 +190,6 @@ public final class GunHud {
 			graphics.pose().popMatrix();
 		}
 		graphics.pose().popMatrix();
-	}
-
-	private static void bar(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color, int shadow) {
-		graphics.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, shadow);
-		graphics.fill(x0, y0, x1, y1, color);
 	}
 
 	private static @Nullable GunDefinition heldDefinition(@Nullable LocalPlayer player) {
