@@ -1,7 +1,8 @@
 # The 1v1 arena, east of the range: a corridor from the lobby's east door (x 33, z -4) into a walled arena (inside x 40 to 60, z -18 to
 # 10) with two spawn pads facing each other at its ends and cover that is the same seen from either. Inside it a player plays in survival
 # and respawns there, at the pad furthest from the other player (tick, arena_enter, arena_respawn). Safe to run again: it rebuilds from
-# scratch. The chunks must be loaded first (forceload add 33 -20 62 12); practice:build runs it too.
+# scratch. The chunks must be loaded first (forceload add 31 -20 62 12: from x 31, as the sign stands in the lobby); practice:build
+# runs it too.
 kill @e[tag=pr_arena_part]
 fill 34 -61 -19 61 -61 11 smooth_stone
 fill 34 -60 -19 61 -50 11 air

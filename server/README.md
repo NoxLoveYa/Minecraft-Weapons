@@ -21,7 +21,7 @@
    forceload remove -29 -20 62 105
    ```
 
-   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again. To rebuild only the arena, use `forceload add 33 -20 62 12` and `function practice:arena_build`.
+   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again. To rebuild only the arena, use `forceload add 31 -20 62 12` and `function practice:arena_build`.
 
 The server also runs with `gamemode=creative`, `force-gamemode=true` and gamerule `mob_drops false`; the datapack does not set those.
 
