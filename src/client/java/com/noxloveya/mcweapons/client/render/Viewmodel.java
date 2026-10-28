@@ -64,12 +64,11 @@ public final class Viewmodel {
 	private static float lensRadius;
 	private static long lensPoseNanos;
 	/**
-	 * How far the barrel was last drawn tipped off the view, in the hand's view space (degrees, muzzle up and muzzle left), from sway,
-	 * walk bob, breathing and the recoil kick. Shots go this way (see {@link #barrelXRot}). Not the running pose or animations.
+	 * The muzzle (a fitted silencer's tip, or the barrel's) as last drawn, in view space: sway, bob, breathing, the kick, the running pose
+	 * and animations all in it. Shots leave along its line (see {@link #barrelLine}).
 	 */
-	private static float barrelPitch;
-	private static float barrelYaw;
-	private static long barrelNanos;
+	private static final Matrix4f muzzlePose = new Matrix4f();
+	private static long muzzlePoseNanos;
 	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
@@ -162,25 +161,7 @@ public final class Viewmodel {
 		recoil = recoilO = recoilVelocity = 0;
 		muzzleFlashUntil = 0;
 		swaySnap = true;
-		barrelPitch = barrelYaw = 0;
-	}
-
-	/** Degrees to add to the view's xRot for where the first-person barrel points (see {@link #barrelPitch}); 0 when it is not drawn. */
-	public static float barrelXRot(Camera camera) {
-		return -barrelAngle(barrelPitch, camera);
-	}
-
-	/** Degrees to add to the view's yRot for where the first-person barrel points; 0 when it is not drawn. */
-	public static float barrelYRot(Camera camera) {
-		return -barrelAngle(barrelYaw, camera);
-	}
-
-	/** A hand view-space angle as the world angle that lands on the same pixel, like {@link #viewToWorld}. */
-	private static float barrelAngle(float degrees, Camera camera) {
-		if (System.nanoTime() - barrelNanos > 200_000_000L) {
-			return 0;
-		}
-		return (float)Math.toDegrees(Math.atan(Math.tan(Math.toRadians(degrees)) * fovScale(camera)));
+		muzzlePoseNanos = 0;
 	}
 
 	/** A local shot: model kick, a camera pitch kick that does not recover by itself, and the muzzle flash. */
@@ -258,12 +239,6 @@ public final class Viewmodel {
 		return optic != null && optic.isScope() ? scopeView(partialTick) : 0;
 	}
 
-	/** World position where a first-person gun bone's pivot (the muzzle, the chamber) appears on screen, so effects can start from it. */
-	public static Vec3 bonePosition(GunRenderer renderer, String bone, Camera camera, float partialTick) {
-		Vector3f pivot = renderer.restPivot(bone).add(adsShift(renderer, Minecraft.getInstance().player.getMainHandItem(), ads(partialTick), partialTick));
-		return camera.position().add(viewToWorld(camera, pivot));
-	}
-
 	/**
 	 * The hand is drawn with a fixed FOV, so a view-space offset is scaled sideways by this to land on the same pixel at the world FOV.
 	 * Going the other way, from the world into the hand's view space, divides by it.
@@ -273,24 +248,20 @@ public final class Viewmodel {
 	}
 
 	/**
-	 * Where the first-person barrel's line meets the first block or body within {@code range}, or the point that far along it: the line
-	 * the gun is drawn along (with the sway, bob, breathing and recoil kick, not its animations or the running pose), carried into the world
-	 * at the world FOV so it covers the drawn barrel on screen (aiming, the sight line). Shots and a laser's dot go there. The view is {@code eye}, {@code xRot}
-	 * and {@code yRot}; null when the gun has not been drawn lately.
+	 * The line the first-person barrel is drawn along, as last drawn (sway, bob, breathing, the kick, the running pose and animations: a
+	 * gun swung away shoots away), carried into the world at the world FOV so it covers the drawn barrel on screen; shots leave along it.
+	 * The view is {@code eye}, {@code xRot} and {@code yRot}; null when the gun has not been drawn lately.
 	 */
-	public static @Nullable Vec3 barrelTarget(LocalPlayer player, Vec3 eye, float xRot, float yRot, Camera camera, float partialTick, double range) {
-		ItemStack stack = player.getMainHandItem();
-		if (System.nanoTime() - barrelNanos > 200_000_000L || !(stack.getItem() instanceof GunItem gun)
-				|| !(GeoRenderProvider.of(gun).getGeoItemRenderer() instanceof GunRenderer renderer)) {
+	public static @Nullable BarrelLine barrelLine(LocalPlayer player, Vec3 eye, float xRot, float yRot, Camera camera, float partialTick) {
+		if (System.nanoTime() - muzzlePoseNanos > 200_000_000L) {
 			return null;
 		}
-		float aim = ads(partialTick);
-		Vector3f muzzle = renderer.restPivot(renderer.muzzleBone(stack)).add(adsShift(renderer, stack, aim, partialTick));
-		Vector3f along = new Vector3f(0, 0, -1).rotateX(barrelPitch * Mth.DEG_TO_RAD).rotateY(barrelYaw * Mth.DEG_TO_RAD);
-		// From where the line crosses the eye's plane: the viewmodel is not to scale (a rifle's muzzle is drawn blocks out), and nothing
+		Vector3f muzzle = muzzlePose.transformPosition(new Vector3f());
+		Vector3f along = muzzlePose.transformDirection(new Vector3f(0, 0, -1)).normalize();
+		// From the line's nearest point to the eye: the viewmodel is not to scale (a rifle's muzzle is drawn blocks out), and nothing
 		// nearer than that may be skipped. Aiming, the sights take over and it comes in to the eye: shots go to the reticle, not a little
 		// under it where the bore is (which a scope would magnify).
-		Vector3f start = new Vector3f(muzzle).fma(-muzzle.z / along.z, along).mul(1 - aim);
+		Vector3f start = new Vector3f(muzzle).fma(-muzzle.dot(along), along).mul(1 - ads(partialTick));
 		Vec3 forward = Vec3.directionFromRotation(xRot, yRot);
 		Vec3 up = Vec3.directionFromRotation(xRot - 90, yRot);
 		float scale = fovScale(camera);
@@ -300,7 +271,28 @@ public final class Viewmodel {
 		if (player.level().clip(new ClipContext(eye, from, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty())).getType() != HitResult.Type.MISS) {
 			from = eye;
 		}
-		return Lasers.firstHitOr(player.level(), player, from, direction, range);
+		return new BarrelLine(from, direction);
+	}
+
+	/** Where a first-person shot leaves from and the way it goes (see {@link #barrelLine}). */
+	public record BarrelLine(Vec3 from, Vec3 direction) {
+	}
+
+	/** Where {@link #barrelLine} meets the first block or body within {@code range}, or the point that far along it: where a laser's dot is. */
+	public static @Nullable Vec3 barrelTarget(LocalPlayer player, Vec3 eye, float xRot, float yRot, Camera camera, float partialTick, double range) {
+		BarrelLine line = barrelLine(player, eye, xRot, yRot, camera, partialTick);
+		return line == null ? null : Lasers.firstHitOr(player.level(), player, line.from(), line.direction(), range);
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose the muzzle (a fitted attachment's {@code <item>_muzzle}, or {@code muzzle}) is drawn with. */
+	static void recordMuzzlePose(Matrix4fc bonePose) {
+		muzzlePose.set(inverseBase).mul(bonePose);
+		muzzlePoseNanos = System.nanoTime();
+	}
+
+	/** Where the first-person muzzle was last drawn, in the world, or null when it has not been drawn lately: tracers and the flash start there. */
+	public static @Nullable Vec3 muzzle(Camera camera) {
+		return System.nanoTime() - muzzlePoseNanos > 200_000_000L ? null : camera.position().add(viewToWorld(camera, muzzlePose.transformPosition(new Vector3f())));
 	}
 
 	/** A view-space offset (right, up, back) as a world offset from the camera, at the world FOV. */
@@ -422,7 +414,6 @@ public final class Viewmodel {
 		float swayYawDeg = softLimit(lagYaw * feel.swayGain(), feel.swayMaxDeg()) * loose;
 		poseStack.rotateDegrees(Axis.XP, swayPitchDeg);
 		poseStack.rotateDegrees(Axis.YP, swayYawDeg);
-		float pitch = swayPitchDeg;
 
 		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
 		if (minecraft.options.bobView().get()) {
@@ -432,7 +423,6 @@ public final class Viewmodel {
 			poseStack.translate(Mth.sin(walk) * bob * 0.5F, -Math.abs(Mth.cos(walk) * bob), 0);
 			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
 			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
-			pitch += Math.abs(Mth.cos(walk - 0.2F) * bob) * 5;
 		}
 
 		// 3a. Running: the gun comes in close, turned and canted across the body, and bounces with the stride (unless view
@@ -466,7 +456,6 @@ public final class Viewmodel {
 			float drift = 0.6F * Mth.sin(seconds * Mth.TWO_PI / 5.3F + 1.1F) + 0.4F * Mth.sin(seconds * Mth.TWO_PI / 2.3F + 2.4F);
 			poseStack.translate(drift * 0.003F * breath, inhale * 0.006F * breath, 0);
 			poseStack.rotateAround(Axis.XP.rotationDegrees(inhale * 0.35F * breath), grip.x, grip.y, grip.z);
-			pitch += inhale * 0.35F * breath;
 			poseStack.rotateAround(Axis.ZP.rotationDegrees(drift * 0.25F * breath), grip.x, grip.y, grip.z);
 		}
 
@@ -477,9 +466,6 @@ public final class Viewmodel {
 		poseStack.translate(grip.x, grip.y, grip.z + kick * pushBack);
 		poseStack.rotateDegrees(Axis.XP, kick * recoilPitch);
 		poseStack.translate(-grip.x, -grip.y, -grip.z);
-		barrelPitch = pitch + kick * recoilPitch;
-		barrelYaw = swayYawDeg;
-		barrelNanos = System.nanoTime();
 
 		renderer.submit(renderState, poseStack, renderTasks, 0);
 		poseStack.popPose();

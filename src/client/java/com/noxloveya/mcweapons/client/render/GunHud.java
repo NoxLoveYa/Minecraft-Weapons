@@ -172,7 +172,7 @@ public final class GunHud {
 
 	/**
 	 * With a gun in first person there is no crosshair (vanilla's neither), as shots go where the barrel points, not the screen center
-	 * (see {@link Viewmodel#barrelXRot}); only the hitmarker. Returns false to let vanilla draw otherwise.
+	 * (see {@link Viewmodel#barrelLine}); only the hitmarker. Returns false to let vanilla draw otherwise.
 	 */
 	public static boolean renderCrosshair(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
 		Minecraft minecraft = Minecraft.getInstance();

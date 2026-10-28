@@ -255,11 +255,6 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return only;
 	}
 
-	/** The bone shots leave from: a fitted attachment's own {@code <attachment>_muzzle} locator (a silencer's tip), or the gun's {@code muzzle}. */
-	public String muzzleBone(ItemStack stack) {
-		return attachmentBone(stack, "_muzzle", "muzzle");
-	}
-
 	/** The bone aiming lines up with the eye: a fitted optic's {@code <attachment>_reticle}, or the gun's {@code ads_anchor} (the iron sights). */
 	public String aimBone(ItemStack stack) {
 		return attachmentBone(stack, "_reticle", "ads_anchor");

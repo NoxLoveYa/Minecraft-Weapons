@@ -1,6 +1,5 @@
 package com.noxloveya.mcweapons.client.render;
 
-import com.geckolib.animatable.client.GeoRenderProvider;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.noxloveya.mcweapons.combat.Ballistics;
@@ -111,9 +110,9 @@ public final class Tracers {
 	public static Vec3 muzzle(Entity shooter) {
 		Minecraft minecraft = Minecraft.getInstance();
 		ItemStack gun = shooter instanceof LivingEntity living ? living.getMainHandItem() : ItemStack.EMPTY;
-		if (shooter == minecraft.player && minecraft.options.getCameraType().isFirstPerson()
-				&& GeoRenderProvider.of(gun).getGeoItemRenderer() instanceof GunRenderer renderer) {
-			return Viewmodel.bonePosition(renderer, renderer.muzzleBone(gun), minecraft.gameRenderer.mainCamera(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+		Vec3 drawn = shooter == minecraft.player && minecraft.options.getCameraType().isFirstPerson() ? Viewmodel.muzzle(minecraft.gameRenderer.mainCamera()) : null;
+		if (drawn != null) {
+			return drawn;
 		}
 		// How far ahead of the eye a held gun's muzzle is (see ThirdPersonGuns.heldPoint): further with a silencer on it.
 		return ThirdPersonGuns.heldPoint(shooter, Attachments.silenced(gun) ? 1.37 : 0.97);

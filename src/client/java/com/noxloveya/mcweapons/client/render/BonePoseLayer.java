@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; a fitted laser's emitter, for its beam; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
+ * for casings to leave from; the muzzle in first person, for shots; a fitted laser's emitter, for its beam; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
  * locator in someone's hand, for their other hand to hold.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
@@ -40,6 +40,15 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 		if (GunRenderer.firstPerson(renderPassInfo.renderState())) {
 			renderPassInfo.model().getBone("ejection_port").ifPresent(bone ->
 					consumer.accept(bone, (info, portBone, renderTasks) -> Viewmodel.recordPortPose(info.poseStack().last().pose())));
+			// The muzzle shots leave from: a fitted attachment's tip (a silencer's), or the barrel's.
+			String muzzle = "muzzle";
+			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
+				if (renderPassInfo.model().getBone(id.getPath() + "_muzzle").isPresent()) {
+					muzzle = id.getPath() + "_muzzle";
+				}
+			}
+			renderPassInfo.model().getBone(muzzle).ifPresent(bone ->
+					consumer.accept(bone, (info, muzzleBone, renderTasks) -> Viewmodel.recordMuzzlePose(info.poseStack().last().pose())));
 			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
 				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
 						consumer.accept(bone, (info, emitterBone, renderTasks) -> Viewmodel.recordEmitterPose(info.poseStack().last().pose())));
