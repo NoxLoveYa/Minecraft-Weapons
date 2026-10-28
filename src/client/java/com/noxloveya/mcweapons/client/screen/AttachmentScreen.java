@@ -58,6 +58,7 @@ public class AttachmentScreen extends Screen {
 	private static final int WIDTH = 160;
 	private static final int HEADER = 16;
 	private static final int ROW = 15;
+	private static final int SECTION_GAP = 6;
 	/** Lang key suffixes of {@link Reticle#COLORS}, in the same order. */
 	private static final List<String> COLOR_NAMES = List.of("red", "green", "cyan", "yellow", "magenta", "white");
 
@@ -102,6 +103,13 @@ public class AttachmentScreen extends Screen {
 	private final Set<AttachmentItem> expanded = new HashSet<>();
 	private int top;
 	private int bottom;
+	// Row metrics: the full ones, or tighter ones when the panel would not fit the screen otherwise (four parts and an open option list
+	// do not fit 720p at the auto GUI scale).
+	private int rowHeight = ROW;
+	private int headerHeight = HEADER;
+	private int sectionGap = SECTION_GAP;
+	/** From a row's top to its text. */
+	private int pad = 4;
 	/** The key opened this screen; it only closes it again once that press has been let go. */
 	private boolean keyReleased;
 
@@ -133,31 +141,38 @@ public class AttachmentScreen extends Screen {
 				}
 			}
 		}
-		int height = 34;
+		int lines = 0;
 		for (List<AttachmentItem> items : fitting.values()) {
-			height += HEADER + (items.size() + 1) * ROW + 6;
+			lines += items.size() + 1;
 			for (AttachmentItem item : items) {
-				height += open(item) ? Option.values().length * ROW : 0;
+				lines += open(item) ? Option.values().length : 0;
 			}
 		}
-		top = Math.max(MARGIN, (this.height - height) / 2);
+		// Room for the hint line under the panel.
+		boolean compact = 34 + fitting.size() * (HEADER + SECTION_GAP) + lines * ROW + 18 > this.height - MARGIN;
+		rowHeight = compact ? 11 : ROW;
+		headerHeight = compact ? 12 : HEADER;
+		sectionGap = compact ? 3 : SECTION_GAP;
+		pad = compact ? 2 : 4;
+		int height = 34 + fitting.size() * (headerHeight + sectionGap) + lines * rowHeight;
+		top = Math.max(MARGIN, (this.height - height - 18) / 2);
 		int y = top + 34;
 		for (Map.Entry<AttachmentSlot, List<AttachmentItem>> section : fitting.entrySet()) {
 			sectionTops.put(section.getKey(), y);
-			y += HEADER;
+			y += headerHeight;
 			rows.add(new Row(section.getKey(), null, null, y));
-			y += ROW;
+			y += rowHeight;
 			for (AttachmentItem item : section.getValue()) {
 				rows.add(new Row(section.getKey(), item, null, y));
-				y += ROW;
+				y += rowHeight;
 				if (open(item)) {
 					for (Option option : Option.values()) {
 						rows.add(new Row(section.getKey(), item, option, y));
-						y += ROW;
+						y += rowHeight;
 					}
 				}
 			}
-			y += 6;
+			y += sectionGap;
 		}
 		bottom = y;
 	}
@@ -203,23 +218,23 @@ public class AttachmentScreen extends Screen {
 		for (Map.Entry<AttachmentSlot, Integer> section : sectionTops.entrySet()) {
 			int y = section.getValue();
 			graphics.fill(x0 + 7, y, x1 - 7, y + 1, DIVIDER);
-			graphics.text(font, icon(SLOT_ICONS.get(section.getKey())), x0 + 8, y + 5, MUTED, false);
-			graphics.text(font, ui(Component.translatable("gui.mcweapons.attachments.slot." + section.getKey().getSerializedName())), x0 + 21, y + 5, MUTED, false);
+			graphics.text(font, icon(SLOT_ICONS.get(section.getKey())), x0 + 8, y + (headerHeight - 6) / 2, MUTED, false);
+			graphics.text(font, ui(Component.translatable("gui.mcweapons.attachments.slot." + section.getKey().getSerializedName())), x0 + 21, y + (headerHeight - 6) / 2, MUTED, false);
 		}
 		Reticle reticle = gun.getOrDefault(ModComponents.RETICLE, Reticle.DEFAULT);
 		for (Row row : rows) {
 			if (row.option() != null) {
 				// Looks only: changeable any time, even mid-reload or before the optic is fitted.
 				if (hovered(row, mouseX, mouseY)) {
-					rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + ROW, ROW_HOVER);
+					rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + rowHeight, ROW_HOVER);
 				}
-				graphics.text(font, icon(row.option().icon), x0 + 23, row.y() + 4, MUTED, false);
-				graphics.text(font, ui(Component.translatable("gui.mcweapons.reticle." + row.option().name().toLowerCase(Locale.ROOT))), x0 + 36, row.y() + 4, 0xD9FFFFFF, false);
+				graphics.text(font, icon(row.option().icon), x0 + 23, row.y() + pad, MUTED, false);
+				graphics.text(font, ui(Component.translatable("gui.mcweapons.reticle." + row.option().name().toLowerCase(Locale.ROOT))), x0 + 36, row.y() + pad, 0xD9FFFFFF, false);
 				Component value = ui(row.option().value(reticle));
 				int valueX = x1 - 9 - font.width(value);
-				graphics.text(font, value, valueX, row.y() + 4, TEXT, false);
+				graphics.text(font, value, valueX, row.y() + pad, TEXT, false);
 				if (row.option() == Option.COLOR) {
-					graphics.fill(valueX - 10, row.y() + 4, valueX - 3, row.y() + 11, 0xFF000000 | reticle.color());
+					graphics.fill(valueX - 10, row.y() + pad, valueX - 3, row.y() + pad + 7, 0xFF000000 | reticle.color());
 				}
 				continue;
 			}
@@ -228,20 +243,20 @@ public class AttachmentScreen extends Screen {
 			boolean available = row.attachment() == null || owned(player, row.attachment()) > 0 || player != null && player.hasInfiniteMaterials();
 			boolean hot = !busy && !current && available && hovered(row, mouseX, mouseY);
 			if (hot) {
-				rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + ROW, ROW_HOVER);
+				rounded(graphics, x0 + 4, row.y(), x1 - 4, row.y() + rowHeight, ROW_HOVER);
 			}
 			int color = current ? TEXT : available && !busy ? 0xD9FFFFFF : MUTED;
 			int glyph = current ? ICON_FITTED : row.attachment() == null ? ICON_NONE : ICON_OPTION;
-			graphics.text(font, icon(glyph), x0 + 10, row.y() + 4, color, false);
+			graphics.text(font, icon(glyph), x0 + 10, row.y() + pad, color, false);
 			Component name = row.attachment() == null ? Component.translatable("gui.mcweapons.attachments.none") : new ItemStack(row.attachment()).getHoverName();
-			graphics.text(font, ui(name), x0 + 23, row.y() + 4, color, false);
+			graphics.text(font, ui(name), x0 + 23, row.y() + pad, color, false);
 			if (hasOptions(row.attachment())) {
-				graphics.text(font, icon(open(row.attachment()) ? ICON_EXPANDED : ICON_COLLAPSED), x0 + 26 + font.width(ui(name)), row.y() + 4, MUTED, false);
+				graphics.text(font, icon(open(row.attachment()) ? ICON_EXPANDED : ICON_COLLAPSED), x0 + 26 + font.width(ui(name)), row.y() + pad, MUTED, false);
 			}
 			Component note = note(player, row, current);
 			if (note != null) {
 				Component text = ui(note);
-				graphics.text(font, text, x1 - 9 - font.width(text), row.y() + 4, MUTED, false);
+				graphics.text(font, text, x1 - 9 - font.width(text), row.y() + pad, MUTED, false);
 			}
 		}
 		Component hint = ui(Component.translatable(busy ? "gui.mcweapons.attachments.busy" : "gui.mcweapons.attachments.hint"));
@@ -280,7 +295,7 @@ public class AttachmentScreen extends Screen {
 	}
 
 	private boolean hovered(Row row, double x, double y) {
-		return x >= MARGIN + 4 && x < MARGIN + WIDTH - 4 && y >= row.y() && y < row.y() + ROW;
+		return x >= MARGIN + 4 && x < MARGIN + WIDTH - 4 && y >= row.y() && y < row.y() + rowHeight;
 	}
 
 	@Override

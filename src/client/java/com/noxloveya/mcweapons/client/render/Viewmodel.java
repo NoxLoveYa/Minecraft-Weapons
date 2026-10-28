@@ -43,6 +43,9 @@ public final class Viewmodel {
 	/** The ejection port's drawn pose in view space, for casings to leave from (see {@link #ejectionPort}). */
 	private static final Matrix4f portPose = new Matrix4f();
 	private static long portPoseNanos;
+	/** A fitted laser's emitter as drawn in view space, for the beam to leave from (see {@link #laserEmitter}). */
+	private static final Matrix4f emitterPose = new Matrix4f();
+	private static long emitterPoseNanos;
 	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
@@ -179,6 +182,24 @@ public final class Viewmodel {
 		Vec3 up = viewToWorld(camera, portPose.transformDirection(new Vector3f(0, 1, 0))).normalize();
 		Vec3 forward = viewToWorld(camera, portPose.transformDirection(new Vector3f(0, 0, -1))).normalize();
 		return new Casings.Port(camera.position().add(viewToWorld(camera, portPose.transformPosition(new Vector3f()))), right, up, forward);
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose a fitted laser's {@code <item>_emitter} bone is drawn with this frame. */
+	static void recordEmitterPose(Matrix4fc bonePose) {
+		emitterPose.set(inverseBase).mul(bonePose);
+		emitterPoseNanos = System.nanoTime();
+	}
+
+	/**
+	 * Where the first-person gun's laser emitter was last drawn in the world, and the way {@code beam} (a direction in the emitter bone's
+	 * frame) points from it, or null when it has not been drawn lately.
+	 */
+	public static Lasers.@Nullable Emitter laserEmitter(Camera camera, Vector3fc beam) {
+		if (System.nanoTime() - emitterPoseNanos > 200_000_000L) {
+			return null;
+		}
+		Vec3 forward = viewToWorld(camera, emitterPose.transformDirection(new Vector3f(beam))).normalize();
+		return new Lasers.Emitter(camera.position().add(viewToWorld(camera, emitterPose.transformPosition(new Vector3f()))), forward);
 	}
 
 	public static boolean muzzleFlash() {

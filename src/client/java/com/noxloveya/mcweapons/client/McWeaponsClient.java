@@ -10,6 +10,7 @@ import com.noxloveya.mcweapons.client.input.GunInput;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
+import com.noxloveya.mcweapons.client.render.Lasers;
 import com.noxloveya.mcweapons.client.render.MuzzleLight;
 import com.noxloveya.mcweapons.client.render.ThirdPersonGuns;
 import com.noxloveya.mcweapons.client.render.Tracers;
@@ -61,6 +62,7 @@ public class McWeaponsClient implements ClientModInitializer {
 		GunItem.soundKeyframes = McWeaponsClient::playKeyframeSound;
 		GunInput.register();
 		Tracers.register();
+		Lasers.register();
 		Casings.register();
 		ThirdPersonGuns.register();
 		HudElementRegistry.addLast(McWeapons.id("ammo"), (graphics, deltaTracker) -> {

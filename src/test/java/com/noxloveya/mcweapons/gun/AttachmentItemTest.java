@@ -40,4 +40,17 @@ class AttachmentItemTest {
 		assertSame(glock, attachment("test_optic", AttachmentSlot.OPTIC).applyTo(glock), "an attachment with no effects leaves the gun as it is");
 		assertEquals(33, attachment("test_mag", AttachmentSlot.MAGAZINE).capacity(33).applyTo(glock).magSize());
 	}
+
+	@Test
+	void laserTightensHipFireAndSpeedsUpTheAim() {
+		GunDefinition glock = new GunDefinition(List.of("semi"), 600, 5, 64, 17, true, 0.4F, 0.05F, 0.8F, 0.3F, 10, 40, 50, 3, 0.8F, 1.0F);
+		AttachmentItem laser = attachment("test_laser", AttachmentSlot.UNDERBARREL).laser().spreadHip(0.6F).aimTime(0.67F);
+
+		GunDefinition fitted = laser.applyTo(glock);
+		assertEquals(0.24F, fitted.spreadHipDeg(), 1.0E-6);
+		assertEquals(glock.spreadAdsDeg(), fitted.spreadAdsDeg(), "aimed shots keep their spread");
+		assertEquals(2, fitted.adsTicks(), "3 ticks become 2");
+		assertEquals(1, laser.applyTo(glock.withAdsTicks(1)).adsTicks(), "never below a tick");
+		assertEquals(0, laser.applyTo(glock.withAdsTicks(0)).adsTicks(), "an instant aim stays instant");
+	}
 }

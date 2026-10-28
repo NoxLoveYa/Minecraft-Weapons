@@ -10,14 +10,16 @@ import com.geckolib.renderer.layer.GeoRenderLayer;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; the gun, magazine and attachment slots in someone's hand, for their other hand to hold during a reload or
- * while fitting an attachment.
+ * for casings to leave from; a fitted laser's emitter, for its beam; the gun, magazine and attachment slots in someone's hand, for
+ * their other hand to hold during a reload or while fitting an attachment.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
 	public BonePoseLayer(GunRenderer renderer) {
@@ -29,9 +31,14 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 		if (!renderPassInfo.willRender()) {
 			return;
 		}
+		Set<Identifier> shown = renderPassInfo.getGeckolibData(GunRenderer.ATTACHMENTS);
 		if (GunRenderer.firstPerson(renderPassInfo.renderState())) {
 			renderPassInfo.model().getBone("ejection_port").ifPresent(bone ->
 					consumer.accept(bone, (info, portBone, renderTasks) -> Viewmodel.recordPortPose(info.poseStack().last().pose())));
+			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
+				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
+						consumer.accept(bone, (info, emitterBone, renderTasks) -> Viewmodel.recordEmitterPose(info.poseStack().last().pose())));
+			}
 			return;
 		}
 		Long instanceId = renderPassInfo.getGeckolibData(DataTickets.ANIMATABLE_INSTANCE_ID);
@@ -47,6 +54,10 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 			for (AttachmentSlot slot : AttachmentSlot.values()) {
 				renderPassInfo.model().getBone("attach_" + slot.getSerializedName()).ifPresent(bone ->
 						consumer.accept(bone, (info, slotBone, renderTasks) -> ThirdPersonGuns.recordSlot(holder, slot, info.poseStack().last().pose())));
+			}
+			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
+				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
+						consumer.accept(bone, (info, emitterBone, renderTasks) -> Lasers.recordHeld(holder, info.poseStack().last().pose())));
 			}
 		}
 	}

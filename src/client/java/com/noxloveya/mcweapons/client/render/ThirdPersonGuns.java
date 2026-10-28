@@ -60,6 +60,8 @@ public final class ThirdPersonGuns {
 	// Blockbench's mirrored). The silencer's is in the gun's frame, so the hand does not circle it while it is screwed on.
 	private static final Vector3fc MUZZLE_HOLD = new Vector3f(1.5F / 16, -1.6F / 16, -6.5F / 16);
 	private static final Vector3fc OPTIC_HOLD = new Vector3f(2.55F / 16, -0.65F / 16, -2F / 16);
+	// Under the front of the laser, where the hand pushes it onto the rail.
+	private static final Vector3fc UNDERBARREL_HOLD = new Vector3f(0, -2.7F / 16, -1.9F / 16);
 	// In the magazine bone: the side of the extended magazine going in, or of the gun's own going back in.
 	private static final Vector3fc EXTENDED_MAG_HOLD = new Vector3f(0.8F / 16, -3.9F / 16, 3F / 16);
 	private static final Vector3fc MAG_HOLD = new Vector3f(1.4F / 16, -0.3F / 16, 2.1F / 16);
@@ -221,6 +223,8 @@ public final class ThirdPersonGuns {
 			hold = pose.transformPosition(new Vector3f()).add((gun != null ? gun : pose).transformDirection(new Vector3f(MUZZLE_HOLD)));
 		} else if (slot == AttachmentSlot.OPTIC) {
 			hold = pose.transformPosition(new Vector3f(OPTIC_HOLD));
+		} else if (slot == AttachmentSlot.UNDERBARREL) {
+			hold = pose.transformPosition(new Vector3f(UNDERBARREL_HOLD));
 		} else {
 			return;
 		}

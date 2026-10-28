@@ -19,6 +19,9 @@ public class AttachmentItem extends Item {
 	private int capacity;
 	private float velocity = 1;
 	private float recoil = 1;
+	private float spreadHip = 1;
+	private float aimTime = 1;
+	private boolean laser;
 
 	public AttachmentItem(AttachmentSlot slot, Properties properties) {
 		super(properties);
@@ -68,6 +71,28 @@ public class AttachmentItem extends Item {
 		return this;
 	}
 
+	/** Shots from the hip stray {@code multiplier} times as far ({@code spread_hip_deg}); aimed shots are unchanged. */
+	public AttachmentItem spreadHip(float multiplier) {
+		this.spreadHip = multiplier;
+		return this;
+	}
+
+	/** Raising the sights takes {@code multiplier} times as long ({@code ads_ticks}, rounded, at least a tick), from a stand, a walk or a run. */
+	public AttachmentItem aimTime(float multiplier) {
+		this.aimTime = multiplier;
+		return this;
+	}
+
+	/** Shines a laser from its {@code <item>_emitter} bone while fitted (drawn by the client, looks only). */
+	public AttachmentItem laser() {
+		this.laser = true;
+		return this;
+	}
+
+	public boolean isLaser() {
+		return laser;
+	}
+
 	/** {@code definition} as this attachment changes it. */
 	public GunDefinition applyTo(GunDefinition definition) {
 		GunDefinition applied = capacity > 0 ? definition.withMagSize(capacity) : definition;
@@ -76,6 +101,13 @@ public class AttachmentItem extends Item {
 		}
 		if (recoil != 1) {
 			applied = applied.withRecoil(applied.recoilPitchDeg() * recoil, applied.recoilYawDeg() * recoil);
+		}
+		if (spreadHip != 1) {
+			applied = applied.withSpreadHip(applied.spreadHipDeg() * spreadHip);
+		}
+		// An instant aim (0 ticks) stays instant.
+		if (aimTime != 1 && applied.adsTicks() > 0) {
+			applied = applied.withAdsTicks(Math.max(1, Math.round(applied.adsTicks() * aimTime)));
 		}
 		return applied;
 	}

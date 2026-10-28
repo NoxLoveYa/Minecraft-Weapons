@@ -23,6 +23,8 @@ public final class ModItems {
 	// Its effect is on the model: the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone).
 	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, UnaryOperator.identity());
 	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));
+	// On the dust cover rail: the dot shows where a hip shot goes, so hip fire tightens, and the sights come up faster.
+	public static final AttachmentItem LASER = attachment("laser", AttachmentSlot.UNDERBARREL, item -> item.laser().spreadHip(0.6F).aimTime(0.67F));
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
 			FabricCreativeModeTab.builder()
