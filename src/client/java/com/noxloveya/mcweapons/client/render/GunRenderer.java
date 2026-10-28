@@ -216,6 +216,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			return Set.copyOf(fitted.values());
 		}
 		var main = gun.getAnimatableInstanceCache().getManagerForId(instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		// A finished triggered animation stays the controller's current one until the next is triggered: only a playing one counts, or
+		// an attachment taken off would come back on the gun once its detach ended.
+		boolean animating = main != null && !main.hasAnimationFinished();
 		Map<AttachmentSlot, Identifier> last = LAST_FITTED.computeIfAbsent(instanceId(holder), id -> new EnumMap<>(AttachmentSlot.class));
 		Set<Identifier> shown = new HashSet<>();
 		for (AttachmentSlot slot : AttachmentSlot.values()) {
@@ -223,9 +226,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 			if (id != null) {
 				last.put(slot, id);
 			}
-			if (main != null && main.isTriggeredAnimation(slot.detachAction())) {
+			if (animating && main.isTriggeredAnimation(slot.detachAction())) {
 				id = last.get(slot);
-			} else if (id == null && main != null && main.isTriggeredAnimation(slot.attachAction())) {
+			} else if (id == null && animating && main.isTriggeredAnimation(slot.attachAction())) {
 				// Someone else's animation can arrive a tick before their gun's new attachments.
 				AttachmentItem pending = holder == Minecraft.getInstance().player ? GunInput.pending(slot) : onlyFitting(stack, slot);
 				id = pending == null ? null : BuiltInRegistries.ITEM.getKey(pending);
