@@ -72,8 +72,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	public static final DataTicket<Boolean> THIRD_PERSON_AIM = DataTicket.create("mcweapons_third_person_aim", Boolean.class);
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
-	// Third person: the model is built around the eye, so it is shrunk and moved until the grip sits in the hand.
-	private static final float THIRD_PERSON_SCALE = 0.75F;
+	// Third person: the model is built around the eye, so it is moved until the grip sits in the hand. Its arms are the player model's (4 by
+	// 12 pixels), so at 1 the gun is the same size against the hand as in first person.
+	private static final float THIRD_PERSON_SCALE = 1.0F;
 	/** A long gun is shrunk further in a hand, to at most this many blocks long: a rifle about as long as a person is tall looks wrong. */
 	private static final float THIRD_PERSON_MAX_LENGTH = 1.25F;
 	/** Outside a hand (the inventory, dropped, in a frame or on a display) the gun lies still: one shared instance, never animated. */
@@ -384,7 +385,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		}
 	}
 
-	/** How much smaller the gun is in a hand than in first person: {@link #THIRD_PERSON_SCALE}, or less for a long gun. */
+	/** The gun's size in a hand against first person: {@link #THIRD_PERSON_SCALE}, or less for a long gun. */
 	private float thirdPersonScale() {
 		if (this.thirdPersonScale < 0) {
 			float[] bounds = gunBounds();

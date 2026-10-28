@@ -25,4 +25,8 @@
 
 The server also runs with `gamemode=creative`, `force-gamemode=true` and gamerule `mob_drops false`; the datapack does not set those.
 
+## Ready-made world
+
+`practice-world.zip` is a copy of the test server's world (2026-10-28) with the range and the arena already built and the datapack inside. Unzip it into `.minecraft/saves/` (or use its folder as a server's `world`) and play it with the mod. It leaves out the players' data and the server's gun tuning overrides. The datapack source is `practice_range/`: after changing it, rebuild as above rather than editing the copy in the zip.
+
 `mc.sh <file>` sends each line of a file to the server console (lines starting with `sleep` just wait) and prints the log since then. The file needs LF line endings.
