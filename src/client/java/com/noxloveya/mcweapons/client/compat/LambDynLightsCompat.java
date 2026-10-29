@@ -48,9 +48,10 @@ public final class LambDynLightsCompat implements DynamicLightsInitializer {
 		}
 	}
 
-	// A flashlight lights where its beam lands, less than a flash; moved once its spot has gone a block, checked every few ticks.
+	// A flashlight lights where its beam lands, less than a flash; it follows the beam every tick, moved once its spot shifts a tenth of a
+	// block (each move rebuilds the sections it reaches, so a still beam costs nothing).
 	private static final int SPOT_LUMINANCE = 12;
-	private static final int SPOT_EVERY = 3;
+	private static final double SPOT_MOVE = 0.1;
 
 	private final Map<Integer, Light> lights = new HashMap<>();
 	/** Each flashlight's light, by holder entity id. */
@@ -104,33 +105,31 @@ public final class LambDynLightsCompat implements DynamicLightsInitializer {
 				return true;
 			});
 			// Flashlights change at the end of the tick, after this tick's lookup, so like a removed flash their sections are rebuilt next tick.
-			if (client.level.getGameTime() % SPOT_EVERY == 0) {
-				Map<Integer, Vec3> wanted = Lasers.lightSpots(client);
-				spots.entrySet().removeIf(entry -> {
-					if (wanted.containsKey(entry.getKey())) {
-						return false;
-					}
-					manager.remove(entry.getValue().behavior);
-					dirty.add(entry.getValue().pos);
-					return true;
-				});
-				wanted.forEach((id, pos) -> {
-					Light light = spots.get(id);
-					if (light == null) {
-						light = new Light(new LineLightBehavior(new Vector3d(pos.x, pos.y, pos.z), new Vector3d(pos.x, pos.y, pos.z), SPOT_LUMINANCE), pos);
-						manager.add(light.behavior);
-						spots.put(id, light);
-					} else if (light.pos.distanceToSqr(pos) > 1) {
-						dirty.add(light.pos);
-						light.behavior.setStartPoint(pos.x, pos.y, pos.z);
-						light.behavior.setEndPoint(pos.x, pos.y, pos.z);
-						light.pos = pos;
-					} else {
-						return;
-					}
-					dirty.add(pos);
-				});
-			}
+			Map<Integer, Vec3> wanted = Lasers.lightSpots(client);
+			spots.entrySet().removeIf(entry -> {
+				if (wanted.containsKey(entry.getKey())) {
+					return false;
+				}
+				manager.remove(entry.getValue().behavior);
+				dirty.add(entry.getValue().pos);
+				return true;
+			});
+			wanted.forEach((id, pos) -> {
+				Light light = spots.get(id);
+				if (light == null) {
+					light = new Light(new LineLightBehavior(new Vector3d(pos.x, pos.y, pos.z), new Vector3d(pos.x, pos.y, pos.z), SPOT_LUMINANCE), pos);
+					manager.add(light.behavior);
+					spots.put(id, light);
+				} else if (light.pos.distanceToSqr(pos) > SPOT_MOVE * SPOT_MOVE) {
+					dirty.add(light.pos);
+					light.behavior.setStartPoint(pos.x, pos.y, pos.z);
+					light.behavior.setEndPoint(pos.x, pos.y, pos.z);
+					light.pos = pos;
+				} else {
+					return;
+				}
+				dirty.add(pos);
+			});
 		});
 	}
 
