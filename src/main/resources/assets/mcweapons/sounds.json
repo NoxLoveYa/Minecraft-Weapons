@@ -246,6 +246,12 @@
       { "name": "mcweapons:m4a1/fire", "volume": 1.0 }
     ]
   },
+  "m4a1.fire_silenced": {
+    "subtitle": "subtitles.mcweapons.gun.fire_silenced",
+    "sounds": [
+      { "name": "mcweapons:m4a1/fire_silenced", "volume": 0.8 }
+    ]
+  },
   "m4a1.dry": {
     "subtitle": "subtitles.mcweapons.gun.dry",
     "sounds": [
