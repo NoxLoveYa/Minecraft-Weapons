@@ -60,6 +60,7 @@
   "key.mcweapons.reload": "Reload (hold: check mag)",
   "key.mcweapons.inspect": "Inspect",
   "key.mcweapons.fire_mode": "Fire Mode",
+  "key.mcweapons.switch": "Laser / Light (hold: next)",
   "key.mcweapons.aim_toggle": "Aim (toggle)",
   "key.mcweapons.hold_breath": "Hold Breath",
   "key.mcweapons.breath_toggle": "Hold Breath (toggle)",

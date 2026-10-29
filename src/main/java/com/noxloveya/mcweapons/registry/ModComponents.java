@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class ModComponents {
@@ -43,6 +44,10 @@ public final class ModComponents {
 	public static final DataComponentType<Map<Identifier, Float>> EYE_DISTANCE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("eye_distance"),
 			DataComponentType.<Map<Identifier, Float>>builder().persistent(Codec.unboundedMap(Identifier.CODEC, Codec.FLOAT))
 					.networkSynchronized(ByteBufCodecs.map(HashMap::new, Identifier.STREAM_CODEC, ByteBufCodecs.FLOAT)).build());
+	/** The lasers and flashlights switched off on a gun, by item id (see Attachments.switchedOn). Absent means all on. */
+	public static final DataComponentType<List<Identifier>> SWITCHED_OFF = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("switched_off"),
+			DataComponentType.<List<Identifier>>builder().persistent(Identifier.CODEC.listOf())
+					.networkSynchronized(Identifier.STREAM_CODEC.apply(ByteBufCodecs.list())).build());
 
 	private ModComponents() {
 	}

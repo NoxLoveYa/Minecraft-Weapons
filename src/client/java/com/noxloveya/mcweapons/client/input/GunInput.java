@@ -31,6 +31,7 @@ import com.noxloveya.mcweapons.network.GunAnimationPayload;
 import com.noxloveya.mcweapons.network.ReloadPayload;
 import com.noxloveya.mcweapons.network.ReticlePayload;
 import com.noxloveya.mcweapons.network.ShootPayload;
+import com.noxloveya.mcweapons.network.SwitchPayload;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -75,8 +76,12 @@ public final class GunInput {
 	public static final KeyMapping HOLD_BREATH = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.hold_breath", InputConstants.KEY_LSHIFT, CATEGORY));
 	/** Holds the breath with a press, until pressed again, the sights come down or the breath runs out. Unbound by default. */
 	public static final KeyMapping BREATH_TOGGLE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.breath_toggle", InputConstants.UNKNOWN.getValue(), CATEGORY));
+	/** Switches the selected laser or flashlight on or off with a tap; held, steps the selection through them (the HUD shows them). */
+	public static final KeyMapping SWITCH = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.switch", InputConstants.KEY_H, CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
+	/** Holding the switch key this long (0.4 s) selects the next laser or flashlight, and again every as long while it is held. */
+	private static final int SWITCH_HOLD_TICKS = 8;
 
 	/** A shot keeps the gun up this long (0.5 s) before a held sprint key runs again. */
 	private static final int SHOT_NO_SPRINT_TICKS = 10;
@@ -103,6 +108,10 @@ public final class GunInput {
 	private static final Set<KeyMapping> HELD_KEYS = new HashSet<>();
 	/** Ticks the reload key has been held, or -1 when no press is being timed. */
 	private static int reloadHeldTicks = -1;
+	/** The same for the switch key. */
+	private static int switchHeldTicks = -1;
+	/** The laser or flashlight the switch key acts on (see {@link #switchSelected}). */
+	private static @Nullable AttachmentItem switchSelected;
 	private static int drawnSlot = -1;
 	private static @Nullable Item drawnItem;
 	/** The gun in hand last tick, to put away once it leaves the hand. */
@@ -230,6 +239,19 @@ public final class GunInput {
 		}
 	}
 
+	/** The laser or flashlight on {@code stack} the switch key acts on: the last one selected if it is fitted, else the first; null for none. */
+	public static @Nullable AttachmentItem switchSelected(ItemStack stack) {
+		List<AttachmentItem> devices = Attachments.switchable(stack);
+		return devices.contains(switchSelected) ? switchSelected : devices.isEmpty() ? null : devices.getFirst();
+	}
+
+	/** Switches a laser or flashlight on the held gun: here straight away, and on the server, which syncs it to everyone. */
+	private static void switchOn(LocalPlayer player, ItemStack stack, GunItem gun, AttachmentItem device, boolean on) {
+		Attachments.switchOn(stack, device, on);
+		player.playSound(gun.sound("select"), 0.7F, on ? 1.3F : 1.1F);
+		ClientPlayNetworking.send(new SwitchPayload(player.getInventory().getSelectedSlot(), BuiltInRegistries.ITEM.getKey(device), on));
+	}
+
 	/** The power {@code optic} is turned to: its own for a fixed one, the scroll wheel's pick for a variable one. */
 	public static float zoom(AttachmentItem optic) {
 		return Mth.clamp(zoom, optic.minZoom(), optic.maxZoom());
@@ -315,10 +337,12 @@ public final class GunInput {
 			freshPress(TUNER);
 			freshPress(FIRE_MODE);
 			freshPress(ATTACHMENTS);
+			freshPress(SWITCH);
 			predictedMode = null;
 			attachingUntil = 0;
 			PENDING.clear();
 			reloadHeldTicks = -1;
+			switchHeldTicks = -1;
 			drawnSlot = -1;
 			drawnItem = null;
 			drawnStack = ItemStack.EMPTY;
@@ -340,6 +364,7 @@ public final class GunInput {
 			aimToggled = false;
 			predictedReloadUntil = 0;
 			reloadHeldTicks = -1;
+			switchHeldTicks = -1;
 			predictedMode = null;
 			attachingUntil = 0;
 			burstLeft = 0;
@@ -393,6 +418,26 @@ public final class GunInput {
 				predictedModeUntil = player.level().getGameTime() + 20;
 				play(player, gun, "fire_mode");
 				ClientPlayNetworking.send(new FireModePayload(slot));
+			}
+		}
+		// A tap switches the selected laser or flashlight when the key is let go; holding steps the selection instead, a step every
+		// SWITCH_HOLD_TICKS (as reload's tap and hold).
+		if (freshPress(SWITCH)) {
+			switchHeldTicks = 0;
+		}
+		if (switchHeldTicks >= 0) {
+			AttachmentItem device = switchSelected(stack);
+			if (!SWITCH.isDown()) {
+				if (switchHeldTicks < SWITCH_HOLD_TICKS && device != null) {
+					switchOn(player, stack, gun, device, !Attachments.switchedOn(stack, device));
+				}
+				switchHeldTicks = -1;
+			} else if (++switchHeldTicks % SWITCH_HOLD_TICKS == 0) {
+				List<AttachmentItem> devices = Attachments.switchable(stack);
+				if (devices.size() > 1) {
+					switchSelected = devices.get((devices.indexOf(device) + 1) % devices.size());
+					player.playSound(gun.sound("select"), 0.4F, 1.6F);
+				}
 			}
 		}
 		while (minecraft.options.keyAttack.consumeClick()) {

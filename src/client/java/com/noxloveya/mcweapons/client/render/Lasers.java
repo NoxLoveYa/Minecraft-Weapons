@@ -125,8 +125,8 @@ public final class Lasers {
 	}
 
 	/**
-	 * An attachment that {@code kind} picks (a laser, a flashlight) is fitted to the gun in {@code holder}'s hand, and it is not being fitted
-	 * or taken off (it is switched on once it is on the rail).
+	 * An attachment that {@code kind} picks (a laser, a flashlight) is fitted to the gun in {@code holder}'s hand, switched on, and it is not
+	 * being fitted or taken off (it lights once it is on the rail).
 	 */
 	private static boolean shining(LivingEntity holder, Predicate<AttachmentItem> kind) {
 		ItemStack stack = holder.getMainHandItem();
@@ -136,6 +136,9 @@ public final class Lasers {
 		for (AttachmentSlot slot : AttachmentSlot.values()) {
 			AttachmentItem attachment = Attachments.in(stack, slot);
 			if (attachment != null && kind.test(attachment)) {
+				if (!Attachments.switchedOn(stack, attachment)) {
+					return false;
+				}
 				var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(holder)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 				// A finished triggered animation stays the controller's current one until the next is triggered, hence the finished check.
 				return main == null || main.hasAnimationFinished() || !main.isTriggeredAnimation(slot.attachAction()) && !main.isTriggeredAnimation(slot.detachAction());

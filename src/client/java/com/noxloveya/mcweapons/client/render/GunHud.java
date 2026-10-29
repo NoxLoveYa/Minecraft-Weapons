@@ -7,6 +7,8 @@ import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunItem;
+import com.noxloveya.mcweapons.gun.Reticle;
+import com.noxloveya.mcweapons.registry.ModComponents;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -21,6 +23,7 @@ import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Locale;
 
 /** Ammo panel in the bottom right, a spread crosshair that fades out while aiming, and the held breath running low. */
@@ -104,12 +107,38 @@ public final class GunHud {
 		int totalWidth = font.width(total);
 		int ticksWidth = definition.magSize() * 3 - 1;
 		int nameRow = font.width(name) + 6 + font.width(mode) + 6;
-		int width = Math.max(Math.max(countWidth + 3 + BULLET_WIDTH + 3 + totalWidth, ticksWidth), nameRow);
+		// Lasers and flashlights: a tag each above the name, its lamp lit while on, the one the switch key acts on outlined.
+		List<AttachmentItem> devices = Attachments.switchable(stack);
+		int devicesRow = -3;
+		for (AttachmentItem device : devices) {
+			devicesRow += font.width(deviceLabel(device)) + 13 + 3;
+		}
+		int width = Math.max(Math.max(Math.max(countWidth + 3 + BULLET_WIDTH + 3 + totalWidth, ticksWidth), nameRow), devicesRow);
 		int left = right - width;
 		int top = bottom - 46;
+		int panelTop = devices.isEmpty() ? top : top - 15;
 
 		// A backdrop that fades in from the left instead of a hard box.
-		backdrop(graphics, left - 28, top - 4, right + MARGIN, bottom + MARGIN);
+		backdrop(graphics, left - 28, panelTop - 4, right + MARGIN, bottom + MARGIN);
+
+		AttachmentItem selected = GunInput.switchSelected(stack);
+		int deviceX = right;
+		for (int i = devices.size() - 1; i >= 0; i--) {
+			AttachmentItem device = devices.get(i);
+			String label = deviceLabel(device);
+			boolean on = Attachments.switchedOn(stack, device);
+			int tag = font.width(label) + 13;
+			deviceX -= tag;
+			if (on) {
+				int lamp = device.isLaser() ? stack.getOrDefault(ModComponents.LASER_COLOR, Reticle.COLORS.getFirst()) : 0xFFF2DA;
+				graphics.fill(deviceX + 3, panelTop + 4, deviceX + 7, panelTop + 8, ARGB.opaque(lamp));
+			} else {
+				graphics.outline(deviceX + 3, panelTop + 4, 4, 4, DIM);
+			}
+			graphics.text(font, label, deviceX + 10, panelTop + 2, on ? WHITE : DIM, false);
+			graphics.outline(deviceX, panelTop, tag, 12, devices.size() > 1 && device == selected ? WHITE : DIM);
+			deviceX -= 3;
+		}
 
 		int nameY = top;
 		graphics.text(font, mode, right - 3 - font.width(mode), nameY + 2, modeColor, false);
@@ -141,8 +170,12 @@ public final class GunHud {
 			graphics.fill(right - width, bottom - 1, right - width + Math.round(width * progress), bottom, AMBER);
 		} else if (ammo == 0 && System.currentTimeMillis() / 400 % 2 == 0) {
 			String hint = "RELOAD [" + GunInput.RELOAD.getTranslatedKeyMessage().getString().toUpperCase(Locale.ROOT) + "]";
-			graphics.text(font, hint, right - font.width(hint), top - 14, RED, true);
+			graphics.text(font, hint, right - font.width(hint), panelTop - 14, RED, true);
 		}
+	}
+
+	private static String deviceLabel(AttachmentItem device) {
+		return device.isLaser() ? "LASER" : "LIGHT";
 	}
 
 	/** Dark on the right fading to nothing on the left, in thin vertical slices. */

@@ -8,6 +8,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +91,38 @@ public final class Attachments {
 	public static boolean silenced(ItemStack gun) {
 		AttachmentItem muzzle = in(gun, AttachmentSlot.MUZZLE);
 		return muzzle != null && muzzle.isSilencer();
+	}
+
+	/** The fitted attachments that switch on and off, lasers and flashlights, in slot order. */
+	public static List<AttachmentItem> switchable(ItemStack gun) {
+		List<AttachmentItem> devices = new ArrayList<>();
+		for (AttachmentSlot slot : AttachmentSlot.values()) {
+			AttachmentItem attachment = in(gun, slot);
+			if (attachment != null && (attachment.isLaser() || attachment.isFlashlight())) {
+				devices.add(attachment);
+			}
+		}
+		return devices;
+	}
+
+	/** Whether {@code device} (a laser, a flashlight) shines on {@code gun}: they all do until switched off ({@link ModComponents#SWITCHED_OFF}). */
+	public static boolean switchedOn(ItemStack gun, AttachmentItem device) {
+		return !gun.getOrDefault(ModComponents.SWITCHED_OFF, List.of()).contains(BuiltInRegistries.ITEM.getKey(device));
+	}
+
+	/** Switches {@code device} on or off. Looks only (its stats stay), so whoever sends it may. */
+	public static void switchOn(ItemStack gun, AttachmentItem device, boolean on) {
+		Identifier id = BuiltInRegistries.ITEM.getKey(device);
+		List<Identifier> off = new ArrayList<>(gun.getOrDefault(ModComponents.SWITCHED_OFF, List.of()));
+		off.remove(id);
+		if (!on) {
+			off.add(id);
+		}
+		if (off.isEmpty()) {
+			gun.remove(ModComponents.SWITCHED_OFF);
+		} else {
+			gun.set(ModComponents.SWITCHED_OFF, List.copyOf(off));
+		}
 	}
 
 	/** {@code definition} as changed by what is fitted to {@code gun} (see {@link AttachmentItem#applyTo}). */

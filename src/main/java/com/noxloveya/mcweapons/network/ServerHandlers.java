@@ -72,6 +72,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(ReticlePayload.TYPE, ReticlePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(LaserColorPayload.TYPE, LaserColorPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(EyeDistancePayload.TYPE, EyeDistancePayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(SwitchPayload.TYPE, SwitchPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
@@ -104,6 +105,13 @@ public final class ServerHandlers {
 			ItemStack gun = heldGun(context.player(), payload.slot());
 			if (!gun.isEmpty() && BuiltInRegistries.ITEM.getValue(payload.scope()) instanceof AttachmentItem scope && scope.slot() == AttachmentSlot.OPTIC) {
 				Attachments.setEyeDistance(gun, scope, payload.distance());
+			}
+		});
+		ServerPlayNetworking.registerGlobalReceiver(SwitchPayload.TYPE, (payload, context) -> {
+			// Looks only: a laser or flashlight fitted to the held gun switches on or off.
+			ItemStack gun = heldGun(context.player(), payload.slot());
+			if (!gun.isEmpty() && BuiltInRegistries.ITEM.getValue(payload.device()) instanceof AttachmentItem device && Attachments.switchable(gun).contains(device)) {
+				Attachments.switchOn(gun, device, payload.on());
 			}
 		});
 
