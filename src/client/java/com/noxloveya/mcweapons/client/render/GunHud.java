@@ -164,9 +164,12 @@ public final class GunHud {
 
 		graphics.fill(right - width, bottom - 1, right, bottom, 0x30FFFFFF);
 		if (GunInput.reloading(player, stack)) {
-			int reloadTicks = definition.reloadDuration(ammo);
+			// By the reload's start: a round-at-a-time reload's count climbs as it goes, so its length cannot come from the count any more.
+			long end = GunInput.reloadEnd(stack);
+			long start = GunInput.reloadStart(stack);
+			int reloadTicks = start > 0 ? (int)(end - start) : definition.reloadDuration(ammo);
 			float now = player.level().getGameTime() + deltaTracker.getGameTimeDeltaPartialTick(false);
-			float progress = Mth.clamp(1 - (GunInput.reloadEnd(stack) - now) / Math.max(1, reloadTicks), 0, 1);
+			float progress = Mth.clamp(1 - (end - now) / Math.max(1, reloadTicks), 0, 1);
 			graphics.fill(right - width, bottom - 1, right - width + Math.round(width * progress), bottom, AMBER);
 		} else if (ammo == 0 && System.currentTimeMillis() / 400 % 2 == 0) {
 			String hint = "RELOAD [" + GunInput.RELOAD.getTranslatedKeyMessage().getString().toUpperCase(Locale.ROOT) + "]";

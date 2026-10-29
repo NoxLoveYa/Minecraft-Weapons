@@ -359,7 +359,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (main == null || main.hasAnimationFinished()) {
 			return false;
 		}
-		if (main.isTriggeredAnimation("reload") || main.isTriggeredAnimation("reload_empty")) {
+		if (main.isTriggeredAnimation("reload") || main.isTriggeredAnimation("reload_empty") || main.isTriggeredAnimation(GunItem.RELOAD_STOP)) {
 			return true;
 		}
 		for (int rounds = 1; rounds <= GunItem.MAX_ROUND_RELOAD; rounds++) {
@@ -392,16 +392,19 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (reloading(renderData)) {
 			RoundReload rounds = definition.roundReload();
 			Level level = Minecraft.getInstance().level;
-			if (rounds == null || ammo == 0 || level == null) {
+			LocalPlayer player = Minecraft.getInstance().player;
+			boolean own = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player;
+			GunState state = stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
+			long start = own ? GunInput.reloadStart(stack) : state.reloadStartTick();
+			long end = own ? GunInput.reloadEnd(stack) : state.reloadingUntilTick();
+			int from = own ? GunInput.reloadFrom(stack) : state.reloadFromAmmo();
+			// A magazine or a clip comes in full; a round-at-a-time reload adds each round as it is pushed in, by the reload's own clock (the
+			// count from the server trails it a little).
+			if (rounds == null || from == 0 || start == 0 || level == null) {
 				return 1;
 			}
-			LocalPlayer player = Minecraft.getInstance().player;
-			long end = player != null && renderData.itemOwner() != null && renderData.itemOwner().asLivingEntity() == player
-					? GunInput.reloadEnd(stack) : stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloadingUntilTick();
-			int missing = definition.reloadTarget(ammo) - ammo;
-			float elapsed = definition.reloadDuration(ammo) - (end - level.getGameTime() - partialTick);
 			// The bolt is open, so the chambered round is out and back in the mag's count.
-			inMag = ammo + rounds.loaded(missing, elapsed);
+			inMag = from + rounds.loaded(rounds.rounds(start, end), level.getGameTime() + partialTick - start);
 		}
 		return Math.min(1, inMag / (float)definition.magSize());
 	}

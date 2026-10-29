@@ -11,6 +11,7 @@ import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.cache.animation.keyframeevent.CustomInstructionKeyframeData;
 import com.geckolib.cache.animation.keyframeevent.SoundKeyframeData;
 import com.geckolib.util.GeckoLibUtil;
+import com.noxloveya.mcweapons.network.ServerHandlers;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
@@ -21,6 +22,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -51,8 +53,10 @@ public class GunItem extends Item implements GeoItem {
 	/** Most rounds a round-at-a-time reload has an animation for (see {@link GunDefinition#roundReloadAction}). */
 	// shortcut: a gun loaded a round at a time with a bigger magazine shows only this many rounds going in; raise it with such a gun.
 	public static final int MAX_ROUND_RELOAD = 8;
+	/** A round-at-a-time reload stopped early: just its closing clip ({@code reload_end}), played once the last round kept is in. */
+	public static final String RELOAD_STOP = "reload_stop";
 	public static final List<String> TRIGGERED_ACTIONS = Stream.of(Stream.of("draw", "draw_first", "put_away", "fire", "reload", "reload_empty", "inspect", "inspect_press_check",
-			"inspect_mag_check", "fire_mode"), ATTACHMENT_ACTIONS.stream(), IntStream.rangeClosed(1, MAX_ROUND_RELOAD).mapToObj(GunDefinition::roundReloadAction))
+			"inspect_mag_check", "fire_mode", RELOAD_STOP), ATTACHMENT_ACTIONS.stream(), IntStream.rangeClosed(1, MAX_ROUND_RELOAD).mapToObj(GunDefinition::roundReloadAction))
 			.flatMap(actions -> actions).toList();
 	/** Set by the renderer when the gun is empty and not reloading, so the slide stays locked back. */
 	public static final DataTicket<Boolean> SLIDE_LOCKED = DataTicket.create("mcweapons_slide_locked", Boolean.class);
@@ -99,6 +103,7 @@ public class GunItem extends Item implements GeoItem {
 			main.triggerableAnim(GunDefinition.roundReloadAction(rounds), RawAnimation.begin().thenPlay(animationName("reload_start"))
 					.thenPlayXTimes(animationName("reload_round"), rounds).thenPlay(animationName("reload_end")));
 		}
+		main.triggerableAnim(RELOAD_STOP, RawAnimation.begin().thenPlay(animationName("reload_end")));
 		main.setSoundKeyframeHandler(event -> soundKeyframes.handle(event));
 		main.setCustomInstructionKeyframeHandler(event -> instructionKeyframes.handle(event));
 		// Registered after main so they win on their bones, whatever main is playing: the slide, barrel and slide stop while the gun is
@@ -191,9 +196,27 @@ public class GunItem extends Item implements GeoItem {
 			return;
 		}
 		GunDefinition definition = definition(stack);
+		long now = level.getGameTime();
 		if (definition == null || player.getMainHandItem() != stack) {
 			stack.set(ModComponents.GUN_STATE, new GunState(0, state.lastShotTick()));
-		} else if (level.getGameTime() >= state.reloadingUntilTick()) {
+		} else if (state.roundReload(definition)) {
+			// A round at a time: each one counts as it goes in, so the count climbs with the thumb and a reload stopped early keeps them.
+			RoundReload rounds = definition.roundReload();
+			int planned = rounds.rounds(state.reloadStartTick(), state.reloadingUntilTick());
+			int ammo = ammo(stack, definition);
+			int due = state.reloadFromAmmo() + rounds.loaded(planned, now - state.reloadStartTick());
+			if (due > ammo) {
+				stack.set(ModComponents.AMMO, ammo + AmmoSource.take(player, stack, due - ammo));
+			}
+			// Stopped early: everyone else's animation still loads every round it started with, so its bolt closes once the last kept one is in.
+			if (now == state.reloadingUntilTick() - rounds.endTicks() && planned < definition.reloadTarget(state.reloadFromAmmo()) - state.reloadFromAmmo()
+					&& player instanceof ServerPlayer serverPlayer) {
+				ServerHandlers.showOthers(serverPlayer, RELOAD_STOP);
+			}
+			if (now >= state.reloadingUntilTick()) {
+				stack.set(ModComponents.GUN_STATE, new GunState(0, state.lastShotTick()));
+			}
+		} else if (now >= state.reloadingUntilTick()) {
 			int ammo = ammo(stack, definition);
 			stack.set(ModComponents.AMMO, ammo + AmmoSource.take(player, stack, definition.reloadTarget(ammo) - ammo));
 			stack.set(ModComponents.GUN_STATE, new GunState(0, state.lastShotTick()));

@@ -121,6 +121,14 @@ class GunDefinitionTest {
 		assertEquals(1, rounds.loaded(2, 10 + 8));
 		assertEquals(2, rounds.loaded(2, 10 + 12 + 8));
 		assertEquals(2, rounds.loaded(2, 100));
+		// A reload's rounds come back from its start and end, also once it was cut short; stopping keeps the round being pushed in (the
+		// first, during the opening).
+		assertEquals(3, rounds.rounds(1000, 1000 + mosin.reloadDuration(3)));
+		assertEquals(1, rounds.rounds(1000, 1000 + rounds.ticks(1)));
+		assertEquals(1, rounds.keptWhenStopped(3, 4));
+		assertEquals(1, rounds.keptWhenStopped(3, 10 + 5));
+		assertEquals(2, rounds.keptWhenStopped(3, 10 + 12 + 1));
+		assertEquals(3, rounds.keptWhenStopped(3, 100));
 		// round_reload round-trips, and a gun without it writes none.
 		assertEquals(mosin, GunDefinition.CODEC.parse(JsonOps.INSTANCE, GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, mosin).getOrThrow()).getOrThrow());
 		assertFalse(GunDefinition.CODEC.encodeStart(JsonOps.INSTANCE, mosin.withRoundReload(null)).getOrThrow().getAsJsonObject().has("round_reload"));

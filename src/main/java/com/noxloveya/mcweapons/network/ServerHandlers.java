@@ -12,6 +12,7 @@ import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
+import com.noxloveya.mcweapons.gun.RoundReload;
 import com.noxloveya.mcweapons.registry.ModComponents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -80,7 +81,13 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.clientboundPlay().register(HitMarkerPayload.TYPE, HitMarkerPayload.CODEC);
 
 		ServerPlayNetworking.registerGlobalReceiver(ShootPayload.TYPE, (payload, context) -> shoot(context.player(), payload));
-		ServerPlayNetworking.registerGlobalReceiver(ReloadPayload.TYPE, (payload, context) -> reload(context.player(), payload.slot()));
+		ServerPlayNetworking.registerGlobalReceiver(ReloadPayload.TYPE, (payload, context) -> {
+			if (payload.stopAfter() > 0) {
+				stopReload(context.player(), payload.slot(), payload.stopAfter());
+			} else {
+				reload(context.player(), payload.slot());
+			}
+		});
 		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming(), payload.holdingBreath()));
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
@@ -183,9 +190,33 @@ public final class ServerHandlers {
 		if (state.reloading() || ammo >= definition.reloadTarget(ammo)) {
 			return;
 		}
-		// GunItem.inventoryTick adds the rounds once this tick is reached, or cancels if the gun leaves the main hand.
-		gun.set(ModComponents.GUN_STATE, new GunState(player.level().getGameTime() + definition.reloadDuration(ammo), state.lastShotTick()));
+		// GunItem.inventoryTick adds the rounds (a round-at-a-time reload's one by one as they go in), or cancels if the gun leaves the main hand.
+		long now = player.level().getGameTime();
+		gun.set(ModComponents.GUN_STATE, new GunState(now + definition.reloadDuration(ammo), state.lastShotTick(), now, ammo));
 		showOthers(player, definition.reloadAction(ammo));
+	}
+
+	/**
+	 * Cuts a round-at-a-time reload short once {@code rounds} are in: the client's count, the round its animation is pushing in, so the
+	 * rounds counted match the rounds shown. Then the bolt closes, as at the end of a full one; the rounds already in stay.
+	 */
+	private static void stopReload(ServerPlayer player, int slot, int rounds) {
+		ItemStack gun = heldGun(player, slot);
+		GunDefinition definition = GunItem.definition(gun);
+		GunState state = gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
+		if (definition == null || !state.roundReload(definition)) {
+			return;
+		}
+		RoundReload reload = definition.roundReload();
+		int planned = reload.rounds(state.reloadStartTick(), state.reloadingUntilTick());
+		int in = GunItem.ammo(gun, definition) - state.reloadFromAmmo();
+		int kept = Mth.clamp(rounds, Math.max(1, in), planned);
+		long until = state.reloadStartTick() + reload.ticks(kept);
+		gun.set(ModComponents.GUN_STATE, new GunState(until, state.lastShotTick(), state.reloadStartTick(), state.reloadFromAmmo()));
+		// GunItem.inventoryTick shows everyone else the bolt closing once that round is in; if it already is, now.
+		if (kept < planned && player.level().getGameTime() > until - reload.endTicks()) {
+			showOthers(player, GunItem.RELOAD_STOP);
+		}
 	}
 
 	/** Steps the held gun to its next fire mode (or safe), and shows everyone else the switch. Not during a reload, like the client. */
@@ -261,7 +292,7 @@ public final class ServerHandlers {
 	}
 
 	/** Plays a gun animation for everyone who can see {@code player}; their own client already played it. */
-	private static void showOthers(ServerPlayer player, String action) {
+	public static void showOthers(ServerPlayer player, String action) {
 		GunAnimationPayload payload = new GunAnimationPayload(player.getId(), action);
 		PlayerLookup.tracking(player).forEach(other -> ServerPlayNetworking.send(other, payload));
 	}

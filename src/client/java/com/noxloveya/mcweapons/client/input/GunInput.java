@@ -21,6 +21,7 @@ import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.gun.MovementSpread;
 import com.noxloveya.mcweapons.gun.Reticle;
+import com.noxloveya.mcweapons.gun.RoundReload;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
 import com.noxloveya.mcweapons.network.AttachPayload;
@@ -101,6 +102,11 @@ public final class GunInput {
 	private static int burstLeft;
 	/** Predicted end of the reload we asked for, until the server's gun_state arrives. */
 	private static long predictedReloadUntil;
+	/** When that reload started (its animation with it) and the rounds the gun had then. */
+	private static long predictedReloadStart;
+	private static int predictedReloadFrom;
+	/** A round-at-a-time reload stopped early: when its animation cuts to the bolt closing (once the last round kept is in), or 0. */
+	private static long stopReloadAt;
 	/** After firing the last round, the slide locks back before the server's empty ammo count arrives. */
 	private static long predictedEmptyUntil;
 	private static String lastInspect = "";
@@ -286,6 +292,18 @@ public final class GunInput {
 		return state.reloading() ? state.reloadingUntilTick() : predictedReloadUntil;
 	}
 
+	/** Game time the current reload started, the same way (0 from a server state that does not keep it). */
+	public static long reloadStart(ItemStack stack) {
+		GunState state = stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
+		return state.reloading() ? state.reloadStartTick() : predictedReloadStart;
+	}
+
+	/** The rounds the gun had when the current reload started, the same way. */
+	public static int reloadFrom(ItemStack stack) {
+		GunState state = stack.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
+		return state.reloading() ? state.reloadFromAmmo() : predictedReloadFrom;
+	}
+
 	// Runs before vanilla reads the keys, so consuming the clicks here stops vanilla attacking or using with a gun in hand.
 	// Held-key repeats that vanilla still reads are blocked by the callbacks in GunItem.registerEvents.
 	private static void tick(Minecraft minecraft) {
@@ -348,6 +366,7 @@ public final class GunInput {
 			drawnStack = ItemStack.EMPTY;
 			drawDue = false;
 			predictedReloadUntil = 0;
+			stopReloadAt = 0;
 			noSprintUntil = 0;
 			burstLeft = 0;
 			Viewmodel.reset();
@@ -363,6 +382,7 @@ public final class GunInput {
 			drawnItem = gun;
 			aimToggled = false;
 			predictedReloadUntil = 0;
+			stopReloadAt = 0;
 			reloadHeldTicks = -1;
 			switchHeldTicks = -1;
 			predictedMode = null;
@@ -440,7 +460,14 @@ public final class GunInput {
 				}
 			}
 		}
+		if (stopReloadAt != 0 && player.level().getGameTime() >= stopReloadAt) {
+			stopReloadAt = 0;
+			play(player, gun, GunItem.RELOAD_STOP);
+		}
 		while (minecraft.options.keyAttack.consumeClick()) {
+			if (stopReload(player, stack, definition)) {
+				continue;
+			}
 			// Clicks during a burst do nothing, as on the real trigger.
 			if (burstLeft == 0 && shoot(player, stack, gun, definition) && GunDefinition.BURST.equals(fireMode(player, stack, definition))) {
 				burstLeft = GunDefinition.BURST_ROUNDS - 1;
@@ -569,9 +596,32 @@ public final class GunInput {
 			return;
 		}
 		predictedReloadUntil = now + definition.reloadDuration(ammo);
+		predictedReloadStart = now;
+		predictedReloadFrom = ammo;
+		stopReloadAt = 0;
 		predictedEmptyUntil = 0;
 		play(player, gun, definition.reloadAction(ammo));
-		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot()));
+		ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot(), 0));
+	}
+
+	/**
+	 * A click during our round-at-a-time reload stops it: the round being pushed in goes in, then the bolt closes and the rounds already
+	 * in stay. The server is told how many, so its count is what the animation showed. True when the click went to that.
+	 */
+	private static boolean stopReload(LocalPlayer player, ItemStack stack, @Nullable GunDefinition definition) {
+		RoundReload rounds = definition == null ? null : definition.roundReload();
+		long now = player.level().getGameTime();
+		if (rounds == null || predictedReloadFrom == 0 || now >= predictedReloadUntil) {
+			return false;
+		}
+		int planned = rounds.rounds(predictedReloadStart, predictedReloadUntil);
+		int kept = rounds.keptWhenStopped(planned, now - predictedReloadStart);
+		if (stopReloadAt == 0 && kept < planned) {
+			stopReloadAt = predictedReloadStart + rounds.startTicks() + (long)kept * rounds.roundTicks();
+			predictedReloadUntil = stopReloadAt + rounds.endTicks();
+			ClientPlayNetworking.send(new ReloadPayload(player.getInventory().getSelectedSlot(), kept));
+		}
+		return true;
 	}
 
 	/**

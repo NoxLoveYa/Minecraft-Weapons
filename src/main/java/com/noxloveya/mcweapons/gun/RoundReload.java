@@ -27,4 +27,17 @@ public record RoundReload(int startTicks, int roundTicks, int endTicks) {
 	public int loaded(int rounds, float elapsed) {
 		return Mth.clamp(Mth.floor((elapsed - startTicks) / roundTicks + (1 - ROUND_IN)), 0, rounds);
 	}
+
+	/** Rounds a reload started at {@code startTick} and ending at {@code untilTick} loads. */
+	public int rounds(long startTick, long untilTick) {
+		return (int)Math.max(0, (untilTick - startTick - startTicks - endTicks) / roundTicks);
+	}
+
+	/**
+	 * Rounds a reload of {@code rounds} keeps when it is stopped {@code elapsed} ticks in: the one being pushed in goes in (during the
+	 * opening, the first), then it closes.
+	 */
+	public int keptWhenStopped(int rounds, float elapsed) {
+		return Mth.clamp(Mth.ceil((elapsed - startTicks) / roundTicks), 1, rounds);
+	}
 }
