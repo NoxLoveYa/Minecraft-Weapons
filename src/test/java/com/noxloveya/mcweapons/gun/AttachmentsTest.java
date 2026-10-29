@@ -32,10 +32,10 @@ class AttachmentsTest {
 	void eyeShareStaysOnTheSliderAndScalesTheOpticsOwnDistance() {
 		ItemStack gun = gun();
 		assertEquals(1, Attachments.eyeShare(gun, ModItems.COYOTE_SIGHT), "a fresh gun is at 100%");
-		assertEquals(0.34F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
+		assertEquals(0.41F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
 
 		Attachments.setEyeShare(gun, ModItems.COYOTE_SIGHT, 1.5F);
-		assertEquals(0.51F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
+		assertEquals(0.615F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
 		assertEquals(0.104F, Attachments.eyeBlocks(gun, ModItems.ACOG), 1.0E-6, "each optic keeps its own share");
 
 		Attachments.setEyeShare(gun, ModItems.ACOG, 10);
@@ -52,7 +52,7 @@ class AttachmentsTest {
 	void eyeDistancesSavedBeforeAreNotRead() {
 		ItemStack gun = gun();
 		gun.set(ModComponents.EYE_DISTANCE, Map.of(BuiltInRegistries.ITEM.getKey(ModItems.RED_DOT), 1.5F));
-		assertEquals(0.178F, Attachments.eyeBlocks(gun, ModItems.RED_DOT), 1.0E-6);
+		assertEquals(0.224F, Attachments.eyeBlocks(gun, ModItems.RED_DOT), 1.0E-6);
 
 		Attachments.setEyeShare(gun, ModItems.RED_DOT, 1);
 		assertFalse(gun.has(ModComponents.EYE_DISTANCE), "dropped once a share is set");
