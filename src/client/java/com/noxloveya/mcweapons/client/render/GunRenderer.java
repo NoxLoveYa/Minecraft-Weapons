@@ -532,15 +532,35 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 				snapshots.get("attach_" + slot.getSerializedName()).ifPresent(GunRenderer::keepInReach);
 			}
 		}
-		// The follower pushes the stack up, so rounds go from the bottom: hide every round bone below the share still loaded.
+		// The follower pushes the stack up, so rounds go from the bottom: hide every round bone below the share still loaded. A fitted
+		// magazine with rounds of its own (<item>_round_N) shows those instead of the gun's (mag_round_N); hiding a magazine's bone leaves
+		// the round bones in it drawn, so the other magazine's are hidden here (both show while a magazine swap animation plays).
 		Float fill = renderPassInfo.renderState().getGeckolibData(MAG_FILL);
 		if (fill != null) {
-			int slots = 0;
-			while (snapshots.get("mag_round_" + (slots + 1)).isPresent()) {
-				slots++;
+			Set<Identifier> fittedItems = renderPassInfo.renderState().getGeckolibData(ATTACHMENTS);
+			Set<AttachmentSlot> swapping = renderPassInfo.renderState().getGeckolibData(SLOTS_ANIMATING);
+			boolean both = swapping != null && swapping.contains(AttachmentSlot.MAGAZINE);
+			List<String> stacks = new ArrayList<>(List.of("mag_round_"));
+			String loaded = "mag_round_";
+			for (AttachmentItem attachment : AttachmentItem.all()) {
+				Identifier id = BuiltInRegistries.ITEM.getKey(attachment);
+				String stack = id.getPath() + "_round_";
+				if (attachment.slot() == AttachmentSlot.MAGAZINE && snapshots.get(stack + 1).isPresent()) {
+					stacks.add(stack);
+					if (fittedItems != null && fittedItems.contains(id)) {
+						loaded = stack;
+					}
+				}
 			}
-			for (int round = (int)Math.ceil(fill * slots) + 1; round <= slots; round++) {
-				snapshots.get("mag_round_" + round).ifPresent(snapshot -> snapshot.skipRender(true));
+			for (String stack : stacks) {
+				int slots = 0;
+				while (snapshots.get(stack + (slots + 1)).isPresent()) {
+					slots++;
+				}
+				int shown = both || stack.equals(loaded) ? (int)Math.ceil(fill * slots) : 0;
+				for (int round = shown + 1; round <= slots; round++) {
+					snapshots.get(stack + round).ifPresent(snapshot -> snapshot.skipRender(true));
+				}
 			}
 		}
 		String mode = renderPassInfo.renderState().getGeckolibData(FIRE_MODE);
