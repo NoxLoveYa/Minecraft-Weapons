@@ -156,7 +156,11 @@ public class AttachmentItem extends Item {
 		return scope;
 	}
 
-	/** A scope's eye sits {@code blocks} behind its eyepiece when aimed, until the holder sets another (see {@link Attachments#eyeDistance}). */
+	/**
+	 * A scope's eye sits {@code blocks} behind its eyepiece when aimed, until the holder sets another; a 1x sight's this far from its window
+	 * (the holder picks a share of it): near enough that the window fills as much of the view whatever gun it is on (see
+	 * {@link Attachments#eyeDistance}).
+	 */
 	public AttachmentItem eyeDistance(float blocks) {
 		this.eyeDistance = blocks;
 		return this;

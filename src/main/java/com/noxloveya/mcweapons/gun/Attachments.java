@@ -19,19 +19,32 @@ public final class Attachments {
 	public static final List<Float> EYE_DISTANCES = List.of(0.065F, 0.0845F, 0.104F, 0.13F, 0.1625F, 0.195F, 0.26F, 0.325F, 0.39F);
 	/** 100% in the menu; a scope's own default may differ ({@link AttachmentItem#eyeDistance}). */
 	public static final float DEFAULT_EYE_DISTANCE = 0.13F;
-	/** A 1x sight's eye distances: shares of how far out the gun holds it when aimed (1, the default), nearer for a bigger window. */
-	public static final List<Float> SIGHT_EYE_DISTANCES = List.of(0.2F, 0.3F, 0.4F, 0.5F, 0.6F, 0.7F, 0.8F, 0.9F, 1.0F);
+	/**
+	 * A 1x sight's eye distances: shares of its own ({@link AttachmentItem#defaultEyeDistance}, 1), nearer for a bigger window, further for
+	 * more of the gun around it.
+	 */
+	public static final List<Float> SIGHT_EYE_DISTANCES = List.of(0.6F, 0.7F, 0.8F, 0.9F, 1.0F, 1.25F, 1.5F, 2.0F, 3.0F, 4.0F);
 
 	private Attachments() {
 	}
 
 	/**
 	 * How far the eye sits from {@code optic} when it is aimed on {@code gun}: behind a scope's eyepiece, in blocks; for a 1x sight, the
-	 * share of the distance the gun holds it at (see {@link #SIGHT_EYE_DISTANCES}).
+	 * share of its own distance from its window (see {@link #SIGHT_EYE_DISTANCES}; kept in their range, as shares saved before were of
+	 * another distance).
 	 */
 	public static float eyeDistance(ItemStack gun, AttachmentItem optic) {
 		Map<Identifier, Float> distances = gun.getOrDefault(ModComponents.EYE_DISTANCE, Map.of());
-		return distances.getOrDefault(BuiltInRegistries.ITEM.getKey(optic), optic.isScope() ? optic.defaultEyeDistance() : 1F);
+		Float set = distances.get(BuiltInRegistries.ITEM.getKey(optic));
+		if (optic.isScope()) {
+			return set != null ? set : optic.defaultEyeDistance();
+		}
+		return set != null ? Mth.clamp(set, SIGHT_EYE_DISTANCES.getFirst(), SIGHT_EYE_DISTANCES.getLast()) : 1F;
+	}
+
+	/** Blocks from the eye to {@code optic} when it is aimed on {@code gun}: a scope's eyepiece, or a 1x sight's window. */
+	public static float eyeBlocks(ItemStack gun, AttachmentItem optic) {
+		return optic.isScope() ? eyeDistance(gun, optic) : optic.defaultEyeDistance() * eyeDistance(gun, optic);
 	}
 
 	/** The choices for {@code optic}'s {@link #eyeDistance}. */
