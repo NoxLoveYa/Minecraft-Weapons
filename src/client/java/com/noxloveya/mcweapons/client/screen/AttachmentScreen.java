@@ -64,7 +64,7 @@ public class AttachmentScreen extends Screen {
 	private static final int HEADER = 16;
 	private static final int ROW = 15;
 	private static final int SECTION_GAP = 6;
-	/** The reticle size slider's track, from under the option's name to the end of its value. */
+	/** The sliders' track, from under the option's name to the end of its value. */
 	private static final int SLIDER_X0 = MARGIN + 36;
 	private static final int SLIDER_X1 = MARGIN + WIDTH - 9;
 	/** Lang key suffixes of {@link Reticle#COLORS}, in the same order. */
@@ -90,19 +90,15 @@ public class AttachmentScreen extends Screen {
 			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.slot() == AttachmentSlot.OPTIC ? OPTIC : List.of();
 		}
 
-		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). The size is a slider instead. */
+		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). The {@link #slider}s are dragged instead. */
 		void step(LocalPlayer player, ItemStack gun, AttachmentItem attachment, int step) {
 			Reticle reticle = Attachments.reticle(gun);
 			switch (this) {
 				case COLOR -> GunInput.reticle(player, reticle.cycleColor(step));
 				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
-				case EYE_DISTANCE -> {
-					// Further or nearer, stopping at the ends rather than jumping across while it is watched.
-					List<Float> distances = Attachments.eyeDistances(attachment);
-					int at = nearest(distances, Attachments.eyeDistance(gun, attachment));
-					GunInput.eyeDistance(player, attachment, distances.get(Mth.clamp(at + step, 0, distances.size() - 1)));
-				}
 				case LASER_COLOR -> GunInput.laserColor(player, Reticle.nextColor(laserColor(gun), step));
+				default -> {
+				}
 			}
 		}
 
@@ -112,19 +108,46 @@ public class AttachmentScreen extends Screen {
 				case COLOR, LASER_COLOR -> colorName(swatch(gun));
 				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
 				case SHAPE -> Component.translatable("gui.mcweapons.reticle.shape." + reticle.shape().getSerializedName());
-				// A scope's against the usual distance, a 1x sight's against where the gun holds it.
-				case EYE_DISTANCE -> Component.literal(Math.round(Attachments.eyeDistance(gun, attachment) / (attachment.isScope() ? Attachments.DEFAULT_EYE_DISTANCE : 1) * 100) + "%");
+				case EYE_DISTANCE -> Component.literal(Math.round(Attachments.eyeShare(gun, attachment) * 100) + "%");
 			};
 		}
 
-		private static int nearest(List<Float> options, float value) {
-			int best = 0;
-			for (int i = 1; i < options.size(); i++) {
-				if (Math.abs(options.get(i) - value) < Math.abs(options.get(best) - value)) {
-					best = i;
+		/** Dragged along a track (right click puts it back to its default) rather than stepped through. */
+		boolean slider() {
+			return this == SIZE || this == EYE_DISTANCE;
+		}
+
+		/** Where a slider's value sits along its track, 0 to 1: the size evenly, the eye distance on a log scale with 100% in the middle. */
+		float along(ItemStack gun, AttachmentItem attachment) {
+			if (this == SIZE) {
+				return (Attachments.reticle(gun).size() - Reticle.MIN_SIZE) / (Reticle.MAX_SIZE - Reticle.MIN_SIZE);
+			}
+			return (float)(Math.log(Attachments.eyeShare(gun, attachment) / Attachments.MIN_EYE_SHARE) / Math.log(Attachments.MAX_EYE_SHARE / Attachments.MIN_EYE_SHARE));
+		}
+
+		/** Sets a slider's value from {@code along} its track (0 to 1), in 5% steps; sent only when the step changes. */
+		void slide(LocalPlayer player, ItemStack gun, AttachmentItem attachment, float along) {
+			if (this == SIZE) {
+				Reticle reticle = Attachments.reticle(gun);
+				float size = Math.round(Mth.lerp(along, Reticle.MIN_SIZE, Reticle.MAX_SIZE) * 20) / 20F;
+				if (size != reticle.size()) {
+					GunInput.reticle(player, reticle.withSize(size));
+				}
+			} else {
+				float share = Math.round(Attachments.MIN_EYE_SHARE * (float)Math.pow(Attachments.MAX_EYE_SHARE / Attachments.MIN_EYE_SHARE, along) * 20) / 20F;
+				if (share != Attachments.eyeShare(gun, attachment)) {
+					GunInput.eyeShare(player, attachment, share);
 				}
 			}
-			return best;
+		}
+
+		/** Puts a slider back to its default: the reticle's usual size, the optic's own eye distance. */
+		void reset(LocalPlayer player, ItemStack gun, AttachmentItem attachment) {
+			if (this == SIZE) {
+				GunInput.reticle(player, Attachments.reticle(gun).withSize(Reticle.DEFAULT_SIZE));
+			} else {
+				GunInput.eyeShare(player, attachment, 1);
+			}
 		}
 
 		/** The color this setting shows a swatch of, or -1 for none. */
@@ -165,8 +188,8 @@ public class AttachmentScreen extends Screen {
 	private int pad = 4;
 	/** The key opened this screen; it only closes it again once that press has been let go. */
 	private boolean keyReleased;
-	/** The reticle size slider is held down. */
-	private boolean draggingSize;
+	/** The slider row held down, or null. */
+	private @Nullable Row dragging;
 
 	public AttachmentScreen() {
 		super(Component.translatable("gui.mcweapons.attachments"));
@@ -295,13 +318,16 @@ public class AttachmentScreen extends Screen {
 				if (swatch >= 0) {
 					graphics.fill(valueX - 10, row.y() + pad, valueX - 3, row.y() + pad + 7, 0xFF000000 | swatch);
 				}
-				if (row.option() == Option.SIZE) {
-					// A hairline track along the bottom filled up to the size, like the tuner's sliders.
-					float size = Attachments.reticle(gun).size();
+				if (row.option().slider()) {
+					// A hairline track along the bottom filled up to the value, like the tuner's sliders; the eye distance's 100% is marked.
 					int trackY = row.y() + rowHeight - 2;
-					int at = SLIDER_X0 + Math.round((size - Reticle.MIN_SIZE) / (Reticle.MAX_SIZE - Reticle.MIN_SIZE) * (SLIDER_X1 - SLIDER_X0));
-					boolean active = draggingSize || hovered(row, mouseX, mouseY);
+					int at = trackX(row.option().along(gun, row.attachment()));
+					boolean active = row.equals(dragging) || hovered(row, mouseX, mouseY);
 					graphics.fill(SLIDER_X0, trackY, SLIDER_X1, trackY + 1, TRACK);
+					if (row.option() == Option.EYE_DISTANCE) {
+						int middle = trackX(0.5F);
+						graphics.fill(middle, trackY - 2, middle + 1, trackY, MUTED);
+					}
 					graphics.fill(SLIDER_X0, trackY, at, trackY + 1, active ? TEXT : FILL);
 					if (active) {
 						graphics.fill(at - 1, trackY - 1, at + 2, trackY + 2, TEXT);
@@ -378,9 +404,13 @@ public class AttachmentScreen extends Screen {
 			if (player == null || !hovered(row, event.x(), event.y())) {
 				continue;
 			}
-			if (row.option() == Option.SIZE) {
-				draggingSize = true;
-				slideSize(player, gun, event.x());
+			if (row.option() != null && row.option().slider()) {
+				if (right) {
+					row.option().reset(player, gun, row.attachment());
+				} else {
+					dragging = row;
+					row.option().slide(player, gun, row.attachment(), alongTrack(event.x()));
+				}
 				return true;
 			}
 			if (row.option() != null) {
@@ -405,8 +435,8 @@ public class AttachmentScreen extends Screen {
 
 	@Override
 	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-		if (draggingSize && minecraft.player != null) {
-			slideSize(minecraft.player, held(), event.x());
+		if (dragging != null && minecraft.player != null) {
+			dragging.option().slide(minecraft.player, held(), dragging.attachment(), alongTrack(event.x()));
 			return true;
 		}
 		return super.mouseDragged(event, dx, dy);
@@ -414,18 +444,17 @@ public class AttachmentScreen extends Screen {
 
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
-		draggingSize = false;
+		dragging = null;
 		return super.mouseReleased(event);
 	}
 
-	/** Sets the reticle's size from where the mouse is along the slider, in 5% steps; sent only when the step changes. */
-	private static void slideSize(LocalPlayer player, ItemStack gun, double mouseX) {
-		Reticle reticle = Attachments.reticle(gun);
-		float along = Mth.clamp((float)(mouseX - SLIDER_X0) / (SLIDER_X1 - SLIDER_X0), 0, 1);
-		float size = Math.round(Mth.lerp(along, Reticle.MIN_SIZE, Reticle.MAX_SIZE) * 20) / 20F;
-		if (size != reticle.size()) {
-			GunInput.reticle(player, reticle.withSize(size));
-		}
+	/** 0 to 1 along the sliders' track at {@code mouseX}. */
+	private static float alongTrack(double mouseX) {
+		return Mth.clamp((float)(mouseX - SLIDER_X0) / (SLIDER_X1 - SLIDER_X0), 0, 1);
+	}
+
+	private static int trackX(float along) {
+		return SLIDER_X0 + Math.round(along * (SLIDER_X1 - SLIDER_X0));
 	}
 
 	@Override

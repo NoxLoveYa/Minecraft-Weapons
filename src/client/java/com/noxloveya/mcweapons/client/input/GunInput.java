@@ -227,12 +227,12 @@ public final class GunInput {
 		}
 	}
 
-	/** Sets how far the eye sits behind {@code scope}'s eyepiece when aimed, on the held gun: here straight away, and on the server. */
-	public static void eyeDistance(LocalPlayer player, AttachmentItem scope, float distance) {
+	/** Sets how far the eye sits from {@code optic} when aimed (a share of its own distance), on the held gun: here straight away, and on the server. */
+	public static void eyeShare(LocalPlayer player, AttachmentItem optic, float share) {
 		ItemStack stack = player.getMainHandItem();
 		if (stack.getItem() instanceof GunItem) {
-			Attachments.setEyeDistance(stack, scope, distance);
-			ClientPlayNetworking.send(new EyeDistancePayload(player.getInventory().getSelectedSlot(), BuiltInRegistries.ITEM.getKey(scope), distance));
+			Attachments.setEyeShare(stack, optic, share);
+			ClientPlayNetworking.send(new EyeDistancePayload(player.getInventory().getSelectedSlot(), BuiltInRegistries.ITEM.getKey(optic), share));
 		}
 	}
 

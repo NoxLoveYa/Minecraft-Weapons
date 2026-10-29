@@ -7,13 +7,13 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Client to server: aimed, the eye sits {@code distance} behind {@code scope}'s eyepiece on the gun in hotbar {@code slot}. */
-public record EyeDistancePayload(int slot, Identifier scope, float distance) implements CustomPacketPayload {
+/** Client to server: aimed, the eye sits {@code share} of {@code scope}'s own distance from it, on the gun in hotbar {@code slot}. */
+public record EyeDistancePayload(int slot, Identifier scope, float share) implements CustomPacketPayload {
 	public static final Type<EyeDistancePayload> TYPE = new Type<>(McWeapons.id("eye_distance"));
 	public static final StreamCodec<ByteBuf, EyeDistancePayload> CODEC = StreamCodec.composite(
 			ByteBufCodecs.VAR_INT, EyeDistancePayload::slot,
 			Identifier.STREAM_CODEC, EyeDistancePayload::scope,
-			ByteBufCodecs.FLOAT, EyeDistancePayload::distance,
+			ByteBufCodecs.FLOAT, EyeDistancePayload::share,
 			EyeDistancePayload::new);
 
 	@Override

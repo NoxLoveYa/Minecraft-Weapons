@@ -79,7 +79,7 @@ public final class Viewmodel {
 	/** A fitted scope's magnification, eased so a variable one's steps zoom smoothly; the view zooms by it at the eye. */
 	private static float magnification = 1;
 	private static float magnificationO = 1;
-	/** 0 to 1 as a fitted scope comes to the eye: aimed, the gun then sits with its eyepiece its eye distance from the eye (Attachments.eyeDistance). */
+	/** 0 to 1 as a fitted scope comes to the eye: aimed, the gun then sits with its eyepiece its eye distance from the eye (Attachments.eyeBlocks). */
 	private static float scope;
 	private static float scopeO;
 	private static float recoilPitch;
@@ -235,7 +235,7 @@ public final class Viewmodel {
 		if (optic != null && !optic.isScope()) {
 			push = -anchor.z - Attachments.eyeBlocks(stack, optic);
 		} else {
-			float eye = optic != null ? Attachments.eyeDistance(stack, optic) : Attachments.DEFAULT_EYE_DISTANCE;
+			float eye = optic != null ? Attachments.eyeBlocks(stack, optic) : Attachments.DEFAULT_EYE_DISTANCE;
 			push = Mth.lerp(scopeAt(stack, partialTick), -ADS_PUSH_FORWARD, -anchor.z - eye);
 		}
 		return new Vector3f(-anchor.x, -anchor.y, push).mul(aim);

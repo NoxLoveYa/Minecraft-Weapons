@@ -40,8 +40,12 @@ public final class ModComponents {
 	public static final DataComponentType<Integer> LASER_COLOR = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("laser_color"),
 			DataComponentType.<Integer>builder().persistent(Codec.INT).networkSynchronized(ByteBufCodecs.INT).build());
 
-	/** How far the eye sits from each optic when aimed, optic item id to blocks behind a scope's eyepiece or a 1x sight's share of its own distance (see Attachments.eyeDistance). Absent means the default. */
+	/** Not read any more (see EYE_DISTANCE_SHARE): kept registered so guns saved with it still load, and dropped when a share is set. */
 	public static final DataComponentType<Map<Identifier, Float>> EYE_DISTANCE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("eye_distance"),
+			DataComponentType.<Map<Identifier, Float>>builder().persistent(Codec.unboundedMap(Identifier.CODEC, Codec.FLOAT))
+					.networkSynchronized(ByteBufCodecs.map(HashMap::new, Identifier.STREAM_CODEC, ByteBufCodecs.FLOAT)).build());
+	/** How far the eye sits from each optic when aimed, optic item id to a share of the optic's own distance (see Attachments.eyeShare). Absent means 1. */
+	public static final DataComponentType<Map<Identifier, Float>> EYE_DISTANCE_SHARE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("eye_distance_share"),
 			DataComponentType.<Map<Identifier, Float>>builder().persistent(Codec.unboundedMap(Identifier.CODEC, Codec.FLOAT))
 					.networkSynchronized(ByteBufCodecs.map(HashMap::new, Identifier.STREAM_CODEC, ByteBufCodecs.FLOAT)).build());
 	/** The lasers and flashlights switched off on a gun, by item id (see Attachments.switchedOn). Absent means all on. */
