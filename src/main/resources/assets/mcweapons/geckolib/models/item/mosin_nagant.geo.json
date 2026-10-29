@@ -2389,6 +2389,26 @@
 					"pivot": [-5.5, -1.1538, -36.7556]
 				},
 				{
+					"name": "red_dot_window_1",
+					"parent": "red_dot",
+					"pivot": [-6.151, -1.627, -37.222]
+				},
+				{
+					"name": "red_dot_window_2",
+					"parent": "red_dot",
+					"pivot": [-4.849, -1.627, -37.222]
+				},
+				{
+					"name": "red_dot_window_3",
+					"parent": "red_dot",
+					"pivot": [-4.849, -0.68, -37.222]
+				},
+				{
+					"name": "red_dot_window_4",
+					"parent": "red_dot",
+					"pivot": [-6.151, -0.68, -37.222]
+				},
+				{
 					"name": "scout_scope",
 					"parent": "attach_optic",
 					"pivot": [-5.5, -2.5148, -35.6889],

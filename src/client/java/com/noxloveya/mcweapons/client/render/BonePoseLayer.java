@@ -14,13 +14,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import org.joml.Vector3f;
 
+import java.util.List;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
  * Draws nothing: notes where bones are drawn so other things can follow them. The ejection port, first person or in someone's hand,
- * for casings to leave from; the muzzle in first person, for shots; a fitted laser's emitter, for its beam; a flashlight's lens in someone's hand, for its glow; a fitted scope's eyepiece in first person, for its view; the gun, magazine, attachment slots and a long gun's support hand
+ * for casings to leave from; the muzzle in first person, for shots; a fitted laser's emitter, for its beam; a flashlight's lens in someone's hand, for its glow; a fitted scope's eyepiece in first person, for its view; a 1x sight's reticle and window in first person, for its glass; the gun, magazine, attachment slots and a long gun's support hand
  * locator in someone's hand, for their other hand to hold.
  */
 public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.RenderData, GeoRenderState> {
@@ -56,6 +58,12 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 					float radius = this.gunRenderer.lensRadius(id);
 					renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone ->
 							consumer.accept(bone, (info, lensBone, renderTasks) -> Viewmodel.recordLensPose(info.poseStack().last().pose(), radius)));
+				} else {
+					List<Vector3f> outline = this.gunRenderer.windowOutline(id);
+					if (!outline.isEmpty()) {
+						renderPassInfo.model().getBone(id.getPath() + "_reticle").ifPresent(bone ->
+								consumer.accept(bone, (info, sightBone, renderTasks) -> Viewmodel.recordSightPose(info.poseStack().last().pose(), outline)));
+					}
 				}
 			}
 			return;

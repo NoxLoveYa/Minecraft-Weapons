@@ -144,6 +144,20 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		return restPivot(scope.getPath() + "_lens").distance(restPivot(scope.getPath() + "_reticle"));
 	}
 
+	/**
+	 * A 1x sight's window: its {@code <sight>_window_N} locators' offsets from its {@code <sight>_reticle}, in blocks, in order round the
+	 * window. Empty for one without.
+	 */
+	public List<Vector3f> windowOutline(Identifier sight) {
+		BakedGeoModel model = getGeoModel().getBakedModel(this.modelId);
+		Vector3f reticle = restPivot(sight.getPath() + "_reticle");
+		List<Vector3f> outline = new ArrayList<>();
+		for (int i = 1; model.getBone(sight.getPath() + "_window_" + i).isPresent(); i++) {
+			outline.add(restPivot(sight.getPath() + "_window_" + i).sub(reticle));
+		}
+		return outline;
+	}
+
 	/** Rest-pose box around the gun (the {@code gun} bone and everything under it) in model space, in blocks: min xyz, then max xyz. */
 	public float[] gunBounds() {
 		return gunBounds(Set.of());

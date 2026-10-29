@@ -483,6 +483,26 @@
 					"pivot": [-6, -1.65, -12.1]
 				},
 				{
+					"name": "red_dot_window_1",
+					"parent": "red_dot",
+					"pivot": [-6.65, -2.15, -12.5]
+				},
+				{
+					"name": "red_dot_window_2",
+					"parent": "red_dot",
+					"pivot": [-5.35, -2.15, -12.5]
+				},
+				{
+					"name": "red_dot_window_3",
+					"parent": "red_dot",
+					"pivot": [-5.35, -1.15, -12.5]
+				},
+				{
+					"name": "red_dot_window_4",
+					"parent": "red_dot",
+					"pivot": [-6.65, -1.15, -12.5]
+				},
+				{
 					"name": "trigger",
 					"parent": "gun",
 					"pivot": [-6, -5, -14.45],

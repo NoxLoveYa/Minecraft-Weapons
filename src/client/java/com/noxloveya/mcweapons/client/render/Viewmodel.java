@@ -35,6 +35,8 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * First-person gun. Draws the GeckoLib model straight in view space and adds, on top of the animation and in this
  * order: ADS lerp, sway, bob, recoil (DESIGN_RULES 4). State is ticked by {@link com.noxloveya.mcweapons.client.input.GunInput}.
@@ -63,6 +65,10 @@ public final class Viewmodel {
 	private static final Matrix4f lensPose = new Matrix4f();
 	private static float lensRadius;
 	private static long lensPoseNanos;
+	/** A fitted 1x sight's reticle as drawn in view space, and its window round it, for the glass in it (see {@link #takeSight}). */
+	private static final Matrix4f sightPose = new Matrix4f();
+	private static List<Vector3f> sightOutline = List.of();
+	private static boolean sightDrawn;
 	/**
 	 * The muzzle (a fitted silencer's tip, or the barrel's) as last drawn, in view space: sway, bob, breathing, the kick, the running pose
 	 * and animations all in it. Shots leave along its line (see {@link #barrelLine}).
@@ -500,5 +506,28 @@ public final class Viewmodel {
 	}
 
 	public record Lens(Matrix4f pose, float radius) {
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose a fitted 1x sight's reticle is drawn with, and its window (see {@link GunRenderer#windowOutline}). */
+	static void recordSightPose(Matrix4fc bonePose, List<Vector3f> outline) {
+		sightPose.set(RenderSystem.getModelViewStack()).mul(bonePose);
+		sightOutline = outline;
+		sightDrawn = true;
+	}
+
+	/**
+	 * A fitted 1x sight as drawn in the hand's view space since the last call (eye at the origin): {@code pose} takes its reticle's frame
+	 * to view space, and {@code outline} is its window round the reticle in that frame, in blocks. Null when it has not been drawn since,
+	 * so its glass goes as soon as the hand does.
+	 */
+	public static @Nullable Sight takeSight() {
+		if (!sightDrawn) {
+			return null;
+		}
+		sightDrawn = false;
+		return new Sight(new Matrix4f(sightPose), sightOutline);
+	}
+
+	public record Sight(Matrix4f pose, List<Vector3f> outline) {
 	}
 }

@@ -52,7 +52,8 @@ import java.util.OptionalDouble;
  * is drawn a single time. Before the hand is drawn, a lens pass (shaders/core/scope_lens.fsh) goes over that picture: inside the lens it
  * refracts it (barrel distortion, colour fringes, the exit pupil's shadow) and etches the reticle in, with the gun's {@link Reticle} lit in
  * the middle; outside, where the eye is not focused, it blurs and dims the zoomed level. The scope is then drawn sharp over it, and its
- * eyepiece shows the lens part of the result ({@link ScopeLensLayer}).
+ * eyepiece shows the lens part of the result ({@link ScopeLensLayer}). A 1x sight's window gets the same glass once the hand is drawn
+ * ({@link #processSight}).
  */
 public final class ScopeRenderer {
 	/** The screen after the lens pass, as a texture for the eyepiece. */
@@ -72,13 +73,28 @@ public final class ScopeRenderer {
 			.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
 			.withColorTargetState(ColorTargetState.DEFAULT)
 			.build());
+	private static final RenderPipeline SIGHT_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
+			.withLocation(McWeapons.id("pipeline/sight_glass"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(McWeapons.id("core/sight_glass"))
+			.withBindGroupLayout(BindGroupLayout.builder()
+					.withUniform("SightGlass", UniformType.UNIFORM_BUFFER)
+					.withUniform("InSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+					.build())
+			.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+			.withColorTargetState(ColorTargetState.DEFAULT)
+			.build());
 	private static final @Nullable MethodHandle SHADER_PACK_IN_USE = irisShaderPackInUse();
 	private static final int LENS_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().putFloat().get();
+	/** Corners a 1x sight's window can have (sight_glass.fsh takes them two to a vec4). */
+	private static final int MAX_CORNERS = 8;
+	private static final int SIGHT_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().get();
 
-	/** The level before the hand, then the screen after the lens pass. */
+	/** The level before the hand, then the screen after the lens pass; for a 1x sight, the screen before its glass pass. */
 	private static @Nullable RenderTarget level;
 	private static @Nullable RenderTarget lens;
 	private static @Nullable MappableRingBuffer lensInfo;
+	private static @Nullable MappableRingBuffer sightInfo;
 	private static long renderedNanos;
 
 	private ScopeRenderer() {
@@ -197,10 +213,81 @@ public final class ScopeRenderer {
 		renderedNanos = System.nanoTime();
 	}
 
+	/** How far the held gun's 1x sight is up at the eye this frame, 0 to 1: 0 without one, or out of first person. */
+	private static float sightStrength() {
+		Minecraft minecraft = Minecraft.getInstance();
+		LocalPlayer player = minecraft.player;
+		if (player == null || !minecraft.options.getCameraType().isFirstPerson()) {
+			return 0;
+		}
+		AttachmentItem optic = Attachments.in(player.getMainHandItem(), AttachmentSlot.OPTIC);
+		return optic != null && !optic.isScope() ? Viewmodel.ads(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false)) : 0;
+	}
+
+	/**
+	 * Runs the glass pass (shaders/core/sight_glass.fsh) over the held gun's 1x sight's window, inside its outline, as it is aimed: the
+	 * lens pass's tint, fringes, shading and glint over the level and the parts of the gun seen through it, the middle left at 1x, nothing
+	 * outside the window touched. Called once the hand is drawn (with a shader pack, once its level pipeline has drawn it).
+	 */
+	public static void processSight(GameRenderer gameRenderer) {
+		Viewmodel.Sight sight = Viewmodel.takeSight();
+		float strength = sightStrength();
+		if (sight == null || strength <= 0.01F || sight.outline().size() < 3 || sight.outline().size() > MAX_CORNERS) {
+			return;
+		}
+		Vector3f center = sight.pose().transformPosition(new Vector3f());
+		if (center.z > -0.01F) {
+			return;
+		}
+		float[] corners = new float[MAX_CORNERS * 2];
+		float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+		RenderTarget main = gameRenderer.mainRenderTarget();
+		float aspect = (float)main.width / main.height;
+		for (int i = 0; i < sight.outline().size(); i++) {
+			Vector3f corner = sight.pose().transformPosition(new Vector3f(sight.outline().get(i)));
+			if (corner.z > -0.01F) {
+				return;
+			}
+			// In screen heights from the bottom left, so the shader's distances are the same across and up.
+			Vector2f onScreen = screenUv(corner);
+			corners[i * 2] = onScreen.x * aspect;
+			corners[i * 2 + 1] = onScreen.y;
+			minX = Math.min(minX, corners[i * 2]);
+			maxX = Math.max(maxX, corners[i * 2]);
+			minY = Math.min(minY, corners[i * 2 + 1]);
+			maxY = Math.max(maxY, corners[i * 2 + 1]);
+		}
+		Vector2f middle = screenUv(center);
+		setUp(main.width, main.height);
+		try (GpuBufferSlice.MappedView view = sightInfo.currentBuffer().map(false, true)) {
+			Std140Builder builder = Std140Builder.intoBuffer(view.data());
+			for (int i = 0; i < MAX_CORNERS * 2; i += 4) {
+				builder.putVec4(corners[i], corners[i + 1], corners[i + 2], corners[i + 3]);
+			}
+			builder.putVec2(middle.x * aspect, middle.y)
+					.putVec2((maxX - minX) / 2, (maxY - minY) / 2)
+					.putFloat(sight.outline().size())
+					.putFloat(strength)
+					.putFloat(aspect);
+		}
+		CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+		// The pass reads the screen from a copy, as it writes it; outside the window it writes nothing.
+		encoder.copyTextureToTexture(main.getColorTexture(), level.getColorTexture(), 0, 0, 0, 0, 0, main.width, main.height);
+		try (RenderPass pass = encoder.createRenderPass(() -> "mcweapons sight glass", main.getColorTextureView(), Optional.empty(), null, OptionalDouble.empty())) {
+			pass.setPipeline(RenderSystem.getCompiledPipeline(SIGHT_PIPELINE));
+			RenderSystem.bindDefaultUniforms(pass);
+			pass.setUniform("SightGlass", sightInfo.currentBuffer());
+			pass.setUniform("InSampler", level.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+			pass.draw(3, 1, 0, 0);
+		}
+		sightInfo.rotate();
+	}
+
 	/** Copies the size of the screen, made or remade as it changes. */
 	private static void setUp(int width, int height) {
 		if (lensInfo == null) {
 			lensInfo = new MappableRingBuffer(() -> "mcweapons scope lens", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, LENS_INFO_SIZE);
+			sightInfo = new MappableRingBuffer(() -> "mcweapons sight glass", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, SIGHT_INFO_SIZE);
 		}
 		if (level != null && level.width == width && level.height == height) {
 			return;

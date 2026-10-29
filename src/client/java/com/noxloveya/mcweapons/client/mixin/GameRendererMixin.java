@@ -39,6 +39,13 @@ public class GameRendererMixin {
 		ScopeRenderer.processLevel((GameRenderer)(Object)this);
 	}
 
+	// No API runs once the hand is drawn: an aimed 1x sight's glass goes over its window here, over the level and the gun seen through it.
+	@Inject(method = "render3dHud", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+			target = "Lnet/minecraft/client/renderer/GameRenderer;renderItemInHand(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lcom/mojang/renderpearl/api/textures/GpuTextureView;)V"))
+	private void mcweapons$sightGlass(CallbackInfo ci) {
+		ScopeRenderer.processSight((GameRenderer)(Object)this);
+	}
+
 	// A shader pack (Iris) takes the hand call out of this method and draws the hand in its level pipeline; while a scope is up the gun
 	// is left out there and drawn here, after the lens pass, with what vanilla's hand pass is about to draw.
 	@Inject(method = "renderItemInHand", at = @At(value = "INVOKE",
