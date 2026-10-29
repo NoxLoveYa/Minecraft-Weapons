@@ -225,13 +225,19 @@ public final class Viewmodel {
 
 	/**
 	 * Where aiming moves the model to (blocks, view space), {@code aim} of the way: so the sight line lands on the view's axis, and pushed a
-	 * little further out; a scope comes in instead, its eyepiece its eye distance from the eye once it is at the eye.
+	 * little further out (a 1x sight then brought in to the share of that distance set for it); a scope comes in instead, its eyepiece its
+	 * eye distance from the eye once it is at the eye.
 	 */
 	private static Vector3f adsShift(GunRenderer renderer, ItemStack stack, float aim, float partialTick) {
 		Vector3f anchor = renderer.restPivot(renderer.aimBone(stack));
 		AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
-		float eye = optic != null && optic.isScope() ? Attachments.eyeDistance(stack, optic) : Attachments.DEFAULT_EYE_DISTANCE;
-		float push = Mth.lerp(scopeAt(stack, partialTick), -ADS_PUSH_FORWARD, -anchor.z - eye);
+		float push;
+		if (optic != null && !optic.isScope()) {
+			push = -anchor.z - (-anchor.z + ADS_PUSH_FORWARD) * Attachments.eyeDistance(stack, optic);
+		} else {
+			float eye = optic != null ? Attachments.eyeDistance(stack, optic) : Attachments.DEFAULT_EYE_DISTANCE;
+			push = Mth.lerp(scopeAt(stack, partialTick), -ADS_PUSH_FORWARD, -anchor.z - eye);
+		}
 		return new Vector3f(-anchor.x, -anchor.y, push).mul(aim);
 	}
 

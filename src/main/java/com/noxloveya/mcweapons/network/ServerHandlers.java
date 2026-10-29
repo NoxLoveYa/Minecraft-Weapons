@@ -100,9 +100,9 @@ public final class ServerHandlers {
 			}
 		});
 		ServerPlayNetworking.registerGlobalReceiver(EyeDistancePayload.TYPE, (payload, context) -> {
-			// Looks only: any held gun takes one for any scope, kept in range (Attachments.setEyeDistance).
+			// Looks only: any held gun takes one for any optic, kept in range (Attachments.setEyeDistance).
 			ItemStack gun = heldGun(context.player(), payload.slot());
-			if (!gun.isEmpty() && BuiltInRegistries.ITEM.getValue(payload.scope()) instanceof AttachmentItem scope && scope.isScope()) {
+			if (!gun.isEmpty() && BuiltInRegistries.ITEM.getValue(payload.scope()) instanceof AttachmentItem scope && scope.slot() == AttachmentSlot.OPTIC) {
 				Attachments.setEyeDistance(gun, scope, payload.distance());
 			}
 		});

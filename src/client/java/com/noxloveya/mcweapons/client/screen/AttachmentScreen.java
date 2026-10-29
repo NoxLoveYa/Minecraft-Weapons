@@ -72,13 +72,12 @@ public class AttachmentScreen extends Screen {
 
 	/**
 	 * A setting of an attachment, shown under its row once its arrow is opened (right click): an optic's reticle color, size and shape,
-	 * a scope's eye distance, or a laser's color. Looks only, so they are stored on the gun and change any time.
+	 * an optic's eye distance, or a laser's color. Looks only, so they are stored on the gun and change any time.
 	 */
 	private enum Option {
 		COLOR(0xE1DD), SIZE(0xE2EC), SHAPE(0xE4B3), EYE_DISTANCE(0xE536), LASER_COLOR(0xE1DD);
 
-		private static final List<Option> RETICLE = List.of(COLOR, SIZE, SHAPE);
-		private static final List<Option> SCOPE = List.of(COLOR, SIZE, SHAPE, EYE_DISTANCE);
+		private static final List<Option> OPTIC = List.of(COLOR, SIZE, SHAPE, EYE_DISTANCE);
 		private static final List<Option> LASER = List.of(LASER_COLOR);
 
 		final int icon;
@@ -88,8 +87,7 @@ public class AttachmentScreen extends Screen {
 		}
 
 		static List<Option> of(@Nullable AttachmentItem attachment) {
-			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.isScope() ? SCOPE
-					: attachment.slot() == AttachmentSlot.OPTIC ? RETICLE : List.of();
+			return attachment == null ? List.of() : attachment.isLaser() ? LASER : attachment.slot() == AttachmentSlot.OPTIC ? OPTIC : List.of();
 		}
 
 		/** Moves this setting of {@code attachment} on the held gun {@code step} choices on (-1 back). The size is a slider instead. */
@@ -100,7 +98,7 @@ public class AttachmentScreen extends Screen {
 				case SHAPE -> GunInput.reticle(player, reticle.cycleShape(step));
 				case EYE_DISTANCE -> {
 					// Further or nearer, stopping at the ends rather than jumping across while it is watched.
-					List<Float> distances = Attachments.EYE_DISTANCES;
+					List<Float> distances = Attachments.eyeDistances(attachment);
 					int at = nearest(distances, Attachments.eyeDistance(gun, attachment));
 					GunInput.eyeDistance(player, attachment, distances.get(Mth.clamp(at + step, 0, distances.size() - 1)));
 				}
@@ -114,7 +112,8 @@ public class AttachmentScreen extends Screen {
 				case COLOR, LASER_COLOR -> colorName(swatch(gun));
 				case SIZE -> Component.literal(Math.round(reticle.size() * 100) + "%");
 				case SHAPE -> Component.translatable("gui.mcweapons.reticle.shape." + reticle.shape().getSerializedName());
-				case EYE_DISTANCE -> Component.literal(Math.round(Attachments.eyeDistance(gun, attachment) / Attachments.DEFAULT_EYE_DISTANCE * 100) + "%");
+				// A scope's against the usual distance, a 1x sight's against where the gun holds it.
+				case EYE_DISTANCE -> Component.literal(Math.round(Attachments.eyeDistance(gun, attachment) / (attachment.isScope() ? Attachments.DEFAULT_EYE_DISTANCE : 1) * 100) + "%");
 			};
 		}
 

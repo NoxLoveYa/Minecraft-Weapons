@@ -18,21 +18,32 @@ public final class Attachments {
 	public static final List<Float> EYE_DISTANCES = List.of(0.065F, 0.0845F, 0.104F, 0.13F, 0.1625F, 0.195F, 0.26F, 0.325F, 0.39F);
 	/** 100% in the menu; a scope's own default may differ ({@link AttachmentItem#eyeDistance}). */
 	public static final float DEFAULT_EYE_DISTANCE = 0.13F;
+	/** A 1x sight's eye distances: shares of how far out the gun holds it when aimed (1, the default), nearer for a bigger window. */
+	public static final List<Float> SIGHT_EYE_DISTANCES = List.of(0.2F, 0.3F, 0.4F, 0.5F, 0.6F, 0.7F, 0.8F, 0.9F, 1.0F);
 
 	private Attachments() {
 	}
 
-	/** How far behind {@code scope}'s eyepiece the eye sits when it is aimed on {@code gun}. */
-	public static float eyeDistance(ItemStack gun, AttachmentItem scope) {
+	/**
+	 * How far the eye sits from {@code optic} when it is aimed on {@code gun}: behind a scope's eyepiece, in blocks; for a 1x sight, the
+	 * share of the distance the gun holds it at (see {@link #SIGHT_EYE_DISTANCES}).
+	 */
+	public static float eyeDistance(ItemStack gun, AttachmentItem optic) {
 		Map<Identifier, Float> distances = gun.getOrDefault(ModComponents.EYE_DISTANCE, Map.of());
-		return distances.getOrDefault(BuiltInRegistries.ITEM.getKey(scope), scope.defaultEyeDistance());
+		return distances.getOrDefault(BuiltInRegistries.ITEM.getKey(optic), optic.isScope() ? optic.defaultEyeDistance() : 1F);
 	}
 
-	/** Sets {@link #eyeDistance}, kept within {@link #EYE_DISTANCES}' range. Looks only, so whoever sends it may. */
-	public static void setEyeDistance(ItemStack gun, AttachmentItem scope, float distance) {
+	/** The choices for {@code optic}'s {@link #eyeDistance}. */
+	public static List<Float> eyeDistances(AttachmentItem optic) {
+		return optic.isScope() ? EYE_DISTANCES : SIGHT_EYE_DISTANCES;
+	}
+
+	/** Sets {@link #eyeDistance}, kept within the range of its {@link #eyeDistances}. Looks only, so whoever sends it may. */
+	public static void setEyeDistance(ItemStack gun, AttachmentItem optic, float distance) {
 		Map<Identifier, Float> distances = new HashMap<>(gun.getOrDefault(ModComponents.EYE_DISTANCE, Map.<Identifier, Float>of()));
-		distances.put(BuiltInRegistries.ITEM.getKey(scope), Float.isFinite(distance)
-				? Mth.clamp(distance, EYE_DISTANCES.getFirst(), EYE_DISTANCES.getLast()) : scope.defaultEyeDistance());
+		List<Float> range = eyeDistances(optic);
+		distances.put(BuiltInRegistries.ITEM.getKey(optic), Float.isFinite(distance)
+				? Mth.clamp(distance, range.getFirst(), range.getLast()) : optic.isScope() ? optic.defaultEyeDistance() : 1F);
 		gun.set(ModComponents.EYE_DISTANCE, Map.copyOf(distances));
 	}
 
