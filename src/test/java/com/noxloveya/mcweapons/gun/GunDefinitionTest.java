@@ -142,12 +142,13 @@ class GunDefinitionTest {
 	}
 
 	@Test
-	void m4a1HasSemiBurstAutoAndSafe() throws Exception {
+	void m4a1StartsOnAutoAndHasBurstSemiAndSafe() throws Exception {
 		GunDefinition m4;
 		try (Reader reader = new InputStreamReader(getClass().getResourceAsStream("/data/mcweapons/guns/m4a1.json"), StandardCharsets.UTF_8)) {
 			m4 = GunDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader)).getOrThrow();
 		}
-		assertEquals(List.of("semi", GunDefinition.BURST, "auto", "safe"), m4.selectableModes());
+		assertEquals(List.of("auto", GunDefinition.BURST, "semi", "safe"), m4.selectableModes());
+		assertEquals("auto", m4.fireMode(null), "a fresh M4 is on auto");
 		assertEquals(31, m4.reloadTarget(1));
 		assertTrue(m4.attachments().containsAll(List.of(McWeapons.id("acog"), McWeapons.id("extended_mag_45"), McWeapons.id("flashlight"))));
 		// 800 RPM fires 1.5 ticks apart on average, so some gaps are a single tick, and with a tick of network jitter two shots can

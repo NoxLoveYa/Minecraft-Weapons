@@ -1,9 +1,9 @@
 {
   "item": "mcweapons:m4a1",
   "fire_modes": [
-    "semi",
+    "auto",
     "burst",
-    "auto"
+    "semi"
   ],
   "rpm": 800,
   "damage": 10.5,

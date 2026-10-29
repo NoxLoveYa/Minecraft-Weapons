@@ -219,12 +219,12 @@ public final class ServerHandlers {
 		}
 		int ammo = GunItem.ammo(gun, definition);
 		Attachments.set(gun, part, wanted);
-		// The rounds stay in the gun across a magazine swap, up to what the new one holds. Always written, because a fresh gun's
-		// ammo defaults to its mag size, which a bigger magazine would otherwise fill for free.
-		// shortcut: rounds a smaller mag cannot take are lost, phase 3 (ammo items) should give them back.
+		// A magazine swap puts a full magazine in, as a reload does (reloads cost nothing either), and a chambered round stays. Other
+		// parts leave the rounds as they are. Always written, because a fresh gun's ammo defaults to whatever its mag size is now.
+		// shortcut: magazines are free like reloads; phase 3 (ammo items) should fill them from what the player carries.
 		GunDefinition fitted = GunItem.definition(gun);
 		if (fitted != null) {
-			gun.set(ModComponents.AMMO, fitted.clampAmmo(ammo));
+			gun.set(ModComponents.AMMO, part == AttachmentSlot.MAGAZINE ? fitted.reloadTarget(ammo) : fitted.clampAmmo(ammo));
 		}
 		if (current != null && !creative) {
 			player.getInventory().placeItemBackInInventory(new ItemStack(current), Prediction.SERVER_ONLY);
