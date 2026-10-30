@@ -43,6 +43,7 @@
     "recoil_push_back": 0.04,
     "recoil_spring_stiffness": 0.35,
     "recoil_spring_damping": 0.6,
-    "recoil_max_kicks": 2.5
+    "recoil_max_kicks": 2.5,
+    "put_away_ticks": 5
   }
 }

@@ -17,6 +17,7 @@ import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.BreathMeter;
 import com.noxloveya.mcweapons.gun.GunDefinition;
 import com.noxloveya.mcweapons.gun.GunDefinitions;
+import com.noxloveya.mcweapons.gun.GunFeel;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.GunState;
 import com.noxloveya.mcweapons.gun.MovementSpread;
@@ -88,8 +89,6 @@ public final class GunInput {
 
 	/** A shot keeps the gun up this long (0.5 s) before a held sprint key runs again. */
 	private static final int SHOT_NO_SPRINT_TICKS = 10;
-	/** A gun switched off lowers out of view for this long (its put_away animation, 0.4 s) before the next item comes up. */
-	private static final int PUT_AWAY_TICKS = 8;
 
 	private static boolean aiming;
 	/** The aim key is held with a gun in hand. It ends a sprint at once; the sights come up once the running pose is down. */
@@ -524,7 +523,8 @@ public final class GunInput {
 		boolean left = !drawnStack.isEmpty() && (!holding || player.getInventory().getSelectedSlot() != drawnSlot || player.getMainHandItem().getItem() != drawnItem);
 		if (left) {
 			puttingAway = drawnStack;
-			putAwayUntil = now + PUT_AWAY_TICKS;
+			GunDefinition definition = GunItem.definition(drawnStack);
+			putAwayUntil = now + (definition != null ? definition.feel() : GunFeel.DEFAULT).putAwayTicks();
 			drawnStack = ItemStack.EMPTY;
 			play(player, (GunItem)puttingAway.getItem(), "put_away");
 		} else if (!puttingAway.isEmpty() && now >= putAwayUntil) {
