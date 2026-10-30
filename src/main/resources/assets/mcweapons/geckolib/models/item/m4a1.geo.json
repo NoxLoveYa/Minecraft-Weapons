@@ -12930,42 +12930,42 @@
 				{
 					"name": "aimpoint_compm4_window_1",
 					"parent": "aimpoint_compm4",
-					"pivot": [-4.342, 1.2969, -17.8252]
+					"pivot": [-4.342, 1.2969, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_2",
 					"parent": "aimpoint_compm4",
-					"pivot": [-4.8446, 0.7943, -17.8252]
+					"pivot": [-4.8446, 0.7943, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_3",
 					"parent": "aimpoint_compm4",
-					"pivot": [-5.5554, 0.7943, -17.8252]
+					"pivot": [-5.5554, 0.7943, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_4",
 					"parent": "aimpoint_compm4",
-					"pivot": [-6.058, 1.2969, -17.8252]
+					"pivot": [-6.058, 1.2969, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_5",
 					"parent": "aimpoint_compm4",
-					"pivot": [-6.058, 2.0077, -17.8252]
+					"pivot": [-6.058, 2.0077, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_6",
 					"parent": "aimpoint_compm4",
-					"pivot": [-5.5554, 2.5103, -17.8252]
+					"pivot": [-5.5554, 2.5103, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_7",
 					"parent": "aimpoint_compm4",
-					"pivot": [-4.8446, 2.5103, -17.8252]
+					"pivot": [-4.8446, 2.5103, -17.9139]
 				},
 				{
 					"name": "aimpoint_compm4_window_8",
 					"parent": "aimpoint_compm4",
-					"pivot": [-4.342, 2.0077, -17.8252]
+					"pivot": [-4.342, 2.0077, -17.9139]
 				},
 				{
 					"name": "eotech_exps3",
