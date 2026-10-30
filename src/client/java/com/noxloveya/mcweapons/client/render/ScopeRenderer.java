@@ -131,10 +131,11 @@ public final class ScopeRenderer {
 
 	/**
 	 * A shader pack draws the hand inside its own level pipeline, so it would be in the picture the lens pass refracts and blurs: while a
-	 * scope is up the gun is left out there and drawn after the lens pass instead, the vanilla way (GameRendererMixin).
+	 * scope is up the gun is left out there and drawn after the lens pass instead, the vanilla way (GameRendererMixin). The same while a
+	 * 1x sight is up: drawn the vanilla way, the gun leaves its depth where the glass pass reads it, to keep off a rear sight in front.
 	 */
 	public static boolean gunAfterLens() {
-		return strength() > 0.01F && shaderPackInUse();
+		return (strength() > 0.01F || sightStrength() > 0.01F) && shaderPackInUse();
 	}
 
 	private static boolean shaderPackInUse() {
