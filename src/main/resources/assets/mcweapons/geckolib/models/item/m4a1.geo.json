@@ -9596,42 +9596,42 @@
 				{
 					"name": "coyote_sight_window_1",
 					"parent": "coyote_sight",
-					"pivot": [-4.2533, 0.4024, -22.2512]
+					"pivot": [-4.2533, 0.4024, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_2",
 					"parent": "coyote_sight",
-					"pivot": [-6.1467, 0.4024, -22.2512]
+					"pivot": [-6.1467, 0.4024, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_3",
 					"parent": "coyote_sight",
-					"pivot": [-6.3464, 0.7796, -22.2512]
+					"pivot": [-6.3464, 0.7796, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_4",
 					"parent": "coyote_sight",
-					"pivot": [-6.3538, 1.6228, -22.2512]
+					"pivot": [-6.3538, 1.6228, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_5",
 					"parent": "coyote_sight",
-					"pivot": [-6.021, 2.0666, -22.2512]
+					"pivot": [-6.021, 2.0666, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_6",
 					"parent": "coyote_sight",
-					"pivot": [-4.379, 2.0666, -22.2512]
+					"pivot": [-4.379, 2.0666, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_7",
 					"parent": "coyote_sight",
-					"pivot": [-4.0462, 1.6228, -22.2512]
+					"pivot": [-4.0462, 1.6228, -22.229]
 				},
 				{
 					"name": "coyote_sight_window_8",
 					"parent": "coyote_sight",
-					"pivot": [-4.0536, 0.7796, -22.2512]
+					"pivot": [-4.0536, 0.7796, -22.229]
 				},
 				{
 					"name": "reflex_sight",
