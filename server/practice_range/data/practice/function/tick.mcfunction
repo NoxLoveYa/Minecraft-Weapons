@@ -1,3 +1,6 @@
+# Food and saturation always full, in survival too, so natural regeneration runs at its fastest. Hidden (no particles, no icon);
+# given every tick as dying clears it (a no-op while it is on).
+effect give @a minecraft:saturation infinite 0 true
 execute as @e[type=marker,tag=pr_mover] at @s run function practice:move
 execute as @e[type=marker,tag=pr_slot] at @s run function practice:slot
 
