@@ -289,7 +289,32 @@ public final class ScopeRenderer {
 			minY = Math.min(minY, corners[i * 2 + 1]);
 			maxY = Math.max(maxY, corners[i * 2 + 1]);
 		}
-		Vector2f middle = screenUv(center);
+		// Twice the outline's signed area on the screen, and its centroid.
+		int count = sight.outline().size();
+		float area2 = 0, centroidX = 0, centroidY = 0;
+		for (int i = 0; i < count; i++) {
+			int j = (i + 1) % count;
+			float cross = corners[i * 2] * corners[j * 2 + 1] - corners[j * 2] * corners[i * 2 + 1];
+			area2 += cross;
+			centroidX += (corners[i * 2] + corners[j * 2]) * cross;
+			centroidY += (corners[i * 2 + 1] + corners[j * 2 + 1]) * cross;
+		}
+		if (Math.abs(area2) * 0.5F * main.height * main.height < 4) {
+			return; // seen edge on
+		}
+		// The shader tells each side's inside from the middle, so the middle must be in the window. Aimed, the reticle is; seen from the
+		// side (the gun turned over in an inspect) the reticle, deeper than the window, lands outside its outline: its centroid then.
+		Vector2f reticle = screenUv(center);
+		float middleX = reticle.x * aspect, middleY = reticle.y;
+		for (int i = 0; i < count; i++) {
+			int j = (i + 1) % count;
+			float side = (corners[j * 2] - corners[i * 2]) * (middleY - corners[i * 2 + 1]) - (corners[j * 2 + 1] - corners[i * 2 + 1]) * (middleX - corners[i * 2]);
+			if (side * area2 <= 0) {
+				middleX = centroidX / (3 * area2);
+				middleY = centroidY / (3 * area2);
+				break;
+			}
+		}
 		setUp(main.width, main.height);
 		try (GpuBufferSlice.MappedView view = sightInfo.currentBuffer().map(false, true)) {
 			Std140Builder builder = Std140Builder.intoBuffer(view.data());
@@ -297,7 +322,7 @@ public final class ScopeRenderer {
 				builder.putVec4(corners[i], corners[i + 1], corners[i + 2], corners[i + 3]);
 			}
 			builder.putVec4(normal.x, normal.y, normal.z, planeD)
-					.putVec2(middle.x * aspect, middle.y)
+					.putVec2(middleX, middleY)
 					.putVec2((maxX - minX) / 2, (maxY - minY) / 2)
 					.putFloat(sight.outline().size())
 					.putFloat(strength)
