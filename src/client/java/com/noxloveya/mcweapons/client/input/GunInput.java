@@ -27,6 +27,7 @@ import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.network.AimPayload;
 import com.noxloveya.mcweapons.network.AttachPayload;
 import com.noxloveya.mcweapons.network.EyeDistancePayload;
+import com.noxloveya.mcweapons.network.ChamberPayload;
 import com.noxloveya.mcweapons.network.FireModePayload;
 import com.noxloveya.mcweapons.network.LaserColorPayload;
 import com.noxloveya.mcweapons.network.GunAnimationPayload;
@@ -133,6 +134,8 @@ public final class GunInput {
 	/** Gun types already pulled out once in this world: the first pull-out also readies the gun (draw_first). */
 	private static final Set<Item> READIED = new HashSet<>();
 	private static @Nullable ClientLevel readiedIn;
+	/** Until when the held unchambered gun waits for the server to clear the flag we asked about, before asking (and chambering) again. */
+	private static long chamberAskedUntil;
 	/** The fire mode we switched to, used until the server's fire_mode arrives. */
 	private static @Nullable String predictedMode;
 	private static long predictedModeUntil;
@@ -394,11 +397,21 @@ public final class GunInput {
 			PENDING.clear();
 			Viewmodel.reset();
 			drawDue = true;
+			chamberAskedUntil = 0;
 		}
 		drawnStack = stack;
 		if (drawDue && puttingAway.isEmpty()) {
 			drawDue = false;
-			play(player, gun, READIED.add(gun) ? "draw_first" : "draw");
+			boolean first = READIED.add(gun);
+			if (!stack.has(ModComponents.UNCHAMBERED)) {
+				play(player, gun, first ? "draw_first" : "draw");
+			}
+		}
+		// A full magazine with nothing chambered (the arena's respawn): draw_first chambers a round, pulled out or already in hand.
+		if (!drawDue && puttingAway.isEmpty() && stack.has(ModComponents.UNCHAMBERED) && player.level().getGameTime() >= chamberAskedUntil) {
+			play(player, gun, "draw_first");
+			ClientPlayNetworking.send(new ChamberPayload(slot));
+			chamberAskedUntil = player.level().getGameTime() + 40;
 		}
 		if (definition != null) {
 			AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);

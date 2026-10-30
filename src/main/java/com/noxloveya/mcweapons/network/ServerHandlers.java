@@ -74,6 +74,7 @@ public final class ServerHandlers {
 		PayloadTypeRegistry.serverboundPlay().register(LaserColorPayload.TYPE, LaserColorPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(EyeDistancePayload.TYPE, EyeDistancePayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(SwitchPayload.TYPE, SwitchPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(ChamberPayload.TYPE, ChamberPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(GunAnimationPayload.TYPE, GunAnimationPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletPayload.TYPE, BulletPayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(BulletImpactPayload.TYPE, BulletImpactPayload.CODEC);
@@ -93,6 +94,13 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot(), payload.held()));
 		ServerPlayNetworking.registerGlobalReceiver(AttachPayload.TYPE, (payload, context) -> attach(context.player(), payload));
+		// Looks only (the round count already is a full magazine), so any held gun may be chambered.
+		ServerPlayNetworking.registerGlobalReceiver(ChamberPayload.TYPE, (payload, context) -> {
+			ItemStack gun = heldGun(context.player(), payload.slot());
+			if (!gun.isEmpty()) {
+				gun.remove(ModComponents.UNCHAMBERED);
+			}
+		});
 		ServerPlayNetworking.registerGlobalReceiver(ReticlePayload.TYPE, (payload, context) -> {
 			// Looks only, and Reticle keeps its own values in range, so any held gun takes it.
 			ItemStack gun = heldGun(context.player(), payload.slot());

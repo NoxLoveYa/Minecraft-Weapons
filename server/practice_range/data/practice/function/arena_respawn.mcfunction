@@ -4,7 +4,8 @@ tag @s add pr_respawning
 execute unless entity @e[type=player,tag=pr_in_arena,tag=!pr_respawning] as @e[type=marker,tag=pr_arena_spawn,sort=random,limit=1] at @s rotated as @s run tp @a[tag=pr_respawning,limit=1] ~ ~ ~ ~ ~
 execute at @e[type=player,tag=pr_in_arena,tag=!pr_respawning,sort=nearest,limit=1] as @e[type=marker,tag=pr_arena_spawn,sort=furthest,limit=1] at @s rotated as @s run tp @a[tag=pr_respawning,limit=1] ~ ~ ~ ~ ~
 tag @s remove pr_respawning
-# Every gun comes back loaded: a gun without an ammo count holds a full magazine (and no reload is left running).
+# Every gun comes back with a full magazine and nothing chambered (no ammo count, no reload running, marked unchambered): the next
+# pull-out chambers a round with draw_first.
 item modify entity @s hotbar.* practice:refill
 item modify entity @s inventory.* practice:refill
 item modify entity @s weapon.offhand practice:refill
