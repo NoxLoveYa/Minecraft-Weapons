@@ -39,7 +39,7 @@ import java.util.List;
 
 /**
  * First-person gun. Draws the GeckoLib model straight in view space and adds, on top of the animation and in this
- * order: ADS lerp, sway, bob, recoil (DESIGN_RULES 4). State is ticked by {@link com.noxloveya.mcweapons.client.input.GunInput}.
+ * order: ADS lerp, sway, bob, recoil (DESIGN_RULES 4); the bob turns all of it around the eye, so it is put on the stack first. State is ticked by {@link com.noxloveya.mcweapons.client.input.GunInput}.
  */
 public final class Viewmodel {
 	private static final float ADS_PUSH_FORWARD = 0.1F;
@@ -431,6 +431,21 @@ public final class Viewmodel {
 		// Our casings while still at the gun, drawn with it so the slide hides them until they clear the port.
 		Casings.submitInHand(poseStack, renderTasks, partialTick);
 
+		// 3. Bob from walking, applied first so it turns the whole gun around the eye: on screen it moves about as a sideways and
+		// up-down shift at the grip would, and the barrel turns with it, so shots and a laser bob with the gun even from the hip.
+		// Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
+		Vector3f grip = renderer.restPivot("gun");
+		if (minecraft.options.bobView().get()) {
+			ClientAvatarState avatar = player.avatarState();
+			float walk = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
+			float bob = avatar.getInterpolatedBob(partialTick) * feel.bobScale() * loose;
+			float depth = Math.max(0.3F, -grip.z);
+			poseStack.rotateDegrees(Axis.YP, (float)Math.toDegrees(-Mth.sin(walk) * bob * 0.5F / depth));
+			poseStack.rotateDegrees(Axis.XP, (float)Math.toDegrees(-Math.abs(Mth.cos(walk) * bob) / depth));
+			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
+			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
+		}
+
 		// 1. ADS: slide the model so ads_anchor (or a fitted optic's reticle) lands on the view axis, at the center of the screen,
 		// and a little further out so the slide does not fill the view; a scope comes up to the eye instead.
 		Vector3f shift = adsShift(renderer, stack, aim, partialTick);
@@ -445,19 +460,8 @@ public final class Viewmodel {
 		poseStack.rotateDegrees(Axis.XP, swayPitchDeg);
 		poseStack.rotateDegrees(Axis.YP, swayYawDeg);
 
-		// 3. Bob from walking. Vanilla's hand bob is skipped while a gun is held (GameRendererMixin), so this is the only one.
-		if (minecraft.options.bobView().get()) {
-			ClientAvatarState avatar = player.avatarState();
-			float walk = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
-			float bob = avatar.getInterpolatedBob(partialTick) * feel.bobScale() * loose;
-			poseStack.translate(Mth.sin(walk) * bob * 0.5F, -Math.abs(Mth.cos(walk) * bob), 0);
-			poseStack.rotateDegrees(Axis.ZP, Mth.sin(walk) * bob * 3);
-			poseStack.rotateDegrees(Axis.XP, Math.abs(Mth.cos(walk - 0.2F) * bob) * 5);
-		}
-
 		// 3a. Running: the gun comes in close, turned and canted across the body, and bounces with the stride (unless view
 		// bobbing is off). Pivots on the grip. Arms and gun move as one, so nothing can pass through anything.
-		Vector3f grip = renderer.restPivot("gun");
 		float running = Mth.lerp(partialTick, runO, run);
 		running = running * running * (3 - 2 * running);
 		if (running > 0) {
