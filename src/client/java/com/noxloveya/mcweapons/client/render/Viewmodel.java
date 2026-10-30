@@ -75,6 +75,9 @@ public final class Viewmodel {
 	 */
 	private static final Matrix4f muzzlePose = new Matrix4f();
 	private static long muzzlePoseNanos;
+	/** What aiming lines up with the eye (a fitted optic's reticle, or ads_anchor) as last drawn, in view space: aimed, shots go through it. */
+	private static final Matrix4f aimPose = new Matrix4f();
+	private static long aimPoseNanos;
 	private static boolean showcaseOpen;
 
 	/** Sway, bob and recoil spring values of the held gun (its definition's "feel"). */
@@ -272,10 +275,17 @@ public final class Viewmodel {
 		}
 		Vector3f muzzle = muzzlePose.transformPosition(new Vector3f());
 		Vector3f along = muzzlePose.transformDirection(new Vector3f(0, 0, -1)).normalize();
+		float aim = ads(partialTick);
+		// Aiming, the sights take over: the line goes from the eye through the reticle (or the iron sights) where it is drawn, so walk
+		// bob, sway and breathing move shots and a laser's dot with the reticle, which they shift more than they turn the bore.
+		Vector3f sight = aimPose.transformPosition(new Vector3f());
+		if (System.nanoTime() - aimPoseNanos < 200_000_000L && sight.z < -0.01F) {
+			along.lerp(sight.normalize(), aim).normalize();
+		}
 		// From the line's nearest point to the eye: the viewmodel is not to scale (a rifle's muzzle is drawn blocks out), and nothing
-		// nearer than that may be skipped. Aiming, the sights take over and it comes in to the eye: shots go to the reticle, not a little
-		// under it where the bore is (which a scope would magnify).
-		Vector3f start = new Vector3f(muzzle).fma(-muzzle.dot(along), along).mul(1 - ads(partialTick));
+		// nearer than that may be skipped. Aiming, it comes in to the eye: shots go to the reticle, not a little under it where the bore
+		// is (which a scope would magnify).
+		Vector3f start = new Vector3f(muzzle).fma(-muzzle.dot(along), along).mul(1 - aim);
 		Vec3 forward = Vec3.directionFromRotation(xRot, yRot);
 		Vec3 up = Vec3.directionFromRotation(xRot - 90, yRot);
 		float scale = fovScale(camera);
@@ -302,6 +312,12 @@ public final class Viewmodel {
 	static void recordMuzzlePose(Matrix4fc bonePose) {
 		muzzlePose.set(inverseBase).mul(bonePose);
 		muzzlePoseNanos = System.nanoTime();
+	}
+
+	/** Called by {@link BonePoseLayer} with the pose the aimed-through bone (a fitted optic's {@code <item>_reticle}, or {@code ads_anchor}) is drawn with. */
+	static void recordAimPose(Matrix4fc bonePose) {
+		aimPose.set(inverseBase).mul(bonePose);
+		aimPoseNanos = System.nanoTime();
 	}
 
 	/** Where the first-person muzzle was last drawn, in the world, or null when it has not been drawn lately: tracers and the flash start there. */

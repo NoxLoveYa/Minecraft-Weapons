@@ -51,6 +51,15 @@ public class BonePoseLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Rende
 			}
 			renderPassInfo.model().getBone(muzzle).ifPresent(bone ->
 					consumer.accept(bone, (info, muzzleBone, renderTasks) -> Viewmodel.recordMuzzlePose(info.poseStack().last().pose())));
+			// What aiming lines up with the eye (as GunRenderer.aimBone): a fitted optic's reticle, or the iron sights.
+			String aim = "ads_anchor";
+			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
+				if (renderPassInfo.model().getBone(id.getPath() + "_reticle").isPresent()) {
+					aim = id.getPath() + "_reticle";
+				}
+			}
+			renderPassInfo.model().getBone(aim).ifPresent(bone ->
+					consumer.accept(bone, (info, aimBone, renderTasks) -> Viewmodel.recordAimPose(info.poseStack().last().pose())));
 			for (Identifier id : shown == null ? Set.<Identifier>of() : shown) {
 				renderPassInfo.model().getBone(id.getPath() + "_emitter").ifPresent(bone ->
 						consumer.accept(bone, (info, emitterBone, renderTasks) -> Viewmodel.recordEmitterPose(info.poseStack().last().pose())));
