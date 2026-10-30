@@ -400,8 +400,9 @@ public final class GunInput {
 		if (drawDue && puttingAway.isEmpty()) {
 			drawDue = false;
 			play(player, gun, READIED.add(gun) | !GunItem.readied(stack) ? "draw_first" : "draw");
-		} else if (!drawDue && puttingAway.isEmpty() && !GunItem.readied(stack) && !playing(player, gun, "draw_first")) {
-			// Never readied while already in hand (the arena refilled it on respawn): it is readied now. Its chamber keyframe chambers a round.
+		} else if (!drawDue && puttingAway.isEmpty() && !GunItem.readied(stack) && !busy(player, stack) && !playing(player, gun, null)) {
+			// Never readied while already in hand (the arena refilled it on respawn), or a draw_first cut short: it is readied once nothing
+			// else is playing. Its chamber keyframe chambers a round.
 			play(player, gun, "draw_first");
 		}
 		if (definition != null) {
@@ -615,6 +616,13 @@ public final class GunInput {
 		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
+		// Nothing chambered behind a full magazine (a gun never readied): reloading chambers a round instead, with draw_first (its chamber keyframe).
+		if (!GunItem.readied(stack)) {
+			if (!playing(player, gun, "draw_first")) {
+				play(player, gun, "draw_first");
+			}
+			return;
+		}
 		int ammo = GunItem.ammo(stack, definition);
 		if (ammo >= definition.reloadTarget(ammo)) {
 			return;
@@ -697,10 +705,13 @@ public final class GunInput {
 		gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, action);
 	}
 
-	/** {@code action} is playing in our hands (a finished triggered animation stays the current one until the next, hence the finished check). */
-	private static boolean playing(LocalPlayer player, GunItem gun, String action) {
+	/**
+	 * {@code action} is playing in our hands, or with null any triggered animation is (a finished triggered animation stays the current one
+	 * until the next, hence the finished check).
+	 */
+	private static boolean playing(LocalPlayer player, GunItem gun, @Nullable String action) {
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
-		return main != null && main.isTriggeredAnimation(action) && !main.hasAnimationFinished();
+		return main != null && !main.hasAnimationFinished() && (action == null ? main.isPlayingTriggeredAnimation() : main.isTriggeredAnimation(action));
 	}
 
 	/** The draw_first in our hands reached its {@code chamber} keyframe: a gun never readied has a round chambered (the server moves it in). */

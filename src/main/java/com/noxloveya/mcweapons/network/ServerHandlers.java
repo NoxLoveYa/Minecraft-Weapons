@@ -189,7 +189,8 @@ public final class ServerHandlers {
 		}
 		GunState state = gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY);
 		int ammo = GunItem.ammo(gun, definition);
-		if (state.reloading() || ammo >= definition.reloadTarget(ammo)) {
+		// A gun never readied has a full magazine and is chambered by its draw_first (ChamberPayload), not reloaded.
+		if (state.reloading() || !GunItem.readied(gun) || ammo >= definition.reloadTarget(ammo)) {
 			return;
 		}
 		// GunItem.inventoryTick adds the rounds (a round-at-a-time reload's one by one as they go in), or cancels if the gun leaves the main hand.
