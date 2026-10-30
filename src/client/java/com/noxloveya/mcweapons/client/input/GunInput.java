@@ -551,6 +551,11 @@ public final class GunInput {
 		if (safe) {
 			GunHud.safeBlocked();
 		}
+		// Nothing chambered behind a full magazine (a gun never readied): the trigger works the bolt instead of clicking, as reloading does.
+		if (!safe && !GunItem.readied(stack)) {
+			chamber(player, gun);
+			return false;
+		}
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		noSprintUntil = now + SHOT_NO_SPRINT_TICKS;
 		int ammo = GunItem.ammo(stack, definition);
@@ -616,11 +621,9 @@ public final class GunInput {
 		if (definition == null || busy(player, stack) || !definition.shotDue(nextShotDue, now)) {
 			return;
 		}
-		// Nothing chambered behind a full magazine (a gun never readied): reloading chambers a round instead, with draw_first (its chamber keyframe).
+		// Nothing chambered behind a full magazine (a gun never readied): reloading chambers a round instead.
 		if (!GunItem.readied(stack)) {
-			if (!playing(player, gun, "draw_first")) {
-				play(player, gun, "draw_first");
-			}
+			chamber(player, gun);
 			return;
 		}
 		int ammo = GunItem.ammo(stack, definition);
@@ -712,6 +715,13 @@ public final class GunInput {
 	private static boolean playing(LocalPlayer player, GunItem gun, @Nullable String action) {
 		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
 		return main != null && !main.hasAnimationFinished() && (action == null ? main.isPlayingTriggeredAnimation() : main.isTriggeredAnimation(action));
+	}
+
+	/** Works the action of a gun never readied: its draw_first, whose chamber keyframe chambers a round. Not again while it plays. */
+	private static void chamber(LocalPlayer player, GunItem gun) {
+		if (!playing(player, gun, "draw_first")) {
+			play(player, gun, "draw_first");
+		}
 	}
 
 	/** The draw_first in our hands reached its {@code chamber} keyframe: a gun never readied has a round chambered (the server moves it in). */
