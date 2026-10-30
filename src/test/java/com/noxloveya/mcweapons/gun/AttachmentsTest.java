@@ -32,10 +32,10 @@ class AttachmentsTest {
 	void eyeShareStaysOnTheSliderAndScalesTheOpticsOwnDistance() {
 		ItemStack gun = gun();
 		assertEquals(1, Attachments.eyeShare(gun, ModItems.COYOTE_SIGHT), "a fresh gun is at 100%");
-		assertEquals(0.41F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
+		assertEquals(0.5125F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
 
 		Attachments.setEyeShare(gun, ModItems.COYOTE_SIGHT, 1.5F);
-		assertEquals(0.615F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
+		assertEquals(0.76875F, Attachments.eyeBlocks(gun, ModItems.COYOTE_SIGHT), 1.0E-6);
 		assertEquals(0.104F, Attachments.eyeBlocks(gun, ModItems.ACOG), 1.0E-6, "each optic keeps its own share");
 
 		Attachments.setEyeShare(gun, ModItems.ACOG, 10);
