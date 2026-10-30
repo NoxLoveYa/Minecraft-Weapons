@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:set_components",
+  "components": {
+    "!mcweapons:ammo": {},
+    "!mcweapons:gun_state": {}
+  }
+}
