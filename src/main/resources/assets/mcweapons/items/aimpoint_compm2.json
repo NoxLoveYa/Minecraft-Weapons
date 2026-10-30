@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "mcweapons:item/red_dot"
+    "model": "mcweapons:item/aimpoint_compm2"
   }
 }

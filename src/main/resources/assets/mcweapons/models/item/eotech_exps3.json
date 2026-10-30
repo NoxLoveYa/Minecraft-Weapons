@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "mcweapons:item/red_dot"
+    "layer0": "mcweapons:item/eotech_exps3"
   }
 }

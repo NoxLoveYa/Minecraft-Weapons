@@ -51,10 +51,10 @@ class AttachmentsTest {
 	@Test
 	void eyeDistancesSavedBeforeAreNotRead() {
 		ItemStack gun = gun();
-		gun.set(ModComponents.EYE_DISTANCE, Map.of(BuiltInRegistries.ITEM.getKey(ModItems.RED_DOT), 1.5F));
-		assertEquals(0.28F, Attachments.eyeBlocks(gun, ModItems.RED_DOT), 1.0E-6);
+		gun.set(ModComponents.EYE_DISTANCE, Map.of(BuiltInRegistries.ITEM.getKey(ModItems.TRIJICON_RMR), 1.5F));
+		assertEquals(0.28F, Attachments.eyeBlocks(gun, ModItems.TRIJICON_RMR), 1.0E-6);
 
-		Attachments.setEyeShare(gun, ModItems.RED_DOT, 1);
+		Attachments.setEyeShare(gun, ModItems.TRIJICON_RMR, 1);
 		assertFalse(gun.has(ModComponents.EYE_DISTANCE), "dropped once a share is set");
 	}
 }

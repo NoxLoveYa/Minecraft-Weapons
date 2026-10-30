@@ -44,6 +44,10 @@ Kept in `blockbench/references/` to model against; none of their geometry or tex
 | File | Model | Author | License |
 |---|---|---|---|
 | `low-poly-g17.zip` | [Low-Poly G17](https://sketchfab.com/3d-models/low-poly-g17-a833e0d2540e43b78dbdda3d233d71f0) (the Glock 17's polish) | [notcplkerry](https://sketchfab.com/notcplkerry) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `aimpoint-compm4.zip` | [AimPoint CompM4 Sight](https://sketchfab.com/3d-models/aimpoint-compm4-sight-efad6c1af5e34ab5b98be04f7b1ad2c0) (the M4A1's Aimpoint CompM4) | [Redi4ka](https://sketchfab.com/Red4One) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `eotech-exps3-0-lowpoly.zip` | [EoTech EXPS3-0 Holographic Weapon Sight Lowpoly](https://sketchfab.com/3d-models/eotech-exps3-0-holographic-weapon-sight-lowpoly-45e4fcdfb1b34756ab9e866564a12f66) (the M4A1's EOTech EXPS3) | [valterjherson1](https://sketchfab.com/valterjherson1) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `trijicon-rmr.zip` | [Trijicon RMR](https://sketchfab.com/3d-models/trijicon-rmr-6aaefa669d9d4e65890f6d9f18abf0f3) (the Glock 17's Trijicon RMR) | [417000](https://sketchfab.com/417000) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+| `low-poly-aimpoint-ecos-n-compm2.zip` | [Low-Poly Aimpoint ECOS-N /CompM2](https://sketchfab.com/3d-models/low-poly-aimpoint-ecos-n-compm2-78e7674c782446aebdb10e89f903b397) (the Mosin-Nagant's Aimpoint CompM2) | [notcplkerry](https://sketchfab.com/notcplkerry) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
 
 ## Fonts
 
