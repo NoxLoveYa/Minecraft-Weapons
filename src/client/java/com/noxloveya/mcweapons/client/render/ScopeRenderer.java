@@ -24,7 +24,6 @@ import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
 import com.noxloveya.mcweapons.gun.Reticle;
 import com.noxloveya.mcweapons.registry.ModComponents;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
@@ -114,7 +113,7 @@ public final class ScopeRenderer {
 	public static Vector2f screenUv(Vector3fc viewPos) {
 		Minecraft minecraft = Minecraft.getInstance();
 		float aspect = (float)minecraft.getWindow().getWidth() / Math.max(1, minecraft.getWindow().getHeight());
-		float tanHalf = (float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2));
+		float tanHalf = Viewmodel.hudTanHalf();
 		float depth = Math.max(1.0E-4F, -viewPos.z());
 		return new Vector2f(0.5F + 0.5F * viewPos.x() / depth / (aspect * tanHalf), 0.5F + 0.5F * viewPos.y() / depth / tanHalf);
 	}
@@ -195,7 +194,7 @@ public final class ScopeRenderer {
 		RenderTarget main = gameRenderer.mainRenderTarget();
 		setUp(main.width, main.height);
 		Vector2f onScreen = screenUv(center);
-		float radius = 0.5F * drawn.radius() / -center.z / (float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2));
+		float radius = 0.5F * drawn.radius() / -center.z / Viewmodel.hudTanHalf();
 		// Where the eye is against the eyepiece: off its axis, in lens radii, and how far behind it.
 		Vector3f eye = new Vector3f(center).negate();
 		float offsetX = eye.dot(pose.transformDirection(new Vector3f(1, 0, 0)).normalize()) / drawn.radius();
@@ -327,7 +326,7 @@ public final class ScopeRenderer {
 					.putFloat(sight.outline().size())
 					.putFloat(strength)
 					.putFloat(aspect)
-					.putFloat((float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)))
+					.putFloat(Viewmodel.hudTanHalf())
 					.putFloat(handProjection.m22())
 					.putFloat(handProjection.m32())
 					.putFloat(RenderSystem.getDevice().getDeviceInfo().isZZeroToOne() ? 1 : 0);

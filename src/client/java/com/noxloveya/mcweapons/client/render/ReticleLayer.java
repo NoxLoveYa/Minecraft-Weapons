@@ -13,7 +13,6 @@ import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.gun.Reticle;
-import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -85,7 +84,7 @@ public class ReticleLayer extends GeoRenderLayer<GunItem, GeoItemRenderer.Render
 	/** How many blocks the screen's height spans at the depth of {@code pose}'s origin, in the hand's view (see Viewmodel.recordLensPose). */
 	private static float blocksPerScreen(Matrix4fc pose) {
 		float depth = -new Matrix4f(RenderSystem.getModelViewStack()).mul(pose).transformPosition(new Vector3f()).z;
-		return 2 * Math.max(depth, 0.01F) * (float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2));
+		return 2 * Math.max(depth, 0.01F) * Viewmodel.hudTanHalf();
 	}
 
 	private static void vertex(VertexConsumer buffer, PoseStack.Pose pose, float x, float y, float u, float v, int color) {

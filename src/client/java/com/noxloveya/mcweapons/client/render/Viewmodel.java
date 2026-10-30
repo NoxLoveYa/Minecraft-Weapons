@@ -9,6 +9,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.noxloveya.mcweapons.client.input.GunInput;
+import com.noxloveya.mcweapons.client.mixin.CameraAccessor;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
 import com.noxloveya.mcweapons.gun.Attachments;
@@ -266,11 +267,23 @@ public final class Viewmodel {
 	}
 
 	/**
-	 * The hand is drawn with a fixed FOV, so a view-space offset is scaled sideways by this to land on the same pixel at the world FOV.
+	 * The hand is drawn with its own FOV, so a view-space offset is scaled sideways by this to land on the same pixel at the world FOV.
 	 * Going the other way, from the world into the hand's view space, divides by it.
 	 */
 	public static float fovScale(Camera camera) {
-		return (float)(Math.tan(Math.toRadians(camera.getFov() / 2)) / Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)));
+		return (float)Math.tan(Math.toRadians(camera.getFov() / 2)) / hudTanHalf(camera);
+	}
+
+	/**
+	 * Tangent of half the FOV the hand is drawn with this frame: not always vanilla's 70 degrees, which narrows when dying or under water,
+	 * and a zoom mod (Zoomify) can zoom the hand too. Anything placed on the screen against the hand must use it.
+	 */
+	public static float hudTanHalf() {
+		return hudTanHalf(Minecraft.getInstance().gameRenderer.mainCamera());
+	}
+
+	private static float hudTanHalf(Camera camera) {
+		return (float)Math.tan(Math.toRadians(((CameraAccessor)camera).mcweapons$hudFov() / 2));
 	}
 
 	/**

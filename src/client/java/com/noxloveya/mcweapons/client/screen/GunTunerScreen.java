@@ -18,7 +18,6 @@ import com.noxloveya.mcweapons.gun.GunDefinitions;
 import com.noxloveya.mcweapons.gun.GunItem;
 import com.noxloveya.mcweapons.network.TuneGunPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -390,7 +389,7 @@ public class GunTunerScreen extends Screen {
 	/** GUI position of a gun model-space point under its drawn pose. The hand is drawn with the fixed HUD field of view. */
 	private float[] project(Matrix4f showcase, Vector3f modelPoint) {
 		Vector3f view = showcase.transformPosition(modelPoint, new Vector3f());
-		float focal = 1 / (float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2));
+		float focal = 1 / Viewmodel.hudTanHalf();
 		float depth = Math.max(-view.z, 0.01F);
 		float ndcX = view.x * focal * height / width / depth;
 		float ndcY = view.y * focal / depth;
