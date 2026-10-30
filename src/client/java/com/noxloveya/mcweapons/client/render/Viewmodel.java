@@ -199,10 +199,10 @@ public final class Viewmodel {
 		return Mth.lerp(partialTick, recoilO, recoil);
 	}
 
-	/** How much of the camera's walk bob to keep: the held gun's bob_scale, so view and gun bob together, or all of it without a gun. */
+	/** How much of the camera's walk bob to keep: none with a gun out (only the gun bobs, so what it points at stays where it is drawn), all of it without. */
 	public static float viewBobScale() {
 		LocalPlayer player = Minecraft.getInstance().player;
-		return player != null && GunItem.holdsGun(player) ? feel.bobScale() * (1 - BREATH_STEADY * steady(1)) : 1;
+		return player != null && GunItem.holdsGun(player) ? 0 : 1;
 	}
 
 	/**

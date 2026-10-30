@@ -15,7 +15,7 @@ public class CameraMixin {
 		return fov * Viewmodel.fovMultiplier(partialTicks);
 	}
 
-	// No API scales the view bob. With a gun out it follows the gun's bob_scale, so the world does not bounce around a still gun.
+	// No API scales the view bob. With a gun out the world does not bob at all: only the gun does, so shots and a laser land where it points on screen.
 	@ModifyExpressionValue(method = "extractRenderState", at = @At(value = "INVOKE",
 			target = "Lnet/minecraft/client/entity/ClientAvatarState;getInterpolatedBob(F)F"))
 	private float mcweapons$scaleViewBob(float bob) {
