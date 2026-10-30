@@ -25,6 +25,7 @@ public class McWeapons implements ModInitializer {
 		GunItem.registerEvents();
 		ServerHandlers.register();
 		Bullets.register();
+		BlockProtection.register();
 	}
 
 	public static Identifier id(String path) {
