@@ -24,11 +24,11 @@ public final class ModItems {
 	// Gas held back by the baffles: the bullet leaves a little slower and the gun kicks less.
 	public static final AttachmentItem SILENCER = attachment("silencer", AttachmentSlot.MUZZLE, item -> item.silences().velocity(0.93F).recoil(0.85F));
 	// On the model the red_dot_reticle locator becomes the sight (see GunRenderer.aimBone); the magnified ones are looked through (ScopeRenderer).
-	// A 1x sight's eye distance puts its window (the red dot's 22 x 16 mm, the M4's about 41 x 26 mm, to the front of the frame) as large as
-	// Black Ops 6's sights at their default settings, measured at FOV 70: the red dot about 13% of the view across and 17 to 18% high, the
-	// reflex 14% by 16%, the holographic 12% by 14% (spec 01, "1x sights like recent Call of Duty", corrected references). The Coyote sits
-	// at the user's 125% of that, 11% by 14%.
-	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.224F));
+	// A 1x sight's eye distance is the user's 125% of the one that put its window (the red dot's 22 x 16 mm, the M4's about 41 x 26 mm, to the
+	// front of the frame) as large as Black Ops 6's sights at their default settings, measured at FOV 70 (spec 01, "1x sights like recent Call
+	// of Duty", corrected references): the window now about 10% of the view across and 14% high for the red dot, the reflex 11% by 13%, the
+	// holographic 10% by 11%. The Coyote was already at 125% of that and is again, 9% by 11%.
+	public static final AttachmentItem RED_DOT = attachment("red_dot", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.28F));
 	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope());
 	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope().eyeDistance(0.104F));
 	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().eyeDistance(0.104F));
@@ -44,9 +44,9 @@ public final class ModItems {
 	// A vertical grip holds the muzzle down; an angled one brings the gun up faster.
 	public static final AttachmentItem VERTICAL_GRIP = attachment("vertical_grip", AttachmentSlot.GRIP, item -> item.recoil(0.8F).spreadHip(0.9F));
 	public static final AttachmentItem ANGLED_GRIP = attachment("angled_grip", AttachmentSlot.GRIP, item -> item.recoil(0.9F).aimTime(0.8F));
-	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.5125F));
-	public static final AttachmentItem REFLEX_SIGHT = attachment("reflex_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.41F));
-	public static final AttachmentItem HOLOGRAPHIC_SIGHT = attachment("holographic_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.49F));
+	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.640625F));
+	public static final AttachmentItem REFLEX_SIGHT = attachment("reflex_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.5125F));
+	public static final AttachmentItem HOLOGRAPHIC_SIGHT = attachment("holographic_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.6125F));
 	public static final AttachmentItem PRISM_SCOPE = attachment("prism_scope", AttachmentSlot.OPTIC, item -> item.zoom(2.5F).scope().eyeDistance(0.104F));
 	public static final AttachmentItem FLASHLIGHT = attachment("flashlight", AttachmentSlot.LIGHT, AttachmentItem::flashlight);
 
