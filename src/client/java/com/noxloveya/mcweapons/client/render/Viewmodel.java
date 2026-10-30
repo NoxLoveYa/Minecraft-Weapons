@@ -115,6 +115,12 @@ public final class Viewmodel {
 	/** With the breath held: how much of the sway and walk bob goes (the breathing motion goes entirely), and how much the view closes in. */
 	private static final float BREATH_STEADY = 0.85F;
 	private static final float BREATH_ZOOM = 0.08F;
+	/** Ground speed against a walk, eased: the walk bob grows with it, so a sprint bobs more and the slow walk while aiming less. */
+	private static float pace;
+	private static float paceO;
+	/** Blocks a tick at vanilla's walking speed, and the most a sprint (or a sprint jump) adds to the bob. */
+	private static final float WALK_PER_TICK = 0.216F;
+	private static final float MAX_PACE = 1.5F;
 	/** Looking up or down, the gun trails this many times further than turning sideways by as much: nods are smaller and slower than turns. */
 	private static final float PITCH_SWAY = 2.5F;
 
@@ -133,6 +139,9 @@ public final class Viewmodel {
 			player.playSound(((GunItem)player.getMainHandItem().getItem()).sound("handling"), 1.0F, 1.0F);
 		}
 		showcaseOpen = showcasing;
+		paceO = pace;
+		float stride = (float)Math.sqrt(Mth.square(player.getX() - player.xo) + Mth.square(player.getZ() - player.zo));
+		pace += (Math.min(stride / WALK_PER_TICK, MAX_PACE) - pace) * 0.3F;
 		showcaseO = showcase;
 		showcase = Mth.clamp(showcase + (showcasing ? SHOWCASE_STEP : -SHOWCASE_STEP), 0, 1);
 		if (swaySnap) {
@@ -438,7 +447,7 @@ public final class Viewmodel {
 		if (minecraft.options.bobView().get()) {
 			ClientAvatarState avatar = player.avatarState();
 			float walk = avatar.getBackwardsInterpolatedWalkDistance(partialTick) * Mth.PI;
-			float bob = avatar.getInterpolatedBob(partialTick) * feel.bobScale() * loose;
+			float bob = avatar.getInterpolatedBob(partialTick) * Mth.lerp(partialTick, paceO, pace) * feel.bobScale() * loose;
 			float depth = Math.max(0.3F, -grip.z);
 			poseStack.rotateDegrees(Axis.YP, (float)Math.toDegrees(-Mth.sin(walk) * bob * 0.5F / depth));
 			poseStack.rotateDegrees(Axis.XP, (float)Math.toDegrees(-Math.abs(Mth.cos(walk) * bob) / depth));

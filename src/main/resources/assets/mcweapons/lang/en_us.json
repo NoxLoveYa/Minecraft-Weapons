@@ -135,7 +135,7 @@
   "gui.mcweapons.tuner.field.sway_gain.desc": "How much the gun lags and leans when you turn. 0 keeps it locked to the view.",
   "gui.mcweapons.tuner.field.sway_max_deg.desc": "The furthest sway can lean the gun, in degrees.",
   "gui.mcweapons.tuner.field.sway_follow.desc": "How quickly the gun catches up with the view after you turn. Lower feels lazier.",
-  "gui.mcweapons.tuner.field.bob_scale.desc": "How much the gun and the view bounce while walking. 0 is steady, 1 is vanilla.",
+  "gui.mcweapons.tuner.field.bob_scale.desc": "How much the gun bobs while walking, more at a run and less at a slow walk. 0 is steady.",
   "gui.mcweapons.tuner.field.breath_scale.desc": "Strength of the idle breathing and drift. 0 turns it off. Drops to a fifth while aiming.",
   "gui.mcweapons.tuner.apply": "Apply",
   "gui.mcweapons.tuner.save": "Save",

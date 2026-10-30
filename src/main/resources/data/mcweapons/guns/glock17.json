@@ -38,7 +38,7 @@
     "sway_gain": 0.2,
     "sway_max_deg": 5.0,
     "sway_follow": 1.0,
-    "bob_scale": 0.1,
+    "bob_scale": 0.3,
     "breath_scale": 2.65,
     "recoil_push_back": 0.04,
     "recoil_spring_stiffness": 0.35,
