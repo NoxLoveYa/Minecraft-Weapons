@@ -5,8 +5,8 @@
     "burst",
     "semi"
   ],
-  "rpm": 800,
-  "damage": 10.5,
+  "rpm": 720,
+  "damage": 4.5,
   "range": 224.0,
   "mag_size": 30,
   "chamber": true,
@@ -25,7 +25,7 @@
   "ads_ticks": 5,
   "ads_fov_multiplier": 0.8,
   "move_speed_ads_multiplier": 0.85,
-  "headshot_multiplier": 2.0,
+  "headshot_multiplier": 1.7,
   "bullet": {
     "speed": 905.0,
     "gravity": 9.81
