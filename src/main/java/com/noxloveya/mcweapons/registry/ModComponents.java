@@ -8,8 +8,10 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
+import net.minecraft.util.Unit;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +35,13 @@ public final class ModComponents {
 	/** On safe, the fire mode the gun was on before, which leaving safe goes back to. Absent means the gun's first mode. */
 	public static final DataComponentType<String> MODE_BEFORE_SAFE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("mode_before_safe"),
 			DataComponentType.<String>builder().persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8).build());
+
+	/**
+	 * Not read any more (a gun without AMMO is the unchambered one now, see GunItem.chambered): kept registered so guns the arena marked
+	 * with it on 2026-10-30 still load. The arena's refill no longer sets it.
+	 */
+	public static final DataComponentType<Unit> UNCHAMBERED = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("unchambered"),
+			DataComponentType.<Unit>builder().persistent(Unit.CODEC).networkSynchronized(StreamCodec.unit(Unit.INSTANCE)).build());
 
 	/** What is fitted to a gun: attachment slot name to attachment item id (see {@link com.noxloveya.mcweapons.gun.Attachments}). Absent means none. */
 	public static final DataComponentType<Map<String, Identifier>> ATTACHMENTS = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("attachments"),
