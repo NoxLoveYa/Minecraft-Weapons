@@ -82,9 +82,9 @@ public final class GunHud {
 		Font font = Minecraft.getInstance().font;
 		ItemStack stack = player.getMainHandItem();
 		int ammo = GunItem.ammo(stack, definition);
-		// The count is what is in the mag; a chambered round (there is one whenever the gun has any) is the bullet icon beside it.
-		boolean chambered = ammo > 0;
-		int inMag = ammo - (chambered ? 1 : 0);
+		// The count is what is in the mag; a chambered round is the bullet icon beside it.
+		boolean chambered = GunItem.chambered(stack, definition);
+		int inMag = GunItem.inMag(stack, definition);
 		int color = ammo == 0 ? RED : inMag <= definition.magSize() / 4 ? AMBER : WHITE;
 		String name = stack.getHoverName().getString().toUpperCase(Locale.ROOT);
 		AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);

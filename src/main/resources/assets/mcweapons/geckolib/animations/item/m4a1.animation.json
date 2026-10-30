@@ -1983,6 +1983,9 @@
 				"1.18": {
 					"effect": "mcweapons:m4a1.charge_release"
 				}
+			},
+			"timeline": {
+				"1.22": "chamber;"
 			}
 		},
 		"animation.m4a1.put_away": {

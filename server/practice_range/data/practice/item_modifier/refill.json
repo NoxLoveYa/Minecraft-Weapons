@@ -1,24 +1,7 @@
 {
-  "type": "minecraft:sequence",
-  "functions": [
-    {
-      "type": "minecraft:set_components",
-      "components": {
-        "!mcweapons:ammo": {},
-        "!mcweapons:gun_state": {}
-      }
-    },
-    {
-      "type": "minecraft:filtered",
-      "item_filter": {
-        "items": ["mcweapons:glock17", "mcweapons:m4a1", "mcweapons:mosin_nagant"]
-      },
-      "on_pass": {
-        "type": "minecraft:set_components",
-        "components": {
-          "mcweapons:unchambered": {}
-        }
-      }
-    }
-  ]
+  "type": "minecraft:set_components",
+  "components": {
+    "!mcweapons:ammo": {},
+    "!mcweapons:gun_state": {}
+  }
 }

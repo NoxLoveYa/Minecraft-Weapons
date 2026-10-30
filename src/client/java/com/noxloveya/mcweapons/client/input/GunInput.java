@@ -134,8 +134,6 @@ public final class GunInput {
 	/** Gun types already pulled out once in this world: the first pull-out also readies the gun (draw_first). */
 	private static final Set<Item> READIED = new HashSet<>();
 	private static @Nullable ClientLevel readiedIn;
-	/** Until when the held unchambered gun waits for the server to clear the flag we asked about, before asking (and chambering) again. */
-	private static long chamberAskedUntil;
 	/** The fire mode we switched to, used until the server's fire_mode arrives. */
 	private static @Nullable String predictedMode;
 	private static long predictedModeUntil;
@@ -397,21 +395,14 @@ public final class GunInput {
 			PENDING.clear();
 			Viewmodel.reset();
 			drawDue = true;
-			chamberAskedUntil = 0;
 		}
 		drawnStack = stack;
 		if (drawDue && puttingAway.isEmpty()) {
 			drawDue = false;
-			boolean first = READIED.add(gun);
-			if (!stack.has(ModComponents.UNCHAMBERED)) {
-				play(player, gun, first ? "draw_first" : "draw");
-			}
-		}
-		// A full magazine with nothing chambered (the arena's respawn): draw_first chambers a round, pulled out or already in hand.
-		if (!drawDue && puttingAway.isEmpty() && stack.has(ModComponents.UNCHAMBERED) && player.level().getGameTime() >= chamberAskedUntil) {
+			play(player, gun, READIED.add(gun) | !GunItem.readied(stack) ? "draw_first" : "draw");
+		} else if (!drawDue && puttingAway.isEmpty() && !GunItem.readied(stack) && !playing(player, gun, "draw_first")) {
+			// Never readied while already in hand (the arena refilled it on respawn): it is readied now. Its chamber keyframe chambers a round.
 			play(player, gun, "draw_first");
-			ClientPlayNetworking.send(new ChamberPayload(slot));
-			chamberAskedUntil = player.level().getGameTime() + 40;
 		}
 		if (definition != null) {
 			AttachmentItem optic = Attachments.in(stack, AttachmentSlot.OPTIC);
@@ -562,7 +553,7 @@ public final class GunInput {
 		nextShotDue = definition.nextShotDue(nextShotDue, now);
 		noSprintUntil = now + SHOT_NO_SPRINT_TICKS;
 		int ammo = GunItem.ammo(stack, definition);
-		boolean fires = !safe && ammo > 0;
+		boolean fires = !safe && GunItem.chambered(stack, definition);
 		// The shot leaves along the barrel as it was last drawn (from before this shot's recoil kick), wherever the gun points: a gun swung
 		// away shoots away. A laser's dot is on the same line; the server fires the same bullet from these. Without the viewmodel drawn
 		// (third person), from the eye along the look.
@@ -704,5 +695,19 @@ public final class GunInput {
 
 	private static void play(LocalPlayer player, GunItem gun, String action) {
 		gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).tryTriggerAnimation(GunItem.MAIN_CONTROLLER, action);
+	}
+
+	/** {@code action} is playing in our hands (a finished triggered animation stays the current one until the next, hence the finished check). */
+	private static boolean playing(LocalPlayer player, GunItem gun, String action) {
+		var main = gun.getAnimatableInstanceCache().getManagerForId(GunRenderer.instanceId(player)).getAnimationControllers().get(GunItem.MAIN_CONTROLLER);
+		return main != null && main.isTriggeredAnimation(action) && !main.hasAnimationFinished();
+	}
+
+	/** The draw_first in our hands reached its {@code chamber} keyframe: a gun never readied has a round chambered (the server moves it in). */
+	public static void chamberKeyframe(LocalPlayer player, GunItem gun) {
+		ItemStack stack = player.getMainHandItem();
+		if (stack.getItem() == gun && !GunItem.readied(stack)) {
+			ClientPlayNetworking.send(new ChamberPayload(player.getInventory().getSelectedSlot()));
+		}
 	}
 }

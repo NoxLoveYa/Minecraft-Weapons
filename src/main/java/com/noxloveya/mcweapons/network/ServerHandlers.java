@@ -94,13 +94,7 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
 		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot(), payload.held()));
 		ServerPlayNetworking.registerGlobalReceiver(AttachPayload.TYPE, (payload, context) -> attach(context.player(), payload));
-		// Looks only (the round count already is a full magazine), so any held gun may be chambered.
-		ServerPlayNetworking.registerGlobalReceiver(ChamberPayload.TYPE, (payload, context) -> {
-			ItemStack gun = heldGun(context.player(), payload.slot());
-			if (!gun.isEmpty()) {
-				gun.remove(ModComponents.UNCHAMBERED);
-			}
-		});
+		ServerPlayNetworking.registerGlobalReceiver(ChamberPayload.TYPE, (payload, context) -> chamber(context.player(), payload.slot()));
 		ServerPlayNetworking.registerGlobalReceiver(ReticlePayload.TYPE, (payload, context) -> {
 			// Looks only, and Reticle keeps its own values in range, so any held gun takes it.
 			ItemStack gun = heldGun(context.player(), payload.slot());
@@ -167,8 +161,8 @@ public final class ServerHandlers {
 		gun.set(ModComponents.GUN_STATE, new GunState(0, definition.shotRecorded(state.lastShotTick(), now, 1)));
 		GunItem item = (GunItem) gun.getItem();
 		int ammo = GunItem.ammo(gun, definition);
-		// Empty, or on safe (the trigger is blocked): the same dry click, and no shot.
-		if (ammo <= 0 || GunDefinition.SAFE.equals(GunItem.fireMode(gun, definition))) {
+		// Nothing chambered (empty, or never readied), or on safe (the trigger is blocked): the same dry click, and no shot.
+		if (!GunItem.chambered(gun, definition) || GunDefinition.SAFE.equals(GunItem.fireMode(gun, definition))) {
 			playSound(player, item.sound("dry"), 1.0F);
 			return;
 		}
@@ -224,6 +218,18 @@ public final class ServerHandlers {
 		// GunItem.inventoryTick shows everyone else the bolt closing once that round is in; if it already is, now.
 		if (kept < planned && player.level().getGameTime() > until - reload.endTicks()) {
 			showOthers(player, GunItem.RELOAD_STOP);
+		}
+	}
+
+	/**
+	 * A gun never readied had a round chambered by its draw_first: a round moves from the full magazine into the chamber, so the count stays
+	 * and becomes explicit (see GunItem.chambered). Not during a reload, which chambers one itself.
+	 */
+	private static void chamber(ServerPlayer player, int slot) {
+		ItemStack gun = heldGun(player, slot);
+		GunDefinition definition = GunItem.definition(gun);
+		if (definition != null && !GunItem.readied(gun) && !gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading()) {
+			gun.set(ModComponents.AMMO, GunItem.ammo(gun, definition));
 		}
 	}
 

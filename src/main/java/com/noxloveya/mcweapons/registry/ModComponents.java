@@ -8,17 +8,18 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
-import net.minecraft.util.Unit;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class ModComponents {
-	/** Rounds loaded. Absent means a fresh gun with a full mag, since mag size comes from data. */
+	/**
+	 * Rounds loaded, the chambered one included. Absent means a gun never readied (fresh, or refilled by the practice arena): a full mag,
+	 * since mag size comes from data, and nothing chambered until its draw_first chambers a round (see GunItem.chambered).
+	 */
 	public static final DataComponentType<Integer> AMMO = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("ammo"),
 			DataComponentType.<Integer>builder().persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT).build());
 
@@ -32,13 +33,6 @@ public final class ModComponents {
 	/** On safe, the fire mode the gun was on before, which leaving safe goes back to. Absent means the gun's first mode. */
 	public static final DataComponentType<String> MODE_BEFORE_SAFE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("mode_before_safe"),
 			DataComponentType.<String>builder().persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8).build());
-
-	/**
-	 * A full magazine in and nothing chambered yet (the practice range's arena sets it on respawn): the next pull-out plays draw_first
-	 * to chamber a round, and the holder's client then asks for it to be cleared (ChamberPayload).
-	 */
-	public static final DataComponentType<Unit> UNCHAMBERED = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("unchambered"),
-			DataComponentType.<Unit>builder().persistent(Unit.CODEC).networkSynchronized(StreamCodec.unit(Unit.INSTANCE)).build());
 
 	/** What is fitted to a gun: attachment slot name to attachment item id (see {@link com.noxloveya.mcweapons.gun.Attachments}). Absent means none. */
 	public static final DataComponentType<Map<String, Identifier>> ATTACHMENTS = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("attachments"),

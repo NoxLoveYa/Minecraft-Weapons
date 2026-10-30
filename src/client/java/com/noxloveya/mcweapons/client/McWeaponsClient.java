@@ -8,6 +8,7 @@ import com.geckolib.constant.DataTickets;
 import com.geckolib.renderer.GeoItemRenderer;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.client.input.GunInput;
+import net.minecraft.client.player.LocalPlayer;
 import com.noxloveya.mcweapons.client.render.Casings;
 import com.noxloveya.mcweapons.client.render.GunHud;
 import com.noxloveya.mcweapons.client.render.GunRenderer;
@@ -107,13 +108,19 @@ public class McWeaponsClient implements ClientModInitializer {
 		}
 	}
 
-	/** Instruction keyframes in the gun animations: {@code eject_casing}, where a bolt action's bolt throws the spent casing out. */
+	/**
+	 * Instruction keyframes in the gun animations: {@code eject_casing}, where a bolt action's bolt throws the spent casing out, and
+	 * {@code chamber}, where draw_first's action closes on a round (only our own gun's counts).
+	 */
 	private static void runKeyframeInstruction(KeyFrameEvent<GunItem, CustomInstructionKeyframeData> event) {
 		ClientLevel level = Minecraft.getInstance().level;
 		Long instanceId = event.renderState().getGeckolibData(DataTickets.ANIMATABLE_INSTANCE_ID);
 		Entity holder = level == null || instanceId == null ? null : GunRenderer.holder(level, instanceId);
 		if (holder != null && event.keyframeData().getInstructions().contains("eject_casing")) {
 			Casings.eject(holder, event.animatable());
+		}
+		if (holder instanceof LocalPlayer player && player == Minecraft.getInstance().player && event.keyframeData().getInstructions().contains("chamber")) {
+			GunInput.chamberKeyframe(player, event.animatable());
 		}
 	}
 

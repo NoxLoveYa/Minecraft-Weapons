@@ -170,6 +170,21 @@ public class GunItem extends Item implements GeoItem {
 		return stack.getOrDefault(ModComponents.AMMO, definition.magSize());
 	}
 
+	/** A round is in the chamber: any round at all, once the gun has been readied (one never readied has a full mag and an empty chamber). */
+	public static boolean chambered(ItemStack stack, GunDefinition definition) {
+		return readied(stack) && ammo(stack, definition) > 0;
+	}
+
+	/** The gun has had a round chambered since it was made or refilled: it has an ammo count. Until then its draw_first chambers one. */
+	public static boolean readied(ItemStack stack) {
+		return stack.has(ModComponents.AMMO);
+	}
+
+	/** Rounds in the magazine: the count less the chambered round. */
+	public static int inMag(ItemStack stack, GunDefinition definition) {
+		return ammo(stack, definition) - (chambered(stack, definition) ? 1 : 0);
+	}
+
 	public static boolean holdsGun(Player player) {
 		return !player.isSpectator() && player.getMainHandItem().getItem() instanceof GunItem;
 	}

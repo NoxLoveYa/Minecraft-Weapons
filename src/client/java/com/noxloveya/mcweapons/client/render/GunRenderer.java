@@ -355,13 +355,13 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	}
 
 	/**
-	 * Any round at all sits in the chamber (a locked-back slide means the last one has gone, even before the server says so). Not
-	 * during a reload: an open bolt has taken it out, and a slide that locked back has none.
+	 * A round sits in the chamber (see GunItem.chambered; a locked-back slide means the last one has gone, even before the server says so).
+	 * Not during a reload: an open bolt has taken it out, and a slide that locked back has none.
 	 */
 	private static boolean chambered(RenderData renderData) {
 		ItemStack stack = renderData.itemStack();
 		GunDefinition definition = GunItem.definition(stack);
-		return definition != null && GunItem.ammo(stack, definition) > 0 && !slideLocked(renderData) && !reloading(renderData);
+		return definition != null && GunItem.chambered(stack, definition) && !slideLocked(renderData) && !reloading(renderData);
 	}
 
 	/**
@@ -402,8 +402,7 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 		if (definition == null) {
 			return 1;
 		}
-		int ammo = GunItem.ammo(stack, definition);
-		int inMag = Math.max(0, ammo - 1);
+		int inMag = Math.max(0, GunItem.inMag(stack, definition));
 		if (reloading(renderData)) {
 			RoundReload rounds = definition.roundReload();
 			Level level = Minecraft.getInstance().level;
