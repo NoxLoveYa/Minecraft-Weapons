@@ -1,0 +1,1 @@
+{"criteria":{"take":{"trigger":"minecraft:player_interacted_with_entity","conditions":{"entity":{"type":"minecraft:entity_properties","entity":"this","predicate":{"minecraft:entity_type":"minecraft:interaction","minecraft:nbt":"{Tags:[\"pr_rack_glock17\"]}"}}}}},"rewards":{"function":"practice:take_glock17"}}
