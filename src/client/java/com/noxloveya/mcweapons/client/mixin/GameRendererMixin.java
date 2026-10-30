@@ -1,5 +1,6 @@
 package com.noxloveya.mcweapons.client.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -36,6 +37,14 @@ public class GameRendererMixin {
 	private boolean mcweapons$skipHandBobWithGun(GameRenderer renderer, CameraRenderState cameraState, PoseStack poseStack) {
 		Minecraft minecraft = Minecraft.getInstance();
 		return minecraft.player == null || !GunItem.holdsGun(minecraft.player);
+	}
+
+	// Vanilla drops the hand with the HUD (F1); a held gun stays on screen.
+	@ModifyExpressionValue(method = "renderItemInHand", at = @At(value = "FIELD",
+			target = "Lnet/minecraft/client/renderer/state/gui/GuiRenderState;isHudHidden:Z"))
+	private boolean mcweapons$gunWithoutHud(boolean hudHidden) {
+		Minecraft minecraft = Minecraft.getInstance();
+		return hudHidden && (minecraft.player == null || !GunItem.holdsGun(minecraft.player));
 	}
 
 	// No API runs between the level and the hand: an aimed scope's lens pass goes over the level here, so the scope is drawn sharp over it.
