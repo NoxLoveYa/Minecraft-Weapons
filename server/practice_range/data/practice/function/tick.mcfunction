@@ -10,3 +10,5 @@ execute as @e[type=player,tag=!pr_in_arena,x=40,y=-61,z=-34,dx=60,dy=9,dz=60] ru
 execute as @e[type=player,tag=pr_in_arena] unless entity @s[x=40,y=-61,z=-34,dx=60,dy=9,dz=60] run function practice:arena_leave
 execute as @e[type=player,tag=pr_in_arena,scores={pr_deaths=1..}] run function practice:arena_respawn
 gamemode survival @e[type=player,tag=pr_in_arena,gamemode=!survival]
+# On the arena's team (no name tags) while in it, including anyone already inside when this pack loads; arena_leave takes them off.
+team join pr_arena @a[tag=pr_in_arena,team=!pr_arena]
