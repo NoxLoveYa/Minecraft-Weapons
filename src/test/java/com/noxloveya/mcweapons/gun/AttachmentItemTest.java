@@ -49,7 +49,7 @@ class AttachmentItemTest {
 		GunDefinition fitted = laser.applyTo(glock);
 		assertEquals(0.24F, fitted.spreadHipDeg(), 1.0E-6);
 		assertEquals(glock.spreadAdsDeg(), fitted.spreadAdsDeg(), "aimed shots keep their spread");
-		assertEquals(2, fitted.adsTicks(), "3 ticks become 2");
+		assertEquals(2.01F, fitted.adsTicks(), 1.0E-5, "3 ticks become 2.01, not rounded");
 		assertEquals(1, laser.applyTo(glock.withAdsTicks(1)).adsTicks(), "never below a tick");
 		assertEquals(0, laser.applyTo(glock.withAdsTicks(0)).adsTicks(), "an instant aim stays instant");
 	}

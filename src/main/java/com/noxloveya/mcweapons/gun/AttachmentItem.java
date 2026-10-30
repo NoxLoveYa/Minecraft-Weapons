@@ -83,7 +83,7 @@ public class AttachmentItem extends Item {
 		return this;
 	}
 
-	/** Raising the sights takes {@code multiplier} times as long ({@code ads_ticks}, rounded, at least a tick), from a stand, a walk or a run. */
+	/** Raising the sights takes {@code multiplier} times as long ({@code ads_ticks}, at least a tick), from a stand, a walk or a run. */
 	public AttachmentItem aimTime(float multiplier) {
 		this.aimTime = multiplier;
 		return this;
@@ -186,7 +186,7 @@ public class AttachmentItem extends Item {
 		}
 		// An instant aim (0 ticks) stays instant.
 		if (aimTime != 1 && applied.adsTicks() > 0) {
-			applied = applied.withAdsTicks(Math.max(1, Math.round(applied.adsTicks() * aimTime)));
+			applied = applied.withAdsTicks(Math.max(1, applied.adsTicks() * aimTime));
 		}
 		return applied;
 	}

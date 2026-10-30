@@ -146,7 +146,7 @@ public class GunTunerScreen extends Screen {
 			Map.entry("movement_spread.walk", new Range(0.1, 5, 0.05)),
 			Map.entry("movement_spread.sprint", new Range(0.1, 5, 0.05)),
 			Map.entry("movement_spread.crouch", new Range(0.1, 2, 0.05)),
-			Map.entry("ads_ticks", new Range(0, 20, 1)),
+			Map.entry("ads_ticks", new Range(0, 20, 0.1)),
 			Map.entry("ads_fov_multiplier", new Range(0.1, 1, 0.01)),
 			Map.entry("move_speed_ads_multiplier", new Range(0, 1, 0.05)),
 			Map.entry("recoil_pitch_deg", new Range(0, 10, 0.1)),

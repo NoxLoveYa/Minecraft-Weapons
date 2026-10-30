@@ -28,7 +28,7 @@ public record GunDefinition(
 		int drawTicks,
 		int reloadTicks,
 		int reloadEmptyTicks,
-		int adsTicks,
+		float adsTicks,
 		float adsFovMultiplier,
 		float moveSpeedAdsMultiplier,
 		float headshotMultiplier,
@@ -57,7 +57,7 @@ public record GunDefinition(
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("draw_ticks").forGetter(GunDefinition::drawTicks),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("reload_ticks").forGetter(GunDefinition::reloadTicks),
 			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("reload_empty_ticks").forGetter(GunDefinition::reloadEmptyTicks),
-			ExtraCodecs.NON_NEGATIVE_INT.fieldOf("ads_ticks").forGetter(GunDefinition::adsTicks),
+			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("ads_ticks").forGetter(GunDefinition::adsTicks),
 			Codec.floatRange(0.1F, 1).fieldOf("ads_fov_multiplier").forGetter(GunDefinition::adsFovMultiplier),
 			ExtraCodecs.NON_NEGATIVE_FLOAT.fieldOf("move_speed_ads_multiplier").forGetter(GunDefinition::moveSpeedAdsMultiplier)
 	).apply(i, GunDefinition::new));
@@ -80,7 +80,7 @@ public record GunDefinition(
 
 	/** The stats alone, with the default headshot multiplier, feel, bullet and movement spread, no attachments and a magazine reload. */
 	public GunDefinition(List<String> fireModes, int rpm, float damage, double range, int magSize, boolean chamber, float spreadHipDeg, float spreadAdsDeg,
-			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, int adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
+			float recoilPitchDeg, float recoilYawDeg, int drawTicks, int reloadTicks, int reloadEmptyTicks, float adsTicks, float adsFovMultiplier, float moveSpeedAdsMultiplier) {
 		this(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks, reloadEmptyTicks,
 				adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, DEFAULT_HEADSHOT_MULTIPLIER, GunFeel.DEFAULT, List.of(), BulletStats.DEFAULT, MovementSpread.DEFAULT, null);
 	}
@@ -115,7 +115,7 @@ public record GunDefinition(
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}
 
-	public GunDefinition withAdsTicks(int adsTicks) {
+	public GunDefinition withAdsTicks(float adsTicks) {
 		return new GunDefinition(fireModes, rpm, damage, range, magSize, chamber, spreadHipDeg, spreadAdsDeg, recoilPitchDeg, recoilYawDeg, drawTicks, reloadTicks,
 				reloadEmptyTicks, adsTicks, adsFovMultiplier, moveSpeedAdsMultiplier, headshotMultiplier, feel, attachments, bullet, movementSpread, roundReload);
 	}

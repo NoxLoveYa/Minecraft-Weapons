@@ -159,7 +159,7 @@ public final class Viewmodel {
 		swayYaw += Mth.wrapDegrees(player.getYRot() - swayYaw) * definition.feel().swayFollow();
 		swayPitch += (player.getXRot() - swayPitch) * definition.feel().swayFollow();
 		adsO = ads;
-		float step = 1.0F / Math.max(1, definition.adsTicks());
+		float step = 1.0F / Math.max(1.0F, definition.adsTicks());
 		ads = Mth.clamp(ads + (aiming ? step : -step), 0, 1);
 		adsFovMultiplier = definition.adsFovMultiplier();
 		magnificationO = magnification;

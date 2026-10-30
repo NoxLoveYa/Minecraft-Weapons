@@ -30,14 +30,14 @@ public final class ModItems {
 	// The tube sights (the Aimpoints) sit further out, so the eye stays behind the tube's back end: their window is smaller, as a real one is.
 	// The CompM4, CompM2 and EXPS3 are shorter and thinner-walled than the real ones, the Aimpoints' glass at the eye's end, so more of the
 	// view is glass.
-	public static final AttachmentItem TRIJICON_RMR = attachment("trijicon_rmr", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.28F));
-	public static final AttachmentItem AIMPOINT_COMPM2 = attachment("aimpoint_compm2", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.75F));
-	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope());
-	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope().eyeDistance(0.104F));
-	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().eyeDistance(0.104F));
-	public static final AttachmentItem SNIPER_SCOPE = attachment("sniper_scope", AttachmentSlot.OPTIC, item -> item.zoom(4).scope());
-	public static final AttachmentItem VARIABLE_SCOPE = attachment("variable_scope", AttachmentSlot.OPTIC, item -> item.zoom(6, 10).scope());
-	public static final AttachmentItem LONG_RANGE_SCOPE = attachment("long_range_scope", AttachmentSlot.OPTIC, item -> item.zoom(10, 16).scope());
+	public static final AttachmentItem TRIJICON_RMR = attachment("trijicon_rmr", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.28F).aimTime(1.05F));
+	public static final AttachmentItem AIMPOINT_COMPM2 = attachment("aimpoint_compm2", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.75F).aimTime(1.05F));
+	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope().aimTime(1.1F));
+	public static final AttachmentItem PU_SCOPE = attachment("pu_scope", AttachmentSlot.OPTIC, item -> item.zoom(3).scope().eyeDistance(0.104F).aimTime(1.15F));
+	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().eyeDistance(0.104F).aimTime(1.15F));
+	public static final AttachmentItem SNIPER_SCOPE = attachment("sniper_scope", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().aimTime(1.15F));
+	public static final AttachmentItem VARIABLE_SCOPE = attachment("variable_scope", AttachmentSlot.OPTIC, item -> item.zoom(6, 10).scope().aimTime(1.2F));
+	public static final AttachmentItem LONG_RANGE_SCOPE = attachment("long_range_scope", AttachmentSlot.OPTIC, item -> item.zoom(10, 16).scope().aimTime(1.25F));
 	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));
 	// On the dust cover rail: the dot shows where a hip shot goes, so hip fire tightens, and the sights come up faster.
 	public static final AttachmentItem LASER = attachment("laser", AttachmentSlot.UNDERBARREL, item -> item.laser().spreadHip(0.6F).aimTime(0.67F));
@@ -47,10 +47,10 @@ public final class ModItems {
 	// A vertical grip holds the muzzle down; an angled one brings the gun up faster.
 	public static final AttachmentItem VERTICAL_GRIP = attachment("vertical_grip", AttachmentSlot.GRIP, item -> item.recoil(0.8F).spreadHip(0.9F));
 	public static final AttachmentItem ANGLED_GRIP = attachment("angled_grip", AttachmentSlot.GRIP, item -> item.recoil(0.9F).aimTime(0.8F));
-	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.640625F));
-	public static final AttachmentItem AIMPOINT_COMPM4 = attachment("aimpoint_compm4", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.6F));
-	public static final AttachmentItem EOTECH_EXPS3 = attachment("eotech_exps3", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.55F));
-	public static final AttachmentItem PRISM_SCOPE = attachment("prism_scope", AttachmentSlot.OPTIC, item -> item.zoom(2.5F).scope().eyeDistance(0.104F));
+	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.640625F).aimTime(1.05F));
+	public static final AttachmentItem AIMPOINT_COMPM4 = attachment("aimpoint_compm4", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.6F).aimTime(1.05F));
+	public static final AttachmentItem EOTECH_EXPS3 = attachment("eotech_exps3", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.55F).aimTime(1.05F));
+	public static final AttachmentItem PRISM_SCOPE = attachment("prism_scope", AttachmentSlot.OPTIC, item -> item.zoom(2.5F).scope().eyeDistance(0.104F).aimTime(1.1F));
 	public static final AttachmentItem FLASHLIGHT = attachment("flashlight", AttachmentSlot.LIGHT, AttachmentItem::flashlight);
 
 	public static final CreativeModeTab TAB = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, McWeapons.id("guns"),
