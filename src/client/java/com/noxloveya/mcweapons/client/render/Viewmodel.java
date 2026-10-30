@@ -51,6 +51,9 @@ public final class Viewmodel {
 	/** Ticks the running pose takes to come up, and to go back down; aiming out of a sprint waits for it (see GunInput). */
 	private static final int RUN_IN_TICKS = 5;
 	private static final int RUN_OUT_TICKS = 4;
+	/** How far the running pose lowers the gun (blocks) to clear the view; further with an optic on top, or it sits across the crosshair. */
+	private static final float RUN_DROP = 0.1F;
+	private static final float RUN_DROP_OPTIC = 0.22F;
 	/** Ticks a scope takes to come up to the eye, or back off it while the gun is busy or its bolt is worked. */
 	private static final int SCOPE_TICKS = 3;
 	private static final Matrix4f inverseBase = new Matrix4f();
@@ -487,7 +490,8 @@ public final class Viewmodel {
 		float running = Mth.lerp(partialTick, runO, run);
 		running = running * running * (3 - 2 * running);
 		if (running > 0) {
-			poseStack.translate(-0.02F * running, -0.03F * running, 0.03F * running);
+			float drop = Attachments.in(stack, AttachmentSlot.OPTIC) != null ? RUN_DROP_OPTIC : RUN_DROP;
+			poseStack.translate(-0.02F * running, -drop * running, 0.03F * running);
 			poseStack.rotateAround(Axis.YP.rotationDegrees(30 * running), grip.x, grip.y, grip.z);
 			poseStack.rotateAround(Axis.XP.rotationDegrees(5 * running), grip.x, grip.y, grip.z);
 			poseStack.rotateAround(Axis.ZP.rotationDegrees(30 * running), grip.x, grip.y, grip.z);
