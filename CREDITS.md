@@ -37,6 +37,14 @@ From Pixabay, under the [Pixabay Content License](https://pixabay.com/service/li
 | `breath/release.ogg` | [Breath out](https://pixabay.com/sound-effects/people-breath-out-242642/) (sped up 1.2x) | u_hm3ohsiik6 |
 | `breath/gasp.ogg` | [Male Gasp 1](https://pixabay.com/sound-effects/film-special-effects-male-gasp-1-7183/), then [Out of Breath (Male)](https://pixabay.com/sound-effects/people-out-of-breath-male-176715/) (the first pants) | freesound_community, VoiceBosch |
 
+## Reference models
+
+Kept in `blockbench/references/` to model against; none of their geometry or textures ships in the mod.
+
+| File | Model | Author | License |
+|---|---|---|---|
+| `low-poly-g17.zip` | [Low-Poly G17](https://sketchfab.com/3d-models/low-poly-g17-a833e0d2540e43b78dbdda3d233d71f0) (the Glock 17's polish) | [notcplkerry](https://sketchfab.com/notcplkerry) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) |
+
 ## Fonts
 
 Used by the gun tuner screen. The full license texts ship in the jar under `licenses/`.

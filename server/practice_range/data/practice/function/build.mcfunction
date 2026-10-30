@@ -29,10 +29,11 @@ setworldspawn 0 -60 -7
 gamerule respawn_radius 0
 
 # The gun wall, on the back wall just east of the entry: right-click a gun for one of it (advancements practice:take_<gun>).
-# A long gun's icon stands on the diagonal; it is turned back level here.
+# A long gun's icon stands on the diagonal; it is turned back level here. Each icon fills a block, so the scales put the three at their
+# real lengths against each other (the Glock about a quarter of the M4).
 fill 2 -60 -8 12 -57 -8 spruce_planks
 summon text_display 7 -57 -6.95 {Tags:["pr"],text:{text:"Gun wall\n",color:"gold",extra:[{text:"right-click a gun to take one",color:"white"}]}}
-summon item_display 3.5 -58.4 -6.95 {Tags:["pr"],item:{id:"mcweapons:glock17",count:1},item_display:"fixed",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[1f,1f,1f]}}
+summon item_display 3.5 -58.4 -6.95 {Tags:["pr"],item:{id:"mcweapons:glock17",count:1},item_display:"fixed",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[0.45f,0.45f,0.45f]}}
 summon interaction 3.5 -59 -6.5 {Tags:["pr","pr_rack_glock17"],width:1.2f,height:1.2f,response:1b}
 summon text_display 3.5 -59.4 -6.95 {Tags:["pr"],transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[0.6f,0.6f,0.6f]},text:{text:"Glock 17",color:"white"}}
 summon item_display 6.75 -58.4 -6.95 {Tags:["pr"],item:{id:"mcweapons:m4a1",count:1},item_display:"fixed",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,-0.3827f,0.9239f],translation:[0f,0f,0f],scale:[1.7f,1.7f,1.7f]}}

@@ -81,8 +81,9 @@ public class GunRenderer extends GeoItemRenderer<GunItem> {
 	// Far above any stack hash or GeckoLib stack id, so holder-based ids never collide with them.
 	private static final long HOLDER_ID_BASE = 1L << 40;
 	// Third person: the model is built around the eye, so it is moved until the grip sits in the hand. Its arms are the player model's (4 by
-	// 12 pixels), so at 1 the gun is the same size against the hand as in first person.
-	private static final float THIRD_PERSON_SCALE = 1.0F;
+	// 12 pixels), so at 1 the gun would be the same size against the hand as in first person; a pistol that size was as long as the
+	// forearm, so it is drawn at 3/4, which puts the Glock at a fifth of a rifle's 2.5 blocks, as the real ones are.
+	private static final float THIRD_PERSON_SCALE = 0.75F;
 	/** A long gun is shrunk further in a hand, to at most this many blocks long: at its first-person size against the hand a rifle would be
 	 * about three times as long as a person is tall, while at 1.25 it looked tiny next to the pistol. */
 	private static final float THIRD_PERSON_MAX_LENGTH = 2.5F;
