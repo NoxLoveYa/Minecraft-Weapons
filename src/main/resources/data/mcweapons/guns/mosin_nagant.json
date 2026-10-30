@@ -40,7 +40,8 @@
     "mcweapons:pu_scope",
     "mcweapons:acog",
     "mcweapons:sniper_scope",
-    "mcweapons:variable_scope"
+    "mcweapons:variable_scope",
+    "mcweapons:long_range_scope"
   ],
   "feel": {
     "sway_gain": 0.2,

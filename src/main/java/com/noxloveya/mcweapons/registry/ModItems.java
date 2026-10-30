@@ -33,6 +33,7 @@ public final class ModItems {
 	public static final AttachmentItem ACOG = attachment("acog", AttachmentSlot.OPTIC, item -> item.zoom(4).scope().eyeDistance(0.104F));
 	public static final AttachmentItem SNIPER_SCOPE = attachment("sniper_scope", AttachmentSlot.OPTIC, item -> item.zoom(4).scope());
 	public static final AttachmentItem VARIABLE_SCOPE = attachment("variable_scope", AttachmentSlot.OPTIC, item -> item.zoom(6, 10).scope());
+	public static final AttachmentItem LONG_RANGE_SCOPE = attachment("long_range_scope", AttachmentSlot.OPTIC, item -> item.zoom(10, 16).scope());
 	public static final AttachmentItem EXTENDED_MAG = attachment("extended_mag", AttachmentSlot.MAGAZINE, item -> item.capacity(33));
 	// On the dust cover rail: the dot shows where a hip shot goes, so hip fire tightens, and the sights come up faster.
 	public static final AttachmentItem LASER = attachment("laser", AttachmentSlot.UNDERBARREL, item -> item.laser().spreadHip(0.6F).aimTime(0.67F));
