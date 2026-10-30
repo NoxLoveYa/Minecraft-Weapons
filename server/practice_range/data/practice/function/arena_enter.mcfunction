@@ -2,5 +2,5 @@
 tag @s add pr_in_arena
 scoreboard players reset @s pr_deaths
 gamemode survival @s
-spawnpoint @s 50 -60 -17 0 0
+spawnpoint @s 70 -60 -33 0 0
 title @s actionbar {text:"1v1 Arena: survival, you respawn here",color:"gold"}

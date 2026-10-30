@@ -1,6 +1,6 @@
 # Lays the range out, shooting south (+Z) from the firing line at z 2: a roofed lobby behind it (z -8 to 1) with the world spawn at
 # its back door and the gun wall beside the door, and the range itself walled in under the open sky. Safe to run again: it rebuilds
-# from scratch, the 1v1 arena east of it too (practice:arena_build). The chunks must be loaded first (forceload add -29 -20 62 105).
+# from scratch, the 1v1 arena east of it too (practice:arena_build). The chunks must be loaded first (forceload add -29 -36 102 105).
 kill @e[tag=pr]
 fill -29 -61 -9 33 -61 105 smooth_stone
 # In three parts, as one fill may change at most 32768 blocks.

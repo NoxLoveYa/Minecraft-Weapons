@@ -8,7 +8,7 @@
 - Moving targets: four lanes, strafing 20 blocks at 2, 4 or 5 m/s.
 - A killed target drops and stands back up 3 seconds later.
 - Bullet drop lane: boards at 10, 25, 40, 60 and 100 m. Stand on a green spot and aim at the black block at eye height.
-- A 1v1 arena through the lobby's east door (inside x 40 to 60, z -18 to 10), with a red and a blue spawn pad at its two ends and cover that looks the same from either one. Stepping in puts you in survival and makes the arena your respawn point. After a death you come back on the pad furthest from the other player in the arena (either pad if you are alone). Leaving puts you back in creative with the world spawn as respawn. Building it turns on gamerule `pvp`.
+- A 1v1 arena through the lobby's east door (inside x 40 to 100, z -34 to 26), with a red and a blue spawn pad at its two ends and cover that looks the same from either one. Stepping in puts you in survival and makes the arena your respawn point. After a death you come back on the pad furthest from the other player in the arena (either pad if you are alone). Leaving puts you back in creative with the world spawn as respawn. The mod draws a survival player's name like a sneaking one's, so walls hide it there. Building it turns on gamerule `pvp`.
 - On every load the datapack turns on gamerules `keep_inventory` (nobody drops their guns on dying) and `mcweapons:protect_blocks` (players who are not operators cannot break, place or use blocks, creative or not, but still open doors, trapdoors and fence gates), and sets `respawn_radius` 0.
 
 ## Install or rebuild
@@ -17,12 +17,12 @@
 2. Load the area, build, and unload it again:
 
    ```
-   forceload add -29 -20 62 105
+   forceload add -29 -36 102 105
    function practice:build
-   forceload remove -29 -20 62 105
+   forceload remove -29 -36 102 105
    ```
 
-   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again. To rebuild only the arena, use `forceload add 31 -20 62 12` and `function practice:arena_build`.
+   Wait a few seconds after `forceload add` so the chunks are loaded before building. `practice:build` clears and rebuilds everything it placed, so it is safe to run again. To rebuild only the arena, use `forceload add 31 -36 102 28` and `function practice:arena_build`.
 
 The server also runs with `gamemode=creative`, `force-gamemode=true`, `spawn-protection=0` (vanilla's spawn protection also stops players who are not operators opening doors; `mcweapons:protect_blocks` does its job instead) and gamerule `mob_drops false`; the datapack does not set those.
 

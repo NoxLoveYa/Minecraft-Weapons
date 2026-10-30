@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Avatar;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -33,5 +34,9 @@ public class AvatarRendererMixin {
 		state.setData(ThirdPersonGuns.AIM_HOLD, pose == ThirdPersonGuns.Pose.AIM);
 		state.setData(ThirdPersonGuns.LOW_READY, pose == ThirdPersonGuns.Pose.HIP && ThirdPersonGuns.longGun(avatar));
 		state.setData(ThirdPersonGuns.SUPPORT_HAND, ThirdPersonGuns.supportHandTarget(avatar));
+		// A survival player's name is drawn as if sneaking, so walls hide it and it doesn't give away where they are in a fight.
+		if (avatar instanceof Player player && !player.isCreative() && !player.isSpectator()) {
+			state.isDiscrete = true;
+		}
 	}
 }
