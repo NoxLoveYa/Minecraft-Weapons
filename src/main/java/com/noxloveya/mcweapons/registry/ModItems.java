@@ -28,6 +28,7 @@ public final class ModItems {
 	// front of the frame) as large as Black Ops 6's sights at their default settings, measured at FOV 70 (spec 01, "1x sights like recent Call
 	// of Duty", corrected references): the window about 10% of the view across for the RMR and the EXPS3. The Coyote is at 9% by 11%.
 	// The tube sights (the Aimpoints) sit further out, so the eye stays behind the tube's back end: their window is smaller, as a real one is.
+	// The M4's CompM4 and EXPS3 are shorter and thinner-walled than the real ones, and closer to the eye, so more of the view is glass.
 	public static final AttachmentItem TRIJICON_RMR = attachment("trijicon_rmr", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.28F));
 	public static final AttachmentItem AIMPOINT_COMPM2 = attachment("aimpoint_compm2", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.7F));
 	public static final AttachmentItem SCOUT_SCOPE = attachment("scout_scope", AttachmentSlot.OPTIC, item -> item.zoom(2).scope());
@@ -46,8 +47,8 @@ public final class ModItems {
 	public static final AttachmentItem VERTICAL_GRIP = attachment("vertical_grip", AttachmentSlot.GRIP, item -> item.recoil(0.8F).spreadHip(0.9F));
 	public static final AttachmentItem ANGLED_GRIP = attachment("angled_grip", AttachmentSlot.GRIP, item -> item.recoil(0.9F).aimTime(0.8F));
 	public static final AttachmentItem COYOTE_SIGHT = attachment("coyote_sight", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.640625F));
-	public static final AttachmentItem AIMPOINT_COMPM4 = attachment("aimpoint_compm4", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.7F));
-	public static final AttachmentItem EOTECH_EXPS3 = attachment("eotech_exps3", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.6F));
+	public static final AttachmentItem AIMPOINT_COMPM4 = attachment("aimpoint_compm4", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).eyeDistance(0.6F));
+	public static final AttachmentItem EOTECH_EXPS3 = attachment("eotech_exps3", AttachmentSlot.OPTIC, item -> item.zoom(1.25F).reticle(Reticle.Shape.CIRCLE).eyeDistance(0.55F));
 	public static final AttachmentItem PRISM_SCOPE = attachment("prism_scope", AttachmentSlot.OPTIC, item -> item.zoom(2.5F).scope().eyeDistance(0.104F));
 	public static final AttachmentItem FLASHLIGHT = attachment("flashlight", AttachmentSlot.LIGHT, AttachmentItem::flashlight);
 
