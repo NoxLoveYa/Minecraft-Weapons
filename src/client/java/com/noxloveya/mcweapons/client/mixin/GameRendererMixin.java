@@ -57,7 +57,14 @@ public class GameRendererMixin {
 			target = "Lnet/minecraft/client/renderer/feature/FeatureRenderDispatcher;prepareFrame(Lnet/minecraft/client/renderer/SubmitNodeStorage;)Lnet/minecraft/client/renderer/feature/FeatureRenderDispatcher$PreparedFrame;"))
 	private void mcweapons$gunAfterLens(CameraRenderState cameraState, PlayerRenderState playerState, GpuTextureView depthTextureView, CallbackInfo ci,
 			@Local PoseStack poseStack) {
-		if (playerState.firstPersonHandsAndItems != null && ScopeRenderer.gunAfterLens()) {
+		if (playerState.firstPersonHandsAndItems == null) {
+			return;
+		}
+		// With a 1x sight the pack's gun stays; this one is drawn for its depth only, its colour taken back off before the glass pass.
+		if (ScopeRenderer.sightDepthOnly()) {
+			ScopeRenderer.saveBeforeHand((GameRenderer)(Object)this);
+		}
+		if (ScopeRenderer.gunAfterLens() || ScopeRenderer.sightDepthOnly()) {
 			Viewmodel.submit(cameraState.cameraEntityPartialTicks, poseStack, this.handAndScreenSubmitNodeStorage, playerState, playerState.firstPersonHandsAndItems);
 		}
 	}

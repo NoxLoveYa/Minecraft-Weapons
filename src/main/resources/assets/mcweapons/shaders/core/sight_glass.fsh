@@ -1,21 +1,25 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
-// The glass in an aimed 1x sight's window (ScopeRenderer.processSight), over the screen once the hand is drawn: the scope lens's effects
-// (scope_lens.fsh) inside the window's own outline, over the level and the parts of the gun seen through it. The middle, where the
-// reticle is, stays at 1x and sharp; nothing outside the window is touched.
+// The glass in a 1x sight's window (ScopeRenderer.processSight), over the screen once the hand is drawn, aimed or not: the scope lens's
+// effects (scope_lens.fsh) inside the window's own outline, over the level and the parts of the gun seen through it. The middle, where
+// the reticle is, stays at 1x and sharp; nothing outside the window is touched, nor any part of the gun in front of the glass.
 
 uniform sampler2D InSampler; // the screen with the hand drawn
 uniform sampler2D DepthSampler; // the hand's depth (reversed: nearer is larger)
 
 layout(std140) uniform SightGlass {
     vec4 Corners[4]; // the window's corners on the screen, two to an entry (xy, zw), in order round it, in screen heights from the bottom left
+    vec4 Plane;      // the glass's plane in the hand's view space: its normal, and that dotted with a point on it
     vec2 Center;     // the reticle on the screen, the same way: the middle of the glass
     vec2 HalfSize;   // half the window's width and height on the screen, for the glint
     float Count;     // corners in use, 3 to 8
-    float Strength;  // 0 to 1 as the sight comes up to the eye: the glass's effects come in with it
+    float Strength;  // 0 to 1: how strong the glass's effects are
     float Aspect;    // the screen's width over its height
-    float GlassDepth; // the depth of the window's corner nearest the eye: the gun nearer than that is in front of the glass
+    float TanHalf;   // tan of half the hand's vertical field of view
+    float ProjA;     // the hand's projection, z row: clip z = ProjA * view z + ProjB, clip w = -view z
+    float ProjB;
+    float ZeroToOne; // 1 when the depth buffer holds clip z / w as is, 0 when it is mapped from -1..1
 };
 
 layout(location = 0) in vec2 texCoord;
@@ -37,6 +41,53 @@ vec2 corner(int i) {
 
 vec2 toUv(vec2 p) {
     return p / vec2(Aspect, 1.0);
+}
+
+// What is drawn at uv is nearer the eye than the glass there (a little, so its own frame at the window's edge counts).
+bool nearerThanGlass(vec2 uv) {
+    vec3 ray = vec3((uv * 2.0 - 1.0) * vec2(Aspect, 1.0) * TanHalf, -1.0);
+    float z = -Plane.w / dot(Plane.xyz, ray);
+    if (z >= 0.0) {
+        return false;
+    }
+    float ndc = (ProjA * z + ProjB) / -z;
+    float glass = ZeroToOne > 0.5 ? ndc : ndc * 0.5 + 0.5;
+    return texture(DepthSampler, uv).r > glass * 1.0005;
+}
+
+// The window's outline holds the point at uv, which shows a part of the gun nearer the eye than the glass.
+bool nearInWindow(vec2 uv, int count) {
+    vec2 d = uv * vec2(Aspect, 1.0) - Center;
+    for (int i = 0; i < 8; i++) {
+        if (i >= count) {
+            break;
+        }
+        vec2 a = corner(i) - Center;
+        vec2 b = corner(i + 1 < count ? i + 1 : 0) - Center;
+        vec2 n = vec2(b.y - a.y, a.x - b.x);
+        if (dot(n, a) < 0.0) {
+            n = -n;
+        }
+        if (dot(n, d) > dot(n, a)) {
+            return false;
+        }
+    }
+    return nearerThanGlass(uv);
+}
+
+// In front of the glass, or within NEAR_REACH pixels of a part of the gun in front of it inside the window: a shader pack draws its gun
+// a pixel or so off the copy whose depth this reads, and the frame's edge would otherwise be darkened as glass.
+const float NEAR_REACH = 2.0;
+
+bool inFront(vec2 uv, int count) {
+    if (nearerThanGlass(uv)) {
+        return true;
+    }
+    vec2 px = NEAR_REACH / vec2(textureSize(DepthSampler, 0));
+    return nearInWindow(uv + vec2(px.x, 0.0), count) || nearInWindow(uv - vec2(px.x, 0.0), count)
+        || nearInWindow(uv + vec2(0.0, px.y), count) || nearInWindow(uv - vec2(0.0, px.y), count)
+        || nearInWindow(uv + px * 0.7, count) || nearInWindow(uv - px * 0.7, count)
+        || nearInWindow(uv + vec2(px.x, -px.y) * 0.7, count) || nearInWindow(uv - vec2(px.x, -px.y) * 0.7, count);
 }
 
 void main() {
@@ -68,7 +119,7 @@ void main() {
         inner = min(inner, h);
     }
     // Outside the window, or a part of the gun in front of the glass (a rear sight): left as drawn.
-    if (outward > 1.0 || texture(DepthSampler, texCoord).r > GlassDepth) {
+    if (outward > 1.0 || inFront(texCoord, count)) {
         discard;
     }
     float r = min(pow(rounded, 1.0 / 6.0), 1.0);

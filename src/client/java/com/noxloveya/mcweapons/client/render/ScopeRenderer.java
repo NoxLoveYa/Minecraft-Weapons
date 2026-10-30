@@ -40,7 +40,6 @@ import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
-import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
@@ -91,7 +90,8 @@ public final class ScopeRenderer {
 	private static final int LENS_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().putFloat().get();
 	/** Corners a 1x sight's window can have (sight_glass.fsh takes them two to a vec4). */
 	private static final int MAX_CORNERS = 8;
-	private static final int SIGHT_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().putFloat().get();
+	private static final int SIGHT_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().putVec4().putVec4().putVec2().putVec2()
+			.putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().get();
 
 	/** The level before the hand, then the screen after the lens pass; for a 1x sight, the screen before its glass pass. */
 	private static @Nullable RenderTarget level;
@@ -99,6 +99,8 @@ public final class ScopeRenderer {
 	private static @Nullable MappableRingBuffer lensInfo;
 	private static @Nullable MappableRingBuffer sightInfo;
 	private static long renderedNanos;
+	/** The screen was kept in {@link #level} before a gun drawn for its depth alone, to be put back (see {@link #sightDepthOnly}). */
+	private static boolean colourSaved;
 
 	private ScopeRenderer() {
 	}
@@ -131,11 +133,27 @@ public final class ScopeRenderer {
 
 	/**
 	 * A shader pack draws the hand inside its own level pipeline, so it would be in the picture the lens pass refracts and blurs: while a
-	 * scope is up the gun is left out there and drawn after the lens pass instead, the vanilla way (GameRendererMixin). The same while a
-	 * 1x sight is up: drawn the vanilla way, the gun leaves its depth where the glass pass reads it, to keep off a rear sight in front.
+	 * scope is up the gun is left out there and drawn after the lens pass instead, the vanilla way (GameRendererMixin).
 	 */
 	public static boolean gunAfterLens() {
-		return (strength() > 0.01F || sightStrength() > 0.01F) && shaderPackInUse();
+		return strength() > 0.01F && shaderPackInUse();
+	}
+
+	/**
+	 * With a shader pack and a 1x sight fitted, the gun the pack drew (lit by it) is not in the hand's depth, which the glass pass needs to
+	 * keep off a rear sight in front of the window: the vanilla hand pass draws it again for its depth alone, its colour taken back off
+	 * ({@link #saveBeforeHand}, then {@link #processSight}).
+	 */
+	public static boolean sightDepthOnly() {
+		return sightStrength() > 0 && !gunAfterLens() && shaderPackInUse();
+	}
+
+	/** Keeps the screen as the shader pack left it, before the vanilla hand pass draws the gun for its depth (see {@link #sightDepthOnly}). */
+	public static void saveBeforeHand(GameRenderer gameRenderer) {
+		RenderTarget main = gameRenderer.mainRenderTarget();
+		setUp(main.width, main.height);
+		RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(main.getColorTexture(), level.getColorTexture(), 0, 0, 0, 0, 0, main.width, main.height);
+		colourSaved = true;
 	}
 
 	private static boolean shaderPackInUse() {
@@ -217,7 +235,7 @@ public final class ScopeRenderer {
 		renderedNanos = System.nanoTime();
 	}
 
-	/** How far the held gun's 1x sight is up at the eye this frame, 0 to 1: 0 without one, or out of first person. */
+	/** The glass of the held gun's 1x sight: 1 with one fitted in first person, aimed or not (it is glass either way), 0 otherwise. */
 	private static float sightStrength() {
 		Minecraft minecraft = Minecraft.getInstance();
 		LocalPlayer player = minecraft.player;
@@ -225,16 +243,22 @@ public final class ScopeRenderer {
 			return 0;
 		}
 		AttachmentItem optic = Attachments.in(player.getMainHandItem(), AttachmentSlot.OPTIC);
-		return optic != null && !optic.isScope() ? Viewmodel.ads(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false)) : 0;
+		return optic != null && !optic.isScope() ? 1 : 0;
 	}
 
 	/**
-	 * Runs the glass pass (shaders/core/sight_glass.fsh) over the held gun's 1x sight's window, inside its outline, as it is aimed: the
+	 * Runs the glass pass (shaders/core/sight_glass.fsh) over the held gun's 1x sight's window, inside its outline, aimed or not: the
 	 * lens pass's tint, fringes, shading and glint over the level and the parts of the gun seen through it, the middle left at 1x, nothing
 	 * outside the window touched, nor any part of the gun nearer the eye than the window (a rear sight in front of it). Called once the
 	 * hand is drawn, with the hand's depth and projection (with a shader pack, once its level pipeline has drawn it).
 	 */
 	public static void processSight(GameRenderer gameRenderer, GpuTextureView handDepth, Matrix4f handProjection) {
+		if (colourSaved) {
+			// The gun drawn for its depth alone comes back off: the shader pack's own is under it.
+			RenderTarget main = gameRenderer.mainRenderTarget();
+			RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(level.getColorTexture(), main.getColorTexture(), 0, 0, 0, 0, 0, main.width, main.height);
+			colourSaved = false;
+		}
 		Viewmodel.Sight sight = Viewmodel.takeSight();
 		float strength = sightStrength();
 		if (sight == null || strength <= 0.01F || sight.outline().size() < 3 || sight.outline().size() > MAX_CORNERS) {
@@ -248,17 +272,14 @@ public final class ScopeRenderer {
 		float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
 		RenderTarget main = gameRenderer.mainRenderTarget();
 		float aspect = (float)main.width / main.height;
-		boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
-		// The depth buffer's value at the window's corner nearest the eye (reversed Z: nearer is larger); anything larger is in front of the glass.
-		float glassDepth = 0;
+		// The glass's plane, through the window's corners and square to the sight; the shader finds its depth under each pixel.
+		Vector3f normal = sight.pose().transformDirection(new Vector3f(0, 0, 1)).normalize();
+		float planeD = normal.dot(sight.pose().transformPosition(new Vector3f(sight.outline().getFirst())));
 		for (int i = 0; i < sight.outline().size(); i++) {
 			Vector3f corner = sight.pose().transformPosition(new Vector3f(sight.outline().get(i)));
 			if (corner.z > -0.01F) {
 				return;
 			}
-			Vector4f clip = handProjection.transform(new Vector4f(corner, 1));
-			float ndc = clip.z / clip.w;
-			glassDepth = Math.max(glassDepth, zeroToOne ? ndc : ndc * 0.5F + 0.5F);
 			// In screen heights from the bottom left, so the shader's distances are the same across and up.
 			Vector2f onScreen = screenUv(corner);
 			corners[i * 2] = onScreen.x * aspect;
@@ -275,12 +296,16 @@ public final class ScopeRenderer {
 			for (int i = 0; i < MAX_CORNERS * 2; i += 4) {
 				builder.putVec4(corners[i], corners[i + 1], corners[i + 2], corners[i + 3]);
 			}
-			builder.putVec2(middle.x * aspect, middle.y)
+			builder.putVec4(normal.x, normal.y, normal.z, planeD)
+					.putVec2(middle.x * aspect, middle.y)
 					.putVec2((maxX - minX) / 2, (maxY - minY) / 2)
 					.putFloat(sight.outline().size())
 					.putFloat(strength)
 					.putFloat(aspect)
-					.putFloat(glassDepth);
+					.putFloat((float)Math.tan(Math.toRadians(Camera.BASE_HUD_FOV / 2)))
+					.putFloat(handProjection.m22())
+					.putFloat(handProjection.m32())
+					.putFloat(RenderSystem.getDevice().getDeviceInfo().isZZeroToOne() ? 1 : 0);
 		}
 		CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
 		// The pass reads the screen from a copy, as it writes it; outside the window it writes nothing.
