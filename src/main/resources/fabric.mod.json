@@ -17,6 +17,7 @@
 		]
 	},
 	"mixins": [
+		"mcweapons.mixins.json",
 		{
 			"config": "mcweapons.client.mixins.json",
 			"environment": "client"

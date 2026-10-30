@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.noxloveya.mcweapons.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"FoodDataMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

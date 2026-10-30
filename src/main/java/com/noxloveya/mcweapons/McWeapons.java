@@ -26,6 +26,7 @@ public class McWeapons implements ModInitializer {
 		ServerHandlers.register();
 		Bullets.register();
 		BlockProtection.register();
+		RegenDelay.init();
 	}
 
 	public static Identifier id(String path) {
