@@ -17,6 +17,7 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import com.mojang.renderpearl.api.textures.GpuSampler;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.noxloveya.mcweapons.McWeapons;
 import com.noxloveya.mcweapons.gun.AttachmentItem;
 import com.noxloveya.mcweapons.gun.AttachmentSlot;
@@ -39,6 +40,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
@@ -80,6 +82,7 @@ public final class ScopeRenderer {
 			.withBindGroupLayout(BindGroupLayout.builder()
 					.withUniform("SightGlass", UniformType.UNIFORM_BUFFER)
 					.withUniform("InSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+					.withUniform("DepthSampler", UniformType.COMBINED_IMAGE_SAMPLER)
 					.build())
 			.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
 			.withColorTargetState(ColorTargetState.DEFAULT)
@@ -88,7 +91,7 @@ public final class ScopeRenderer {
 	private static final int LENS_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().putFloat().get();
 	/** Corners a 1x sight's window can have (sight_glass.fsh takes them two to a vec4). */
 	private static final int MAX_CORNERS = 8;
-	private static final int SIGHT_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().get();
+	private static final int SIGHT_INFO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().putVec4().putVec2().putVec2().putFloat().putFloat().putFloat().putFloat().get();
 
 	/** The level before the hand, then the screen after the lens pass; for a 1x sight, the screen before its glass pass. */
 	private static @Nullable RenderTarget level;
@@ -227,9 +230,10 @@ public final class ScopeRenderer {
 	/**
 	 * Runs the glass pass (shaders/core/sight_glass.fsh) over the held gun's 1x sight's window, inside its outline, as it is aimed: the
 	 * lens pass's tint, fringes, shading and glint over the level and the parts of the gun seen through it, the middle left at 1x, nothing
-	 * outside the window touched. Called once the hand is drawn (with a shader pack, once its level pipeline has drawn it).
+	 * outside the window touched, nor any part of the gun nearer the eye than the window (a rear sight in front of it). Called once the
+	 * hand is drawn, with the hand's depth and projection (with a shader pack, once its level pipeline has drawn it).
 	 */
-	public static void processSight(GameRenderer gameRenderer) {
+	public static void processSight(GameRenderer gameRenderer, GpuTextureView handDepth, Matrix4f handProjection) {
 		Viewmodel.Sight sight = Viewmodel.takeSight();
 		float strength = sightStrength();
 		if (sight == null || strength <= 0.01F || sight.outline().size() < 3 || sight.outline().size() > MAX_CORNERS) {
@@ -243,11 +247,17 @@ public final class ScopeRenderer {
 		float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
 		RenderTarget main = gameRenderer.mainRenderTarget();
 		float aspect = (float)main.width / main.height;
+		boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+		// The depth buffer's value at the window's corner nearest the eye (reversed Z: nearer is larger); anything larger is in front of the glass.
+		float glassDepth = 0;
 		for (int i = 0; i < sight.outline().size(); i++) {
 			Vector3f corner = sight.pose().transformPosition(new Vector3f(sight.outline().get(i)));
 			if (corner.z > -0.01F) {
 				return;
 			}
+			Vector4f clip = handProjection.transform(new Vector4f(corner, 1));
+			float ndc = clip.z / clip.w;
+			glassDepth = Math.max(glassDepth, zeroToOne ? ndc : ndc * 0.5F + 0.5F);
 			// In screen heights from the bottom left, so the shader's distances are the same across and up.
 			Vector2f onScreen = screenUv(corner);
 			corners[i * 2] = onScreen.x * aspect;
@@ -268,7 +278,8 @@ public final class ScopeRenderer {
 					.putVec2((maxX - minX) / 2, (maxY - minY) / 2)
 					.putFloat(sight.outline().size())
 					.putFloat(strength)
-					.putFloat(aspect);
+					.putFloat(aspect)
+					.putFloat(glassDepth);
 		}
 		CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
 		// The pass reads the screen from a copy, as it writes it; outside the window it writes nothing.
@@ -278,6 +289,7 @@ public final class ScopeRenderer {
 			RenderSystem.bindDefaultUniforms(pass);
 			pass.setUniform("SightGlass", sightInfo.currentBuffer());
 			pass.setUniform("InSampler", level.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+			pass.setUniform("DepthSampler", handDepth, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
 			pass.draw(3, 1, 0, 0);
 		}
 		sightInfo.rotate();

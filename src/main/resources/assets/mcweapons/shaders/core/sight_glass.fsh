@@ -6,6 +6,7 @@
 // reticle is, stays at 1x and sharp; nothing outside the window is touched.
 
 uniform sampler2D InSampler; // the screen with the hand drawn
+uniform sampler2D DepthSampler; // the hand's depth (reversed: nearer is larger)
 
 layout(std140) uniform SightGlass {
     vec4 Corners[4]; // the window's corners on the screen, two to an entry (xy, zw), in order round it, in screen heights from the bottom left
@@ -14,6 +15,7 @@ layout(std140) uniform SightGlass {
     float Count;     // corners in use, 3 to 8
     float Strength;  // 0 to 1 as the sight comes up to the eye: the glass's effects come in with it
     float Aspect;    // the screen's width over its height
+    float GlassDepth; // the depth of the window's corner nearest the eye: the gun nearer than that is in front of the glass
 };
 
 layout(location = 0) in vec2 texCoord;
@@ -65,7 +67,8 @@ void main() {
         toSide = min(toSide, h - along);
         inner = min(inner, h);
     }
-    if (outward > 1.0) {
+    // Outside the window, or a part of the gun in front of the glass (a rear sight): left as drawn.
+    if (outward > 1.0 || texture(DepthSampler, texCoord).r > GlassDepth) {
         discard;
     }
     float r = min(pow(rounded, 1.0 / 6.0), 1.0);

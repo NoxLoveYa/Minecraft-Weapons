@@ -9,9 +9,11 @@ import com.noxloveya.mcweapons.client.render.Viewmodel;
 import com.noxloveya.mcweapons.gun.GunItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.Projection;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.PlayerRenderState;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -24,6 +26,9 @@ public class GameRendererMixin {
 	@Shadow
 	@Final
 	private SubmitNodeStorage handAndScreenSubmitNodeStorage;
+	@Shadow
+	@Final
+	private Projection hudProjection;
 
 	// No API lets a mod drop vanilla's walk bob on the hands; the viewmodel applies its own, scaled down while aiming.
 	@WrapWithCondition(method = "renderItemInHand", at = @At(value = "INVOKE",
@@ -42,8 +47,8 @@ public class GameRendererMixin {
 	// No API runs once the hand is drawn: an aimed 1x sight's glass goes over its window here, over the level and the gun seen through it.
 	@Inject(method = "render3dHud", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
 			target = "Lnet/minecraft/client/renderer/GameRenderer;renderItemInHand(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lcom/mojang/renderpearl/api/textures/GpuTextureView;)V"))
-	private void mcweapons$sightGlass(CallbackInfo ci) {
-		ScopeRenderer.processSight((GameRenderer)(Object)this);
+	private void mcweapons$sightGlass(CallbackInfo ci, @Local GpuTextureView handDepth) {
+		ScopeRenderer.processSight((GameRenderer)(Object)this, handDepth, this.hudProjection.getMatrix(new Matrix4f()));
 	}
 
 	// A shader pack (Iris) takes the hand call out of this method and draws the hand in its level pipeline; while a scope is up the gun
