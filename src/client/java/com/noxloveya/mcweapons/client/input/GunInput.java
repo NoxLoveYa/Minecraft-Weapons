@@ -67,7 +67,7 @@ public final class GunInput {
 	public static final KeyMapping INSPECT = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.inspect", InputConstants.KEY_V, CATEGORY));
 	/** Opens the gun tuner for ops. The server checks the permission again on every change. */
 	public static final KeyMapping TUNER = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.tuner", InputConstants.KEY_F7, CATEGORY));
-	/** Steps through the gun's fire modes and safe. */
+	/** Tapped, steps through the gun's fire modes; held, puts it on safe; either takes it off safe, back to the mode it was on. */
 	public static final KeyMapping FIRE_MODE = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.fire_mode", InputConstants.KEY_B, CATEGORY));
 	/** Opens the attachment menu for the held gun. */
 	public static final KeyMapping ATTACHMENTS = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.attachments", InputConstants.KEY_G, CATEGORY));
@@ -81,6 +81,8 @@ public final class GunInput {
 	public static final KeyMapping SWITCH = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.mcweapons.switch", InputConstants.KEY_H, CATEGORY));
 	/** Holding reload this long (0.4 s) checks the mag instead of reloading. */
 	private static final int MAG_CHECK_HOLD_TICKS = 8;
+	/** Holding the fire mode key this long (0.4 s) puts the gun on safe instead of stepping to the next mode. */
+	private static final int SAFE_HOLD_TICKS = 8;
 	/** Holding the switch key this long (0.4 s) selects the next laser or flashlight, and again every as long while it is held. */
 	private static final int SWITCH_HOLD_TICKS = 8;
 
@@ -116,6 +118,8 @@ public final class GunInput {
 	private static int reloadHeldTicks = -1;
 	/** The same for the switch key. */
 	private static int switchHeldTicks = -1;
+	/** The same for the fire mode key. */
+	private static int fireModeHeldTicks = -1;
 	/** The laser or flashlight the switch key acts on (see {@link #switchSelected}). */
 	private static @Nullable AttachmentItem switchSelected;
 	private static int drawnSlot = -1;
@@ -431,13 +435,18 @@ public final class GunInput {
 		if (freshPress(ATTACHMENTS) && definition != null && !definition.attachments().isEmpty()) {
 			minecraft.gui.setScreen(new AttachmentScreen());
 		}
+		// A tap steps to the next fire mode when the key is let go; holding puts the gun on safe, and either takes it off safe, back to
+		// the mode it was on (as reload's tap and hold).
 		if (freshPress(FIRE_MODE)) {
-			// Same check as the server: not mid-reload (and not while fitting an attachment).
-			if (definition != null && !busy(player, stack)) {
-				predictedMode = definition.nextFireMode(fireMode(player, stack, definition));
-				predictedModeUntil = player.level().getGameTime() + 20;
-				play(player, gun, "fire_mode");
-				ClientPlayNetworking.send(new FireModePayload(slot));
+			fireModeHeldTicks = 0;
+		}
+		if (fireModeHeldTicks >= 0) {
+			boolean held = FIRE_MODE.isDown() && ++fireModeHeldTicks == SAFE_HOLD_TICKS;
+			if (!FIRE_MODE.isDown() && fireModeHeldTicks < SAFE_HOLD_TICKS || held) {
+				switchFireMode(player, stack, gun, definition, slot, held);
+			}
+			if (!FIRE_MODE.isDown()) {
+				fireModeHeldTicks = -1;
 			}
 		}
 		// A tap switches the selected laser or flashlight when the key is let go; holding steps the selection instead, a step every
@@ -580,6 +589,17 @@ public final class GunInput {
 		}
 		ClientPlayNetworking.send(new ShootPayload(player.getInventory().getSelectedSlot(), now, seed, shotId, origin, xRot, yRot, stance));
 		return fires;
+	}
+
+	/** Predicts and asks for the fire mode key's switch (see {@link GunDefinition#nextFireMode}). Same check as the server: not mid-reload (and not while fitting an attachment). */
+	private static void switchFireMode(LocalPlayer player, ItemStack stack, GunItem gun, @Nullable GunDefinition definition, int slot, boolean held) {
+		if (definition == null || busy(player, stack)) {
+			return;
+		}
+		predictedMode = definition.nextFireMode(fireMode(player, stack, definition), stack.get(ModComponents.MODE_BEFORE_SAFE), held);
+		predictedModeUntil = player.level().getGameTime() + 20;
+		play(player, gun, "fire_mode");
+		ClientPlayNetworking.send(new FireModePayload(slot, held));
 	}
 
 	/**

@@ -174,10 +174,21 @@ public record GunDefinition(
 		return stored != null && modes.contains(stored) ? stored : modes.getFirst();
 	}
 
-	/** The mode after {@code current}, wrapping around. */
-	public String nextFireMode(@Nullable String current) {
+	/**
+	 * The mode the fire mode key switches to from {@code current}: on safe, back to {@code beforeSafe} (the mode it was on before);
+	 * otherwise held, safe, and tapped, the next of the gun's own modes, wrapping around.
+	 */
+	public String nextFireMode(@Nullable String current, @Nullable String beforeSafe, boolean held) {
+		String mode = fireMode(current);
+		if (SAFE.equals(mode)) {
+			return fireMode(beforeSafe);
+		}
+		if (held) {
+			return SAFE;
+		}
 		List<String> modes = selectableModes();
-		return modes.get((modes.indexOf(fireMode(current)) + 1) % modes.size());
+		modes.remove(SAFE);
+		return modes.get((modes.indexOf(mode) + 1) % modes.size());
 	}
 
 	public int shotIntervalTicks() {

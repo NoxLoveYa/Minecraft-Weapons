@@ -91,7 +91,7 @@ public final class ServerHandlers {
 		ServerPlayNetworking.registerGlobalReceiver(AimPayload.TYPE, (payload, context) -> setAiming(context.player(), payload.aiming(), payload.holdingBreath()));
 		ServerPlayNetworking.registerGlobalReceiver(TuneGunPayload.TYPE, (payload, context) -> tune(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(GunAnimationPayload.TYPE, (payload, context) -> inspect(context.player(), payload.action()));
-		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot()));
+		ServerPlayNetworking.registerGlobalReceiver(FireModePayload.TYPE, (payload, context) -> switchFireMode(context.player(), payload.slot(), payload.held()));
 		ServerPlayNetworking.registerGlobalReceiver(AttachPayload.TYPE, (payload, context) -> attach(context.player(), payload));
 		ServerPlayNetworking.registerGlobalReceiver(ReticlePayload.TYPE, (payload, context) -> {
 			// Looks only, and Reticle keeps its own values in range, so any held gun takes it.
@@ -219,14 +219,24 @@ public final class ServerHandlers {
 		}
 	}
 
-	/** Steps the held gun to its next fire mode (or safe), and shows everyone else the switch. Not during a reload, like the client. */
-	private static void switchFireMode(ServerPlayer player, int slot) {
+	/**
+	 * Steps the held gun to its next fire mode, or held puts it on safe, keeping the mode it was on to go back to; either leaves safe.
+	 * Shows everyone else the switch. Not during a reload, like the client.
+	 */
+	private static void switchFireMode(ServerPlayer player, int slot, boolean held) {
 		ItemStack gun = heldGun(player, slot);
 		GunDefinition definition = GunItem.definition(gun);
 		if (definition == null || gun.getOrDefault(ModComponents.GUN_STATE, GunState.EMPTY).reloading()) {
 			return;
 		}
-		gun.set(ModComponents.FIRE_MODE, definition.nextFireMode(gun.get(ModComponents.FIRE_MODE)));
+		String current = GunItem.fireMode(gun, definition);
+		String next = definition.nextFireMode(current, gun.get(ModComponents.MODE_BEFORE_SAFE), held);
+		if (GunDefinition.SAFE.equals(next)) {
+			gun.set(ModComponents.MODE_BEFORE_SAFE, current);
+		} else {
+			gun.remove(ModComponents.MODE_BEFORE_SAFE);
+		}
+		gun.set(ModComponents.FIRE_MODE, next);
 		showOthers(player, "fire_mode");
 	}
 

@@ -27,6 +27,10 @@ public final class ModComponents {
 	public static final DataComponentType<String> FIRE_MODE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("fire_mode"),
 			DataComponentType.<String>builder().persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8).build());
 
+	/** On safe, the fire mode the gun was on before, which leaving safe goes back to. Absent means the gun's first mode. */
+	public static final DataComponentType<String> MODE_BEFORE_SAFE = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("mode_before_safe"),
+			DataComponentType.<String>builder().persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8).build());
+
 	/** What is fitted to a gun: attachment slot name to attachment item id (see {@link com.noxloveya.mcweapons.gun.Attachments}). Absent means none. */
 	public static final DataComponentType<Map<String, Identifier>> ATTACHMENTS = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, McWeapons.id("attachments"),
 			DataComponentType.<Map<String, Identifier>>builder().persistent(Codec.unboundedMap(Codec.STRING, Identifier.CODEC))

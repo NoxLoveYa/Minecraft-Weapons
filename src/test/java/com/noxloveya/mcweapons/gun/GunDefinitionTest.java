@@ -140,13 +140,17 @@ class GunDefinitionTest {
 		GunDefinition glock = new GunDefinition(List.of("semi"), 600, 5, 64, 17, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
 		assertEquals(List.of("semi", "safe"), glock.selectableModes());
 		assertEquals("semi", glock.fireMode(null), "a fresh gun starts in its first mode");
-		assertEquals("safe", glock.nextFireMode(null));
-		assertEquals("semi", glock.nextFireMode("safe"));
+		assertEquals("semi", glock.nextFireMode(null, null, false), "a tap skips safe");
+		assertEquals("safe", glock.nextFireMode(null, null, true));
+		assertEquals("semi", glock.nextFireMode("safe", null, false));
 		assertEquals("semi", glock.fireMode("auto"), "a mode the gun no longer has falls back to its first");
 		GunDefinition rifle = new GunDefinition(List.of("semi", "auto", "safe"), 600, 5, 64, 30, true, 0, 0, 0, 0, 10, 40, 50, 5, 0.8F, 0.7F);
 		assertEquals(List.of("semi", "auto", "safe"), rifle.selectableModes(), "safe listed in the json is not doubled");
-		assertEquals("auto", rifle.nextFireMode("semi"));
-		assertEquals("safe", rifle.nextFireMode("auto"));
+		assertEquals("auto", rifle.nextFireMode("semi", null, false));
+		assertEquals("semi", rifle.nextFireMode("auto", null, false), "a tap wraps round without safe");
+		assertEquals("safe", rifle.nextFireMode("auto", null, true));
+		assertEquals("auto", rifle.nextFireMode("safe", "auto", true), "holding again goes back to the mode before safe");
+		assertEquals("auto", rifle.nextFireMode("safe", "auto", false), "so does a tap");
 	}
 
 	@Test

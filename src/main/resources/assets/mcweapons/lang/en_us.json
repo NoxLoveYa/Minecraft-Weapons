@@ -109,7 +109,7 @@
   "gui.mcweapons.tuner.field.sway_follow": "Sway follow",
   "gui.mcweapons.tuner.field.bob_scale": "Walk bob",
   "gui.mcweapons.tuner.field.breath_scale": "Breathing",
-  "gui.mcweapons.tuner.field.fire_modes.desc": "The trigger modes the gun has. Semi fires once per click, burst fires three rounds per click, auto keeps firing while the button is held. The fire mode key (B) steps through them and Safe.",
+  "gui.mcweapons.tuner.field.fire_modes.desc": "The trigger modes the gun has. Semi fires once per click, burst fires three rounds per click, auto keeps firing while the button is held. Tapping the fire mode key (B) steps through them; holding it puts the gun on Safe, and holding it again goes back to the mode it was on.",
   "gui.mcweapons.tuner.field.rpm.desc": "Rounds per minute: the fastest the gun can fire. Shots land on game ticks (20 a second), so in-between values work on average.",
   "gui.mcweapons.tuner.field.damage.desc": "Damage of a body hit. 2 is one heart; armor reduces it like any attack.",
   "gui.mcweapons.tuner.field.headshot_multiplier.desc": "Damage is multiplied by this when a shot lands in the head.",
